@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<panel id="root" class="root-panel">
+    <!-- Title -->
+    <text id="title" class="main-title">Extended UI Widgets Demo</text>
+    
+    <!-- Main Content Area -->
+    <panel id="main-area" class="main-area">
+        
+        <!-- Left Column -->
+        <panel id="left-col" class="column">
+            
+            <!-- Toggle Section -->
+            <panel id="toggle-section" class="section">
+                <text class="section-title">Toggle / Switch</text>
+                <toggle id="sound-toggle" label="Enable Sound"/>
+                <toggle id="music-toggle" label="Enable Music" checked="true"/>
+            </panel>
+            
+            <!-- Radio Button Section -->
+            <panel id="radio-section" class="section">
+                <text class="section-title">Radio Buttons</text>
+                <radiogroup id="difficulty-group">
+                    <radiobutton id="rb-easy" value="easy" label="Easy Mode"/>
+                    <radiobutton id="rb-normal" value="normal" label="Normal Mode" selected="true"/>
+                    <radiobutton id="rb-hard" value="hard" label="Hard Mode"/>
+                </radiogroup>
+            </panel>
+            
+            <!-- Dropdown Section -->
+            <panel id="dropdown-section" class="section">
+                <text class="section-title">Dropdown / Select</text>
+                <dropdown id="resolution" placeholder="Select Resolution...">
+                    <option value="800x600">800 x 600</option>
+                    <option value="1024x768">1024 x 768</option>
+                    <option value="1280x720">1280 x 720</option>
+                    <option value="1920x1080">1920 x 1080</option>
+                </dropdown>
+            </panel>
+            
+        </panel>
+        
+        <!-- Right Column -->
+        <panel id="right-col" class="column">
+            
+            <!-- Badge Section -->
+            <panel id="badge-section" class="section">
+                <text class="section-title">Badge</text>
+                <panel id="badge-row" class="badge-row">
+                    <badge id="badge-new" text="NEW"/>
+                    <badge id="badge-count" text="99+" class="badge-red"/>
+                    <badge id="badge-pro" text="PRO" class="badge-purple"/>
+                </panel>
+            </panel>
+            
+            <!-- Spinner Section -->
+            <panel id="spinner-section" class="section">
+                <text class="section-title">Loading Spinner</text>
+                <panel id="spinner-row" class="spinner-row">
+                    <spinner id="loading-spinner"/>
+                    <text class="loading-text">Loading...</text>
+                </panel>
+            </panel>
+            
+            <!-- Actions Section -->
+            <panel id="actions-section" class="section">
+                <text class="section-title">Actions</text>
+                <button id="open-modal-btn" class="btn-primary">Open Modal</button>
+                <panel id="toast-row" class="toast-row">
+                    <button id="toast-success" class="btn-success">Success</button>
+                    <button id="toast-warning" class="btn-warning">Warning</button>
+                    <button id="toast-error" class="btn-error">Error</button>
+                    <button id="toast-info" class="btn-info">Info</button>
+                </panel>
+            </panel>
+            
+        </panel>
+        
+    </panel>
+    
+    <!-- Modal (hidden by default) -->
+    <modal id="confirm-modal" title="Confirmation">
+        Are you sure you want to proceed?
+        This action cannot be undone.
+    </modal>
+    
+    <!-- Toast container -->
+    <toast id="notification" type="success" duration="3"/>
+    
+</panel>

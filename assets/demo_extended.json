@@ -1,0 +1,178 @@
+{
+    ":root": {
+        "--primary-color": "#4169E1",
+        "--secondary-color": "#FFD700",
+        "--success-color": "#28a745",
+        "--danger-color": "#dc3545",
+        "--bg-dark": "#1a1a2e",
+        "--bg-card": "rgba(26, 26, 46, 0.9)",
+        "--text-primary": "#ffffff",
+        "--text-secondary": "#aaaaaa",
+        "--border-radius": "12",
+        "--spacing": "16"
+    },
+    "ui": {
+        "direction": "column",
+        "width": 1280,
+        "height": 720,
+        "padding": 0,
+        "background": "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)"
+    },
+    ".header": {
+        "direction": "column",
+        "align": "center",
+        "justify": "center",
+        "padding": 20,
+        "height": 100,
+        "background": "rgba(0, 0, 0, 0.3)"
+    },
+    ".header-title": {
+        "fontSize": 32,
+        "color": "#ffffff",
+        "textAlign": "center"
+    },
+    ".header-subtitle": {
+        "fontSize": 16,
+        "color": "var(--text-secondary)",
+        "textAlign": "center"
+    },
+    ".content-area": {
+        "direction": "row",
+        "flexGrow": 1,
+        "padding": 24,
+        "gap": 24
+    },
+    ".panel-card": {
+        "direction": "column",
+        "flexGrow": 1,
+        "background": "var(--bg-card)",
+        "borderRadius": 16,
+        "padding": 24,
+        "gap": 16,
+        "backdropBlur": 10
+    },
+    ".section-title": {
+        "fontSize": 20,
+        "color": "var(--secondary-color)",
+        "marginBottom": 8
+    },
+    ".form-group": {
+        "direction": "column",
+        "gap": 8,
+        "marginBottom": 12
+    },
+    ".label": {
+        "fontSize": 14,
+        "color": "var(--text-secondary)"
+    },
+    "input": {
+        "height": 40,
+        "padding": 12,
+        "background": "rgba(255, 255, 255, 0.1)",
+        "borderRadius": 8,
+        "borderWidth": 1,
+        "borderColor": "rgba(255, 255, 255, 0.2)",
+        "color": "#ffffff",
+        "fontSize": 14
+    },
+    "input:focus": {
+        "borderColor": "var(--primary-color)",
+        "background": "rgba(255, 255, 255, 0.15)"
+    },
+    "slider": {
+        "height": 32,
+        "trackHeight": 6,
+        "thumbSize": 20,
+        "trackColor": "rgba(255, 255, 255, 0.2)",
+        "fillColor": "var(--primary-color)",
+        "thumbColor": "#ffffff"
+    },
+    "checkbox": {
+        "fontSize": 14,
+        "color": "#ffffff",
+        "gap": 10,
+        "marginTop": 8
+    },
+    ".primary-button": {
+        "height": 44,
+        "background": "var(--primary-color)",
+        "borderRadius": 8,
+        "color": "#ffffff",
+        "fontSize": 16,
+        "marginTop": 16
+    },
+    ".primary-button:hover": {
+        "background": "#5a7ce0"
+    },
+    ".stats-panel": {
+        "direction": "column",
+        "gap": 12,
+        "padding": 16,
+        "background": "rgba(0, 0, 0, 0.3)",
+        "borderRadius": 12
+    },
+    ".stat-value": {
+        "fontSize": 16,
+        "color": "#ffffff"
+    },
+    ".progress-container": {
+        "direction": "column",
+        "gap": 4
+    },
+    "progressbar": {
+        "height": 20,
+        "borderRadius": 10,
+        "trackColor": "rgba(255, 255, 255, 0.1)",
+        "fillColor": "var(--success-color)"
+    },
+    "#xp-bar": {
+        "fillColor": "var(--secondary-color)"
+    },
+    ".button-row": {
+        "direction": "row",
+        "gap": 12,
+        "marginTop": 12
+    },
+    ".action-button": {
+        "flexGrow": 1,
+        "height": 36,
+        "borderRadius": 8,
+        "fontSize": 14,
+        "color": "#ffffff"
+    },
+    ".action-button.green": {
+        "background": "var(--success-color)"
+    },
+    ".action-button.red": {
+        "background": "var(--danger-color)"
+    },
+    ".action-button.gold": {
+        "background": "var(--secondary-color)",
+        "color": "#000000"
+    },
+    "#log-scroll": {
+        "marginTop": 12,
+        "background": "rgba(0, 0, 0, 0.4)",
+        "borderRadius": 8
+    },
+    ".log-panel": {
+        "direction": "column",
+        "padding": 12,
+        "gap": 4
+    },
+    ".log-entry": {
+        "fontSize": 12,
+        "color": "var(--text-secondary)"
+    },
+    ".footer": {
+        "height": 40,
+        "background": "rgba(0, 0, 0, 0.5)",
+        "align": "center",
+        "justify": "center"
+    },
+    ".footer-text": {
+        "fontSize": 12,
+        "color": "var(--text-secondary)",
+        "textAlign": "center"
+    }
+}

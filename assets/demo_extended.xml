@@ -1,0 +1,78 @@
+<ui id="demo-root">
+    <!-- Header Section -->
+    <panel id="header" class="header">
+        <text id="title" class="header-title">Ebiten XML UI Framework Demo</text>
+        <text id="subtitle" class="header-subtitle">New Features: Input, Scrolling, Data Binding</text>
+    </panel>
+
+    <!-- Main Content Area -->
+    <panel id="main-content" class="content-area">
+        
+        <!-- Left Panel: Input Widgets -->
+        <panel id="left-panel" class="panel-card">
+            <text class="section-title">Input Widgets</text>
+            
+            <panel class="form-group">
+                <text class="label">Username</text>
+                <input id="username" placeholder="Enter your name..." maxlength="20" />
+            </panel>
+            
+            <panel class="form-group">
+                <text class="label">Password</text>
+                <input id="password" placeholder="Enter password" password="true" />
+            </panel>
+            
+            <panel class="form-group">
+                <text class="label">Volume</text>
+                <slider id="volume-slider" value="0.7" min="0" max="1" />
+            </panel>
+            
+            <panel class="form-group">
+                <checkbox id="music-enabled" checked="true">Enable Music</checkbox>
+                <checkbox id="sfx-enabled" checked="true">Enable Sound Effects</checkbox>
+            </panel>
+            
+            <button id="submit-btn" class="primary-button">Submit</button>
+        </panel>
+
+        <!-- Right Panel: Scrollable & Binding Demo -->
+        <panel id="right-panel" class="panel-card">
+            <text class="section-title">Data Binding Demo</text>
+            
+            <panel class="stats-panel">
+                <text id="player-name" class="stat-value">Player: Hero</text>
+                <text id="level-display" class="stat-value">Level: 1</text>
+                
+                <panel class="progress-container">
+                    <text class="label">Health</text>
+                    <progressbar id="health-bar" value="0.8" />
+                </panel>
+                
+                <panel class="progress-container">
+                    <text class="label">Experience</text>
+                    <progressbar id="xp-bar" value="0.45" />
+                </panel>
+            </panel>
+            
+            <panel class="button-row">
+                <button id="heal-btn" class="action-button green">Heal</button>
+                <button id="damage-btn" class="action-button red">Take Damage</button>
+                <button id="levelup-btn" class="action-button gold">Level Up</button>
+            </panel>
+            
+            <!-- Scrollable Log Area -->
+            <scrollable id="log-scroll" height="150" vertical="true">
+                <panel id="log-content" class="log-panel">
+                    <text class="log-entry">[System] Welcome to the demo!</text>
+                    <text class="log-entry">[System] Try the input widgets</text>
+                    <text class="log-entry">[System] Click buttons to see binding</text>
+                </panel>
+            </scrollable>
+        </panel>
+    </panel>
+
+    <!-- Footer -->
+    <panel id="footer" class="footer">
+        <text class="footer-text">© 2026 Ebiten XML UI Framework - v2.0 with CSS Variables, Data Binding, and Advanced Selectors</text>
+    </panel>
+</ui>
