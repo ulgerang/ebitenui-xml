@@ -198,23 +198,96 @@ type ColorStop struct {
 	Position float64 // 0-1
 }
 
-// DrawGradient draws a gradient in the given rectangle
+// DrawGradient draws a linear gradient in the given rectangle with angle support.
+// CSS angles: 0deg=bottom-to-top, 90deg=left-to-right, 180deg=top-to-bottom, 270deg=right-to-left.
 func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 	if g == nil || len(g.ColorStops) < 2 {
 		return
 	}
 
-	// Simple linear gradient implementation (horizontal)
-	for x := 0.0; x < r.W; x++ {
-		t := x / r.W
+	// CSS angle to math direction vector.
+	// CSS: 0deg points upward (bottom-to-top), 90deg points right.
+	// Math: we need the gradient-line direction in screen coords (Y-down).
+	// angleRad = (cssAngle - 90) * pi/180 gives us: cos=dx, sin=dy of gradient direction.
+	angleRad := (g.Angle - 90) * math.Pi / 180
+	cosA := math.Cos(angleRad)
+	sinA := math.Sin(angleRad)
 
-		// Find color at position t
-		clr := interpolateGradient(g.ColorStops, t)
+	// Half-dimensions for center-relative coordinates
+	hw, hh := r.W/2, r.H/2
 
-		vector.DrawFilledRect(screen,
-			float32(r.X+x), float32(r.Y),
-			1, float32(r.H),
-			clr, false)
+	// Project all four corners onto the gradient direction to find the
+	// full extent of the gradient line across the rectangle.
+	corners := [4][2]float64{{-hw, -hh}, {hw, -hh}, {-hw, hh}, {hw, hh}}
+	minDot, maxDot := math.Inf(1), math.Inf(-1)
+	for _, c := range corners {
+		dot := c[0]*cosA + c[1]*sinA
+		if dot < minDot {
+			minDot = dot
+		}
+		if dot > maxDot {
+			maxDot = dot
+		}
+	}
+	dotRange := maxDot - minDot
+	if dotRange == 0 {
+		dotRange = 1
+	}
+
+	// Normalize angle to [0, 360) for fast-path checks
+	normAngle := math.Mod(g.Angle, 360)
+	if normAngle < 0 {
+		normAngle += 360
+	}
+
+	if normAngle == 90 || normAngle == 270 {
+		// Horizontal gradient — draw vertical strips (1px wide, full height)
+		for px := 0.0; px < r.W; px++ {
+			rx := px - hw
+			dot := rx * cosA
+			t := (dot - minDot) / dotRange
+			if t < 0 {
+				t = 0
+			}
+			if t > 1 {
+				t = 1
+			}
+			clr := interpolateGradient(g.ColorStops, t)
+			vector.DrawFilledRect(screen, float32(r.X+px), float32(r.Y), 1, float32(r.H), clr, false)
+		}
+	} else if normAngle == 0 || normAngle == 180 {
+		// Vertical gradient — draw horizontal strips (full width, 1px tall)
+		for py := 0.0; py < r.H; py++ {
+			ry := py - hh
+			dot := ry * sinA
+			t := (dot - minDot) / dotRange
+			if t < 0 {
+				t = 0
+			}
+			if t > 1 {
+				t = 1
+			}
+			clr := interpolateGradient(g.ColorStops, t)
+			vector.DrawFilledRect(screen, float32(r.X), float32(r.Y+py), float32(r.W), 1, clr, false)
+		}
+	} else {
+		// Arbitrary angle — pixel-by-pixel rendering
+		for py := 0.0; py < r.H; py++ {
+			for px := 0.0; px < r.W; px++ {
+				rx := px - hw
+				ry := py - hh
+				dot := rx*cosA + ry*sinA
+				t := (dot - minDot) / dotRange
+				if t < 0 {
+					t = 0
+				}
+				if t > 1 {
+					t = 1
+				}
+				clr := interpolateGradient(g.ColorStops, t)
+				vector.DrawFilledRect(screen, float32(r.X+px), float32(r.Y+py), 1, 1, clr, false)
+			}
+		}
 	}
 }
 
@@ -317,9 +390,16 @@ func parseFloatValue(s string) float64 {
 	return f
 }
 
-// DrawRoundedRectPath draws a rounded rectangle with proper corners
+// DrawRoundedRectPath draws a rounded rectangle with the same radius on all corners.
 func DrawRoundedRectPath(screen *ebiten.Image, r Rect, radius float64, clr color.Color) {
-	if radius <= 0 {
+	DrawRoundedRectPathEx(screen, r, radius, radius, radius, radius, clr)
+}
+
+// DrawRoundedRectPathEx draws a filled rounded rectangle with independent per-corner radii.
+// radTL = top-left, radTR = top-right, radBR = bottom-right, radBL = bottom-left.
+func DrawRoundedRectPathEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, radBL float64, clr color.Color) {
+	// Fast path: no rounding at all
+	if radTL <= 0 && radTR <= 0 && radBR <= 0 && radBL <= 0 {
 		vector.DrawFilledRect(screen,
 			float32(r.X), float32(r.Y),
 			float32(r.W), float32(r.H),
@@ -327,48 +407,53 @@ func DrawRoundedRectPath(screen *ebiten.Image, r Rect, radius float64, clr color
 		return
 	}
 
-	// Clamp radius to half of smallest dimension
+	// Clamp each radius to half the smallest dimension
 	maxRadius := min(r.W, r.H) / 2
-	if radius > maxRadius {
-		radius = maxRadius
+	if radTL > maxRadius {
+		radTL = maxRadius
+	}
+	if radTR > maxRadius {
+		radTR = maxRadius
+	}
+	if radBR > maxRadius {
+		radBR = maxRadius
+	}
+	if radBL > maxRadius {
+		radBL = maxRadius
 	}
 
-	// Draw using path for proper rounded corners
 	path := &vector.Path{}
-
-	rad := float32(radius)
 	x, y := float32(r.X), float32(r.Y)
 	w, h := float32(r.W), float32(r.H)
+	rTL := float32(radTL)
+	rTR := float32(radTR)
+	rBR := float32(radBR)
+	rBL := float32(radBL)
 
-	// Start from top-left corner (after the curve)
-	path.MoveTo(x+rad, y)
+	// Start after top-left curve
+	path.MoveTo(x+rTL, y)
 
-	// Top edge
-	path.LineTo(x+w-rad, y)
-	// Top-right corner
-	path.QuadTo(x+w, y, x+w, y+rad)
+	// Top edge → top-right corner
+	path.LineTo(x+w-rTR, y)
+	path.QuadTo(x+w, y, x+w, y+rTR)
 
-	// Right edge
-	path.LineTo(x+w, y+h-rad)
-	// Bottom-right corner
-	path.QuadTo(x+w, y+h, x+w-rad, y+h)
+	// Right edge → bottom-right corner
+	path.LineTo(x+w, y+h-rBR)
+	path.QuadTo(x+w, y+h, x+w-rBR, y+h)
 
-	// Bottom edge
-	path.LineTo(x+rad, y+h)
-	// Bottom-left corner
-	path.QuadTo(x, y+h, x, y+h-rad)
+	// Bottom edge → bottom-left corner
+	path.LineTo(x+rBL, y+h)
+	path.QuadTo(x, y+h, x, y+h-rBL)
 
-	// Left edge
-	path.LineTo(x, y+rad)
-	// Top-left corner
-	path.QuadTo(x, y, x+rad, y)
+	// Left edge → top-left corner
+	path.LineTo(x, y+rTL)
+	path.QuadTo(x, y, x+rTL, y)
 
 	path.Close()
 
 	// Fill the path
 	vs, is := path.AppendVerticesAndIndicesForFilling(nil, nil)
 
-	// Set color for all vertices
 	cr, cg, cb, ca := clr.RGBA()
 	for i := range vs {
 		vs[i].ColorR = float32(cr) / 0xffff
@@ -478,32 +563,55 @@ func DrawOutline(screen *ebiten.Image, r Rect, outline *Outline, borderRadius fl
 	drawRoundedRectStroke(screen, outlineRect, borderRadius+outline.Offset, outline.Width, outline.Color)
 }
 
-// drawRoundedRectStroke draws a stroked rounded rectangle
+// drawRoundedRectStroke draws a stroked rounded rectangle with uniform radius.
 func drawRoundedRectStroke(screen *ebiten.Image, r Rect, radius float64, strokeWidth float64, clr color.Color) {
+	drawRoundedRectStrokeEx(screen, r, radius, radius, radius, radius, strokeWidth, clr)
+}
+
+// DrawRoundedRectStrokeEx draws a stroked rounded rectangle with per-corner radii (exported).
+func DrawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, radBL float64, strokeWidth float64, clr color.Color) {
+	drawRoundedRectStrokeEx(screen, r, radTL, radTR, radBR, radBL, strokeWidth, clr)
+}
+
+// drawRoundedRectStrokeEx is the internal implementation for stroked rounded rects
+// with independent per-corner radii.
+func drawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, radBL float64, strokeWidth float64, clr color.Color) {
 	if strokeWidth <= 0 {
 		return
 	}
 
-	// Clamp radius
+	// Clamp each radius
 	maxRadius := min(r.W, r.H) / 2
-	if radius > maxRadius {
-		radius = maxRadius
+	if radTL > maxRadius {
+		radTL = maxRadius
+	}
+	if radTR > maxRadius {
+		radTR = maxRadius
+	}
+	if radBR > maxRadius {
+		radBR = maxRadius
+	}
+	if radBL > maxRadius {
+		radBL = maxRadius
 	}
 
 	path := &vector.Path{}
-	rad := float32(radius)
 	x, y := float32(r.X), float32(r.Y)
 	w, h := float32(r.W), float32(r.H)
+	rTL := float32(radTL)
+	rTR := float32(radTR)
+	rBR := float32(radBR)
+	rBL := float32(radBL)
 
-	path.MoveTo(x+rad, y)
-	path.LineTo(x+w-rad, y)
-	path.QuadTo(x+w, y, x+w, y+rad)
-	path.LineTo(x+w, y+h-rad)
-	path.QuadTo(x+w, y+h, x+w-rad, y+h)
-	path.LineTo(x+rad, y+h)
-	path.QuadTo(x, y+h, x, y+h-rad)
-	path.LineTo(x, y+rad)
-	path.QuadTo(x, y, x+rad, y)
+	path.MoveTo(x+rTL, y)
+	path.LineTo(x+w-rTR, y)
+	path.QuadTo(x+w, y, x+w, y+rTR)
+	path.LineTo(x+w, y+h-rBR)
+	path.QuadTo(x+w, y+h, x+w-rBR, y+h)
+	path.LineTo(x+rBL, y+h)
+	path.QuadTo(x, y+h, x, y+h-rBL)
+	path.LineTo(x, y+rTL)
+	path.QuadTo(x, y, x+rTL, y)
 	path.Close()
 
 	// Stroke the path
@@ -745,4 +853,22 @@ func ParseOutline(s string) *Outline {
 	}
 
 	return outline
+}
+
+// DrawPerSideBorder draws borders with independent widths per side.
+// Each side (top, right, bottom, left) is rendered as a filled rectangle.
+// borderRadius is reserved for future rounded-corner clipping; currently unused.
+func DrawPerSideBorder(screen *ebiten.Image, r Rect, top, right, bottom, left float64, clr color.Color, borderRadius float64) {
+	if top > 0 {
+		vector.DrawFilledRect(screen, float32(r.X), float32(r.Y), float32(r.W), float32(top), clr, false)
+	}
+	if bottom > 0 {
+		vector.DrawFilledRect(screen, float32(r.X), float32(r.Y+r.H-bottom), float32(r.W), float32(bottom), clr, false)
+	}
+	if left > 0 {
+		vector.DrawFilledRect(screen, float32(r.X), float32(r.Y), float32(left), float32(r.H), clr, false)
+	}
+	if right > 0 {
+		vector.DrawFilledRect(screen, float32(r.X+r.W-right), float32(r.Y), float32(right), float32(r.H), clr, false)
+	}
 }
