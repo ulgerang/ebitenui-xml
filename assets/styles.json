@@ -1,0 +1,227 @@
+{
+    "styles": {
+        "#root": {
+            "direction": "column",
+            "gap": 0,
+            "background": "#0a0a18",
+            "padding": {
+                "top": 15,
+                "right": 15,
+                "bottom": 15,
+                "left": 15
+            }
+        },
+        "panel": {
+            "direction": "column",
+            "background": "#1a1a2e",
+            "borderRadius": 8,
+            "padding": {
+                "top": 15,
+                "right": 15,
+                "bottom": 15,
+                "left": 15
+            }
+        },
+        "#main-container": {
+            "direction": "row",
+            "gap": 20,
+            "padding": {
+                "top": 20,
+                "right": 20,
+                "bottom": 20,
+                "left": 20
+            }
+        },
+        "#main": {
+            "direction": "row",
+            "gap": 20,
+            "flexGrow": 1,
+            "padding": {
+                "top": 15,
+                "right": 15,
+                "bottom": 15,
+                "left": 15
+            }
+        },
+        "#header": {
+            "height": 50,
+            "background": "linear-gradient(90deg, #16213e, #1a1a2e, #0f3460)",
+            "padding": {
+                "top": 10,
+                "right": 20,
+                "bottom": 10,
+                "left": 20
+            },
+            "margin": {
+                "bottom": 10
+            },
+            "borderRadius": 8,
+            "boxShadow": "0 4 12 2 rgba(0,0,0,0.4)"
+        },
+        "#title": {
+            "color": "cornflowerblue",
+            "fontSize": 18,
+            "textAlign": "left",
+            "textShadow": "2 2 4 rgba(0,0,0,0.5)"
+        },
+        "#sidebar": {
+            "width": 150,
+            "direction": "column",
+            "gap": 12,
+            "background": "transparent",
+            "padding": {
+                "top": 0,
+                "right": 0,
+                "bottom": 0,
+                "left": 0
+            }
+        },
+        "#content": {
+            "flexGrow": 1,
+            "direction": "column",
+            "gap": 15,
+            "background": "#16213e",
+            "borderRadius": 12,
+            "borderWidth": 2,
+            "border": "cornflowerblue",
+            "boxShadow": "0 8 16 4 rgba(100,149,237,0.3)",
+            "padding": {
+                "top": 20,
+                "right": 25,
+                "bottom": 20,
+                "left": 25
+            }
+        },
+        "#footer": {
+            "height": 30,
+            "background": "#16213e",
+            "padding": {
+                "top": 5,
+                "right": 20,
+                "bottom": 5,
+                "left": 20
+            },
+            "borderRadius": 0
+        },
+        "#footer": {
+            "height": 30,
+            "background": "linear-gradient(90deg, #16213e, #1a1a2e)",
+            "padding": {
+                "top": 5,
+                "right": 20,
+                "bottom": 5,
+                "left": 20
+            },
+            "margin": {
+                "top": 10
+            },
+            "borderRadius": 8,
+            "outline": "1px solid rgba(100,149,237,0.3)",
+            "outlineOffset": 2
+        },
+        "button": {
+            "height": 40,
+            "background": "royalblue",
+            "borderRadius": 8,
+            "borderWidth": 2,
+            "border": "dodgerblue",
+            "color": "white",
+            "fontSize": 14,
+            "textAlign": "center",
+            "opacity": 1,
+            "boxShadow": "0 4 8 0 rgba(0,0,0,0.3)",
+            "hover": {
+                "background": "dodgerblue",
+                "color": "white",
+                "boxShadow": "0 6 12 0 rgba(0,0,0,0.4)"
+            },
+            "active": {
+                "background": "#1e3a5f",
+                "boxShadow": "0 2 4 0 rgba(0,0,0,0.2)"
+            }
+        },
+        ".danger": {
+            "background": "crimson",
+            "hover": {
+                "background": "tomato"
+            },
+            "active": {
+                "background": "darkred"
+            }
+        },
+        ".primary": {
+            "background": "linear-gradient(90deg, royalblue, dodgerblue)",
+            "hover": {
+                "background": "linear-gradient(90deg, dodgerblue, deepskyblue)"
+            }
+        },
+        ".success": {
+            "background": "forestgreen",
+            "hover": {
+                "background": "limegreen"
+            }
+        },
+        "text": {
+            "color": "lightgray",
+            "fontSize": 12,
+            "lineHeight": 18,
+            "textWrap": "normal"
+        },
+        "#welcome": {
+            "color": "white",
+            "fontSize": 16
+        },
+        "#description": {
+            "color": "slategray",
+            "fontSize": 12,
+            "textWrap": "normal"
+        },
+        "#stats": {
+            "direction": "column",
+            "gap": 12,
+            "background": "transparent",
+            "padding": {
+                "top": 10,
+                "right": 0,
+                "bottom": 10,
+                "left": 0
+            }
+        },
+        "progressbar": {
+            "height": 20,
+            "background": "#0f0f1a",
+            "borderRadius": 10,
+            "borderWidth": 0,
+            "padding": {
+                "top": 3,
+                "right": 3,
+                "bottom": 3,
+                "left": 3
+            }
+        },
+        "#hp-bar": {
+            "background": "rgba(76, 175, 80, 0.2)",
+            "borderWidth": 1,
+            "border": "forestgreen"
+        },
+        "#mp-bar": {
+            "background": "rgba(33, 150, 243, 0.2)",
+            "borderWidth": 1,
+            "border": "dodgerblue"
+        },
+        "#exp-bar": {
+            "background": "rgba(255, 193, 7, 0.2)",
+            "borderWidth": 1,
+            "border": "gold"
+        },
+        ".stat-label": {
+            "color": "white",
+            "fontSize": 12,
+            "textAlign": "left"
+        },
+        "#status": {
+            "color": "gray",
+            "fontSize": 12
+        }
+    }
+}

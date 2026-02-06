@@ -1,0 +1,43 @@
+<ui id="root" width="640" height="480">
+    <!-- Header -->
+    <panel id="header" class="header">
+        <text id="title">Ebiten XML UI Demo</text>
+    </panel>
+
+    <!-- Main Content Area -->
+    <panel id="main" class="main-content" direction="row">
+        <!-- Sidebar -->
+        <panel id="sidebar" class="sidebar" direction="column">
+            <button id="btn-new" class="menu-btn">New Game</button>
+            <button id="btn-load" class="menu-btn">Load Game</button>
+            <button id="btn-settings" class="menu-btn">Settings</button>
+            <button id="btn-quit" class="menu-btn danger">Quit</button>
+        </panel>
+
+        <!-- Content Panel -->
+        <panel id="content" class="content" direction="column">
+            <text id="welcome">Welcome to the Game!</text>
+            <text id="description">
+                This UI is defined in XML with CSS-like styling.
+                The layout engine handles positioning automatically.
+            </text>
+            
+            <!-- Stats Panel -->
+            <panel id="stats" class="stats-panel" direction="column">
+                <text id="hp-label">Health:</text>
+                <progressbar id="hp-bar" value="0.75" class="health-bar"/>
+                
+                <text id="mp-label">Mana:</text>
+                <progressbar id="mp-bar" value="0.5" class="mana-bar"/>
+                
+                <text id="exp-label">Experience:</text>
+                <progressbar id="exp-bar" value="0.3" class="exp-bar"/>
+            </panel>
+        </panel>
+    </panel>
+
+    <!-- Footer -->
+    <panel id="footer" class="footer">
+        <text id="status">Ready</text>
+    </panel>
+</ui>

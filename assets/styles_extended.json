@@ -1,0 +1,135 @@
+{
+    "variables": {
+        "--primary-color": "#6c5ce7",
+        "--primary-dark": "#5b4bc4",
+        "--success-color": "#27ae60",
+        "--warning-color": "#f39c12",
+        "--error-color": "#e74c3c",
+        "--info-color": "#3498db",
+        "--bg-dark": "#1a1a2e",
+        "--bg-card": "#16213e",
+        "--text-light": "#ffffff",
+        "--text-muted": "#aaaaaa",
+        "--border-color": "#636e72"
+    },
+    "styles": {
+        ".root-panel": {
+            "width": 800,
+            "height": 600,
+            "direction": "column",
+            "padding": "20px",
+            "gap": 20,
+            "background-color": "var(--bg-dark)"
+        },
+        ".main-title": {
+            "font-size": 28,
+            "color": "var(--text-light)",
+            "text-align": "center",
+            "margin-bottom": 10
+        },
+        ".main-area": {
+            "direction": "row",
+            "gap": 40,
+            "flex-grow": 1
+        },
+        ".column": {
+            "direction": "column",
+            "gap": 20,
+            "flex-grow": 1
+        },
+        ".section": {
+            "direction": "column",
+            "gap": 12,
+            "padding": "15px",
+            "background-color": "var(--bg-card)",
+            "border-radius": 8
+        },
+        ".section-title": {
+            "color": "var(--primary-color)",
+            "font-size": 18,
+            "font-weight": "bold",
+            "margin-bottom": 8
+        },
+        ".badge-row": {
+            "direction": "row",
+            "gap": 15,
+            "align": "center"
+        },
+        ".spinner-row": {
+            "direction": "row",
+            "gap": 20,
+            "align": "center"
+        },
+        ".toast-row": {
+            "direction": "row",
+            "gap": 10,
+            "margin-top": 10
+        },
+        ".loading-text": {
+            "color": "var(--text-muted)"
+        },
+        "toggle": {
+            "margin": "8px 0"
+        },
+        "radiobutton": {
+            "margin": "6px 0"
+        },
+        "dropdown": {
+            "width": 200,
+            "height": 40,
+            "background-color": "#2d3436",
+            "border-color": "var(--border-color)",
+            "border-width": 1,
+            "border-radius": 6,
+            "color": "var(--text-light)"
+        },
+        "badge": {
+            "width": 50,
+            "height": 24,
+            "border-radius": 12
+        },
+        ".badge-red": {
+            "background-color": "var(--error-color)"
+        },
+        ".badge-purple": {
+            "background-color": "#9b59b6"
+        },
+        "spinner": {
+            "width": 40,
+            "height": 40
+        },
+        "button": {
+            "height": 36,
+            "padding": "8px 16px",
+            "border-radius": 4,
+            "color": "var(--text-light)"
+        },
+        ".btn-primary": {
+            "width": 150,
+            "height": 40,
+            "background-color": "var(--info-color)",
+            "border-radius": 6
+        },
+        ".btn-success": {
+            "background-color": "var(--success-color)"
+        },
+        ".btn-warning": {
+            "background-color": "var(--warning-color)"
+        },
+        ".btn-error": {
+            "background-color": "var(--error-color)"
+        },
+        ".btn-info": {
+            "background-color": "var(--info-color)"
+        },
+        "modal": {
+            "background-color": "var(--bg-card)",
+            "border-radius": 12,
+            "padding": "20px"
+        },
+        "toast": {
+            "border-radius": 8,
+            "padding": "12px 20px"
+        }
+    }
+}
