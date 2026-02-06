@@ -354,10 +354,38 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	// 5. Draw children
-	for _, child := range w.children {
-		child.Draw(screen)
-
+	// 5. Draw children - with overflow clipping
+	if style.Overflow == "hidden" || style.Overflow == "scroll" || style.Overflow == "auto" {
+		clipW := int(r.W)
+		clipH := int(r.H)
+		if clipW > 0 && clipH > 0 {
+			tmpImg := ebiten.NewImage(clipW, clipH)
+			// Translate so parent's origin is at (0,0) in temp image
+			for _, child := range w.children {
+				// Save and adjust position
+				origRect := child.ComputedRect()
+				shifted := Rect{
+					X: origRect.X - r.X,
+					Y: origRect.Y - r.Y,
+					W: origRect.W,
+					H: origRect.H,
+				}
+				child.SetComputedRect(shifted)
+				DrawWidget(tmpImg, child)
+				child.SetComputedRect(origRect)
+			}
+			drawOp := &ebiten.DrawImageOptions{}
+			drawOp.GeoM.Translate(r.X, r.Y)
+			if opacity < 1 {
+				drawOp.ColorScale.SetA(float32(opacity))
+			}
+			screen.DrawImage(tmpImg, drawOp)
+			tmpImg.Deallocate()
+		}
+	} else {
+		for _, child := range w.children {
+			child.Draw(screen)
+		}
 	}
 }
 
@@ -409,12 +437,13 @@ func drawRoundedRect(screen *ebiten.Image, r Rect, radius float64, clr color.Col
 
 // Note: drawRoundedRectStroke is defined in effects.go
 
-// ContentRect returns the content area (rect minus padding)
+// ContentRect returns the content area (rect minus padding and border)
 func (w *BaseWidget) ContentRect() Rect {
+	bw := w.style.BorderWidth
 	return w.computedRect.Inset(
-		w.style.Padding.Top,
-		w.style.Padding.Right,
-		w.style.Padding.Bottom,
-		w.style.Padding.Left,
+		w.style.Padding.Top+bw,
+		w.style.Padding.Right+bw,
+		w.style.Padding.Bottom+bw,
+		w.style.Padding.Left+bw,
 	)
 }

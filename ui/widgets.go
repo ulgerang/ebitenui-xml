@@ -63,6 +63,24 @@ func (b *Button) Draw(screen *ebiten.Image) {
 		x := r.X + (r.W-textW)/2
 		y := r.Y + (r.H-textH)/2 + textH*0.7
 
+		// Draw text shadow for button label
+		shadow := style.parsedTextShadow
+		if shadow == nil && style.TextShadow != "" {
+			shadow = ParseTextShadow(style.TextShadow)
+			style.parsedTextShadow = shadow
+		}
+		if shadow != nil {
+			shadowOp := &text.DrawOptions{}
+			shadowOp.GeoM.Translate(x+shadow.OffsetX, y+shadow.OffsetY)
+			shadowColor := shadow.Color
+			if shadowColor == nil {
+				shadowColor = color.RGBA{0, 0, 0, 128}
+			}
+			shadowOp.ColorScale.ScaleWithColor(shadowColor)
+			text.Draw(screen, b.Label, b.FontFace, shadowOp)
+		}
+
+		// Original label drawing
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(x, y)
 		op.ColorScale.ScaleWithColor(textColor)
@@ -165,6 +183,24 @@ func (t *Text) Draw(screen *ebiten.Image) {
 			x = r.X + r.W - lineW
 		}
 
+		// Draw text shadow first (behind the text)
+		shadow := style.parsedTextShadow
+		if shadow == nil && style.TextShadow != "" {
+			shadow = ParseTextShadow(style.TextShadow)
+			style.parsedTextShadow = shadow
+		}
+		if shadow != nil {
+			shadowOp := &text.DrawOptions{}
+			shadowOp.GeoM.Translate(x+shadow.OffsetX, y+shadow.OffsetY)
+			shadowColor := shadow.Color
+			if shadowColor == nil {
+				shadowColor = color.RGBA{0, 0, 0, 128}
+			}
+			shadowOp.ColorScale.ScaleWithColor(shadowColor)
+			text.Draw(screen, line, t.FontFace, shadowOp)
+		}
+
+		// Original text drawing
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(x, y)
 		op.ColorScale.ScaleWithColor(textColor)
