@@ -29,19 +29,23 @@ type BaseWidget struct {
 	// Animation state
 	animating bool
 	animState *AnimationState
+
+	// CSS transition engine
+	transitionEngine *TransitionEngine
 }
 
 // NewBaseWidget creates a new base widget
 func NewBaseWidget(id, widgetType string) *BaseWidget {
 	return &BaseWidget{
-		id:         id,
-		widgetType: widgetType,
-		classes:    make([]string, 0),
-		children:   make([]Widget, 0),
-		style:      &Style{Opacity: 1},
-		visible:    true,
-		enabled:    true,
-		state:      StateNormal,
+		id:               id,
+		widgetType:       widgetType,
+		classes:          make([]string, 0),
+		children:         make([]Widget, 0),
+		style:            &Style{Opacity: 1},
+		visible:          true,
+		enabled:          true,
+		state:            StateNormal,
+		transitionEngine: NewTransitionEngine(),
 	}
 }
 
@@ -122,8 +126,27 @@ func (w *BaseWidget) SetStyle(s *Style) { w.style = s }
 // State returns the widget's state
 func (w *BaseWidget) State() WidgetState { return w.state }
 
-// SetState sets the widget's state
-func (w *BaseWidget) SetState(s WidgetState) { w.state = s }
+// SetState sets the widget's state and starts CSS transitions for changed properties.
+func (w *BaseWidget) SetState(s WidgetState) {
+	if w.state == s {
+		return // no change
+	}
+
+	// Snapshot the current active style BEFORE state change
+	oldActive := w.getActiveStyle()
+
+	// Change state
+	w.state = s
+
+	// Compute new active style AFTER state change
+	newActive := w.getActiveStyle()
+
+	// Start transitions using the BASE style's transition declarations
+	// (CSS spec: transitions are declared on the base style, not the state style)
+	if w.style != nil && len(w.style.parsedTransitions) > 0 {
+		w.transitionEngine.StartTransitions(oldActive, newActive, w.style.parsedTransitions)
+	}
+}
 
 // Visible returns whether the widget is visible
 func (w *BaseWidget) Visible() bool { return w.visible }
@@ -404,27 +427,37 @@ func applyOpacity(c color.Color, opacity float64) color.Color {
 	}
 }
 
-// getActiveStyle returns the style based on current state
+// getActiveStyle returns the style based on current state, with CSS transitions applied.
 func (w *BaseWidget) getActiveStyle() *Style {
+	var active *Style
 	switch w.state {
 	case StateHover:
 		if w.style.HoverStyle != nil {
-			return mergeStyles(w.style, w.style.HoverStyle)
+			active = mergeStyles(w.style, w.style.HoverStyle)
 		}
 	case StateActive:
 		if w.style.ActiveStyle != nil {
-			return mergeStyles(w.style, w.style.ActiveStyle)
+			active = mergeStyles(w.style, w.style.ActiveStyle)
 		}
 	case StateDisabled:
 		if w.style.DisabledStyle != nil {
-			return mergeStyles(w.style, w.style.DisabledStyle)
+			active = mergeStyles(w.style, w.style.DisabledStyle)
 		}
 	case StateFocused:
 		if w.style.FocusStyle != nil {
-			return mergeStyles(w.style, w.style.FocusStyle)
+			active = mergeStyles(w.style, w.style.FocusStyle)
 		}
 	}
-	return w.style
+	if active == nil {
+		active = w.style
+	}
+
+	// Apply CSS transitions (interpolate values for in-progress transitions)
+	if w.transitionEngine != nil {
+		active = w.transitionEngine.Apply(active)
+	}
+
+	return active
 }
 
 // mergeStyles merges base style with override style

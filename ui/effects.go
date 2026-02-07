@@ -110,12 +110,14 @@ func ParseEasing(name string) EasingFunc {
 	switch strings.ToLower(name) {
 	case "linear":
 		return EaseLinear
+	case "ease":
+		return EaseCSSEase
 	case "ease-in", "easein":
-		return EaseInQuad
+		return EaseCSSEaseIn
 	case "ease-out", "easeout":
-		return EaseOutQuad
+		return EaseCSSEaseOut
 	case "ease-in-out", "easeinout":
-		return EaseInOutQuad
+		return EaseCSSEaseInOut
 	case "ease-in-cubic":
 		return EaseInCubic
 	case "ease-out-cubic":
