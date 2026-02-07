@@ -16,6 +16,9 @@ import (
 //go:embed shaders/gradient_linear.kage
 var linearGradientShaderSrc []byte
 
+//go:embed shaders/box_shadow.kage
+var boxShadowShaderSrc []byte
+
 // gradientStripWidth is the resolution of the 1D gradient lookup texture.
 // 256 texels provide 8-bit colour precision, matching CSS rendering quality.
 const gradientStripWidth = 256
@@ -83,6 +86,26 @@ func (g *Gradient) clearGradientStrip() {
 		g.strip.Deallocate()
 		g.strip = nil
 	}
+}
+
+// --- Box shadow shader (singleton, lazy-compiled) ---------------------------
+
+var (
+	boxShadowShader     *ebiten.Shader
+	boxShadowShaderOnce sync.Once
+)
+
+// getBoxShadowShader returns the compiled Kage shader for SDF box shadows.
+// The shader is compiled once on first use and cached for the process lifetime.
+func getBoxShadowShader() *ebiten.Shader {
+	boxShadowShaderOnce.Do(func() {
+		s, err := ebiten.NewShader(boxShadowShaderSrc)
+		if err != nil {
+			panic(fmt.Sprintf("ui: failed to compile box shadow shader: %v", err))
+		}
+		boxShadowShader = s
+	})
+	return boxShadowShader
 }
 
 // --- Premultiplied alpha colour helper --------------------------------------

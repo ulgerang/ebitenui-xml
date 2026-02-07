@@ -475,10 +475,10 @@ func min(a, b float64) float64 {
 // Modern CSS Effects - Box Shadow, Text Shadow, Outline, Radial Gradient, etc.
 // ============================================================================
 
-// DrawBoxShadow draws a CSS-compliant box shadow using Gaussian blur via
-// three-pass box blur approximation.  It rasterizes a rounded-rect alpha mask
-// into an offscreen buffer, blurs it, multiplies by the shadow colour, and
-// composites the result onto screen with premultiplied-alpha source-over.
+// DrawBoxShadow draws a CSS-compliant box shadow using an SDF-based GPU shader.
+// The shader analytically computes the Gaussian-blurred alpha of a rounded
+// rectangle via erfc(d / (σ√2)), requiring only a single draw call and zero
+// offscreen buffers.
 func DrawBoxShadow(screen *ebiten.Image, r Rect, shadow *BoxShadow, borderRadius float64) {
 	if shadow == nil {
 		return
@@ -509,211 +509,48 @@ func DrawBoxShadow(screen *ebiten.Image, r Rect, shadow *BoxShadow, borderRadius
 		sigma = 0
 	}
 
-	// 3·sigma covers 99.7% of Gaussian energy.
-	padding := int(math.Ceil(3 * sigma))
-	if padding < 0 {
-		padding = 0
-	}
+	// 3·sigma covers 99.7% of Gaussian energy — extend draw rect by this amount.
+	padding := math.Ceil(3 * sigma)
 
-	bufW := int(math.Ceil(shapeW)) + 2*padding
-	bufH := int(math.Ceil(shapeH)) + 2*padding
-	if bufW <= 0 || bufH <= 0 {
+	// The shader rectangle covers the shadow shape plus blur padding.
+	drawW := int(math.Ceil(shapeW + 2*padding))
+	drawH := int(math.Ceil(shapeH + 2*padding))
+	if drawW <= 0 || drawH <= 0 {
 		return
 	}
 
-	// Where the buffer's (0,0) falls on screen.
-	screenX := r.X + offsetX - spread - float64(padding)
-	screenY := r.Y + offsetY - spread - float64(padding)
+	// Where the draw rectangle starts on screen.
+	drawX := r.X + offsetX - spread - padding
+	drawY := r.Y + offsetY - spread - padding
 
-	// ── 1. Rasterize rounded-rect alpha mask via SDF ──────────────
-	alphaMap := make([]float64, bufW*bufH)
+	// Centre of the shadow shape in destination coordinates.
+	centerX := drawX + float64(drawW)/2
+	centerY := drawY + float64(drawH)/2
 
-	hw := shapeW / 2
-	hh := shapeH / 2
-	cx := float64(padding) + hw
-	cy := float64(padding) + hh
-	innerHW := hw - shapeRadius
-	innerHH := hh - shapeRadius
-
-	for py := 0; py < bufH; py++ {
-		for px := 0; px < bufW; px++ {
-			fx := float64(px) + 0.5
-			fy := float64(py) + 0.5
-			dx := math.Abs(fx-cx) - innerHW
-			dy := math.Abs(fy-cy) - innerHH
-			if dx < 0 {
-				dx = 0
-			}
-			if dy < 0 {
-				dy = 0
-			}
-			dist := math.Sqrt(dx*dx+dy*dy) - shapeRadius
-			if dist <= -0.5 {
-				alphaMap[py*bufW+px] = 1.0
-			} else if dist >= 0.5 {
-				alphaMap[py*bufW+px] = 0.0
-			} else {
-				alphaMap[py*bufW+px] = 0.5 - dist
-			}
-		}
-	}
-
-	// ── 2. Three-pass separable box blur (≈ Gaussian) ─────────────
-	if sigma > 0.5 {
-		tmp := make([]float64, bufW*bufH)
-		sizes := shadowBoxBlurSizes(sigma, 3)
-		for _, sz := range sizes {
-			rad := (sz - 1) / 2
-			shadowBoxBlurH(alphaMap, tmp, bufW, bufH, rad)
-			shadowBoxBlurV(tmp, alphaMap, bufW, bufH, rad)
-		}
-	}
-
-	// ── 3. Convert to premultiplied-alpha RGBA pixels ─────────────
+	// Shadow colour — extract premultiplied RGBA components.
 	sr, sg, sb, sa := shadow.Color.RGBA()
 	colR := float64(sr) / 0xffff
 	colG := float64(sg) / 0xffff
 	colB := float64(sb) / 0xffff
 	colA := float64(sa) / 0xffff
 
-	pixels := make([]byte, bufW*bufH*4)
-	for i := 0; i < bufW*bufH; i++ {
-		m := alphaMap[i]
-		pr := colR * m
-		pg := colG * m
-		pb := colB * m
-		pa := colA * m
-		if pr > 1 {
-			pr = 1
-		}
-		if pg > 1 {
-			pg = 1
-		}
-		if pb > 1 {
-			pb = 1
-		}
-		if pa > 1 {
-			pa = 1
-		}
-		pixels[i*4+0] = uint8(pr*255 + 0.5)
-		pixels[i*4+1] = uint8(pg*255 + 0.5)
-		pixels[i*4+2] = uint8(pb*255 + 0.5)
-		pixels[i*4+3] = uint8(pa*255 + 0.5)
-	}
+	shader := getBoxShadowShader()
 
-	// ── 4. Upload and composite ───────────────────────────────────
-	shadowImg := ebiten.NewImage(bufW, bufH)
-	shadowImg.WritePixels(pixels)
-
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(screenX, screenY)
-	screen.DrawImage(shadowImg, op)
-	shadowImg.Deallocate()
-}
-
-// shadowBoxBlurSizes returns n box widths (odd integers) whose iterated
-// convolution best approximates a Gaussian with the given sigma.
-// Reference: "Fast Almost-Gaussian Filtering" (W3C CSS filter specification).
-func shadowBoxBlurSizes(sigma float64, n int) []int {
-	wIdeal := math.Sqrt(12.0*sigma*sigma/float64(n) + 1.0)
-	wl := int(math.Floor(wIdeal))
-	if wl%2 == 0 {
-		wl--
+	op := &ebiten.DrawRectShaderOptions{}
+	op.GeoM.Translate(drawX, drawY)
+	op.Uniforms = map[string]any{
+		"CenterX": float32(centerX),
+		"CenterY": float32(centerY),
+		"HalfW":   float32(shapeW / 2),
+		"HalfH":   float32(shapeH / 2),
+		"Radius":  float32(shapeRadius),
+		"Sigma":   float32(sigma),
+		"ShadowR": float32(colR),
+		"ShadowG": float32(colG),
+		"ShadowB": float32(colB),
+		"ShadowA": float32(colA),
 	}
-	if wl < 1 {
-		wl = 1
-	}
-	wu := wl + 2
-	mIdeal := (12.0*sigma*sigma - float64(n)*float64(wl*wl) -
-		4.0*float64(n)*float64(wl) - 3.0*float64(n)) /
-		(-4.0*float64(wl) - 4.0)
-	m := int(math.Round(mIdeal))
-	if m < 0 {
-		m = 0
-	}
-	if m > n {
-		m = n
-	}
-	sizes := make([]int, n)
-	for i := 0; i < n; i++ {
-		if i < m {
-			sizes[i] = wl
-		} else {
-			sizes[i] = wu
-		}
-	}
-	return sizes
-}
-
-// shadowBoxBlurH performs a horizontal box blur pass.
-// Edge pixels are clamped (extended-border policy) to avoid darkening
-// at image borders.
-func shadowBoxBlurH(src, dst []float64, w, h, radius int) {
-	if radius <= 0 {
-		copy(dst, src)
-		return
-	}
-	invDiam := 1.0 / float64(2*radius+1)
-	for y := 0; y < h; y++ {
-		row := y * w
-		var sum float64
-		for x := -radius; x <= radius; x++ {
-			xi := x
-			if xi < 0 {
-				xi = 0
-			} else if xi >= w {
-				xi = w - 1
-			}
-			sum += src[row+xi]
-		}
-		dst[row] = sum * invDiam
-		for x := 1; x < w; x++ {
-			addIdx := x + radius
-			if addIdx >= w {
-				addIdx = w - 1
-			}
-			subIdx := x - radius - 1
-			if subIdx < 0 {
-				subIdx = 0
-			}
-			sum += src[row+addIdx] - src[row+subIdx]
-			dst[row+x] = sum * invDiam
-		}
-	}
-}
-
-// shadowBoxBlurV performs a vertical box blur pass with clamped edges.
-func shadowBoxBlurV(src, dst []float64, w, h, radius int) {
-	if radius <= 0 {
-		copy(dst, src)
-		return
-	}
-	invDiam := 1.0 / float64(2*radius+1)
-	for x := 0; x < w; x++ {
-		var sum float64
-		for y := -radius; y <= radius; y++ {
-			yi := y
-			if yi < 0 {
-				yi = 0
-			} else if yi >= h {
-				yi = h - 1
-			}
-			sum += src[yi*w+x]
-		}
-		dst[x] = sum * invDiam
-		for y := 1; y < h; y++ {
-			addIdx := y + radius
-			if addIdx >= h {
-				addIdx = h - 1
-			}
-			subIdx := y - radius - 1
-			if subIdx < 0 {
-				subIdx = 0
-			}
-			sum += src[addIdx*w+x] - src[subIdx*w+x]
-			dst[y*w+x] = sum * invDiam
-		}
-	}
+	screen.DrawRectShader(drawW, drawH, shader, op)
 }
 
 // TextShadow represents a CSS-like text shadow

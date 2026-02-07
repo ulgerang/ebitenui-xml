@@ -1,0 +1,77 @@
+//kage:unit pixels
+
+// Box shadow shader for ebitenui-xml.
+//
+// Computes a Gaussian-blurred box shadow using the Signed Distance Field (SDF)
+// of a rounded rectangle.  Each pixel's alpha is derived analytically:
+//
+//     alpha = 0.5 * erfc(d / (sigma * sqrt(2)))
+//
+// where d is the exact signed distance from the rounded-rect boundary.
+// This replaces the CPU-side rasterise-then-3-pass-box-blur pipeline with a
+// single GPU draw call and zero offscreen buffers.
+
+package main
+
+// CenterX, CenterY — centre of the shadow shape in destination coordinates.
+var CenterX float
+var CenterY float
+
+// HalfW, HalfH — half-dimensions of the shadow shape (element + spread).
+var HalfW float
+var HalfH float
+
+// Radius — corner radius of the shadow shape (borderRadius + spread, clamped).
+var Radius float
+
+// Sigma — Gaussian blur sigma (CSS blur-radius / 2).  Zero means hard edge.
+var Sigma float
+
+// Shadow colour (premultiplied alpha).
+var ShadowR float
+var ShadowG float
+var ShadowB float
+var ShadowA float
+
+// Fragment computes the output colour for each pixel of the shadow rectangle.
+func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
+	// Local coordinates relative to shape centre.
+	px := dstPos.x - CenterX
+	py := dstPos.y - CenterY
+
+	// Rounded rectangle SDF (exact signed distance).
+	//   q = abs(p) - (half_extents - radius)
+	//   d = length(max(q, 0)) + min(max(q.x, q.y), 0) - radius
+	qx := abs(px) - (HalfW - Radius)
+	qy := abs(py) - (HalfH - Radius)
+
+	mx := max(qx, 0.0)
+	my := max(qy, 0.0)
+	d := sqrt(mx*mx+my*my) + min(max(qx, qy), 0.0) - Radius
+
+	// Gaussian blur via analytical SDF.
+	var a float
+	if Sigma < 0.001 {
+		// No blur: hard binary edge with 1-pixel anti-aliasing.
+		a = clamp(0.5-d, 0.0, 1.0)
+	} else {
+		x := d / (Sigma * 1.4142135623730951) // sqrt(2)
+		a = 0.5 * erfc(x)
+	}
+
+	return vec4(ShadowR*a, ShadowG*a, ShadowB*a, ShadowA*a)
+}
+
+// erfc approximates the complementary error function using Abramowitz & Stegun
+// formula 7.1.26 (maximum error ≈ 1.5e-7, well within visual tolerance).
+// Branchless for GPU-friendly execution.
+func erfc(x float) float {
+	ax := abs(x)
+	t := 1.0 / (1.0 + 0.3275911*ax)
+	y := t * (0.254829592 + t*(-0.284496736 + t*(1.421413741 + t*(-1.453152027 + t*1.061405429))))
+	result := y * exp(-ax*ax)
+
+	// erfc(-|x|) = 2 - erfc(|x|).  Use step/mix for branchless selection.
+	s := step(0.0, x) // 1 if x >= 0, 0 if x < 0
+	return mix(2.0-result, result, s)
+}
