@@ -21,9 +21,28 @@
 .DS_Store
 Thumbs.db
 
-# Screenshots (generated during testing)
+# Screenshots & generated HTML reports (visual regression test output)
 screenshots/
 *.png
+/reference.html
+/reference_svg.html
+/svg_reference.html
+/report_svg.html
+
+# Visual regression test output directories
+tools/css_compare/output/
+tools/css_compare/css_compare_output/*.png
+tools/css_compare/css_compare_output/*.exe
+
+# Node.js (Puppeteer for screenshot testing)
+node_modules/
+package.json
+package-lock.json
+
+# Agent / tool configs
+.agent/
+.opencode/
+.opencode-data/
 
 # Build artifacts
 /build/

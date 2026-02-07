@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>EbitenUI-XML CSS Reference</title>
+  <style>
+     
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 640px;
+      height: 480px;
+      overflow: hidden;
+      font-family: monospace;
+      background: #0f0f1a;
+    }
+
+     
+    .progress-fill {
+      border-radius: inherit;
+      transition: width 0.3s;
+    }
+
+     
+    #sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 150px;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+#content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  flex-grow: 1;
+  padding: 20px 25px 20px 25px;
+  background: #16213e;
+  border: 2px solid cornflowerblue;
+  border-radius: 12px;
+  box-shadow: 0px 8px 16px 4px rgba(100,149,237,0.3);
+  box-sizing: border-box;
+}
+
+.danger {
+  display: flex;
+  flex-direction: row;
+  background: crimson;
+  box-sizing: border-box;
+}
+
+.danger:hover {
+  background: tomato;
+}
+.danger:active {
+  background: darkred;
+}
+#welcome {
+  display: flex;
+  flex-direction: row;
+  color: white;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+#hp-bar {
+  display: flex;
+  flex-direction: row;
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid forestgreen;
+  box-sizing: border-box;
+}
+
+#mp-bar {
+  display: flex;
+  flex-direction: row;
+  background: rgba(33, 150, 243, 0.2);
+  border: 1px solid dodgerblue;
+  box-sizing: border-box;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  padding: 15px 15px 15px 15px;
+  background: #0a0a18;
+  box-sizing: border-box;
+}
+
+.eui-text {
+  display: flex;
+  flex-direction: row;
+  color: lightgray;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: normal;
+  word-wrap: break-word;
+  box-sizing: border-box;
+}
+
+#description {
+  display: flex;
+  flex-direction: row;
+  color: slategray;
+  font-size: 12px;
+  white-space: normal;
+  word-wrap: break-word;
+  box-sizing: border-box;
+}
+
+.stat-label {
+  display: flex;
+  flex-direction: row;
+  color: white;
+  font-size: 12px;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.eui-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 15px 15px 15px 15px;
+  background: #1a1a2e;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+#main {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  flex-grow: 1;
+  padding: 15px 15px 15px 15px;
+  box-sizing: border-box;
+}
+
+#title {
+  display: flex;
+  flex-direction: row;
+  color: cornflowerblue;
+  font-size: 18px;
+  text-align: left;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+  box-sizing: border-box;
+}
+
+.primary {
+  display: flex;
+  flex-direction: row;
+  background: linear-gradient(90deg, royalblue, dodgerblue);
+  box-sizing: border-box;
+}
+
+.primary:hover {
+  background: linear-gradient(90deg, dodgerblue, deepskyblue);
+}
+#stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 0px 10px 0px;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.eui-progressbar {
+  display: flex;
+  flex-direction: row;
+  height: 20px;
+  padding: 3px 3px 3px 3px;
+  background: #0f0f1a;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+#footer {
+  display: flex;
+  flex-direction: row;
+  height: 30px;
+  padding: 5px 20px 5px 20px;
+  margin: 10px 0px 0px 0px;
+  background: linear-gradient(90deg, #16213e, #1a1a2e);
+  border-radius: 8px;
+  outline: 1px solid rgba(100,149,237,0.3);
+  box-sizing: border-box;
+}
+
+.eui-button {
+  display: flex;
+  flex-direction: row;
+  height: 40px;
+  background: royalblue;
+  color: white;
+  border: 2px solid dodgerblue;
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: center;
+  box-shadow: 0px 4px 8px 0px rgba(0,0,0,0.3);
+  box-sizing: border-box;
+}
+
+.eui-button:hover {
+  background: dodgerblue;
+  color: white;
+  box-shadow: 0px 6px 12px 0px rgba(0,0,0,0.4);
+}
+.eui-button:active {
+  background: #1e3a5f;
+  box-shadow: 0px 2px 4px 0px rgba(0,0,0,0.2);
+}
+.success {
+  display: flex;
+  flex-direction: row;
+  background: forestgreen;
+  box-sizing: border-box;
+}
+
+.success:hover {
+  background: limegreen;
+}
+#exp-bar {
+  display: flex;
+  flex-direction: row;
+  background: rgba(255, 193, 7, 0.2);
+  border: 1px solid gold;
+  box-sizing: border-box;
+}
+
+#status {
+  display: flex;
+  flex-direction: row;
+  color: gray;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+#main-container {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  padding: 20px 20px 20px 20px;
+  box-sizing: border-box;
+}
+
+#header {
+  display: flex;
+  flex-direction: row;
+  height: 50px;
+  padding: 10px 20px 10px 20px;
+  margin: 0px 0px 10px 0px;
+  background: linear-gradient(90deg, #16213e, #1a1a2e, #0f3460);
+  border-radius: 8px;
+  box-shadow: 0px 4px 12px 2px rgba(0,0,0,0.4);
+  box-sizing: border-box;
+}
+
+
+  </style>
+</head>
+<body>
+  <div id="root" class="eui-ui">
+    <div id="header" class="eui-panel header">
+      <span id="title" class="eui-text">
+        Ebiten XML UI Demo
+      </span>
+    </div>
+    <div id="main" class="eui-panel main-content">
+      <div id="sidebar" class="eui-panel sidebar">
+        <button id="btn-new" class="eui-button menu-btn">
+          New Game
+        </button>
+        <button id="btn-load" class="eui-button menu-btn">
+          Load Game
+        </button>
+        <button id="btn-settings" class="eui-button menu-btn">
+          Settings
+        </button>
+        <button id="btn-quit" class="eui-button menu-btn danger">
+          Quit
+        </button>
+      </div>
+      <div id="content" class="eui-panel content">
+        <span id="welcome" class="eui-text">
+          Welcome to the Game!
+        </span>
+        <span id="description" class="eui-text">
+          This UI is defined in XML with CSS-like styling.
+                The layout engine handles positioning automatically.
+        </span>
+        <div id="stats" class="eui-panel stats-panel">
+          <span id="hp-label" class="eui-text">
+            Health:
+          </span>
+          <div id="hp-bar" class="eui-progressbar health-bar" data-value="0.75">
+            <div class="progress-fill" style="width: calc(0.75 * 100%); height: 100%;"></div>
+          </div>
+          <span id="mp-label" class="eui-text">
+            Mana:
+          </span>
+          <div id="mp-bar" class="eui-progressbar mana-bar" data-value="0.5">
+            <div class="progress-fill" style="width: calc(0.5 * 100%); height: 100%;"></div>
+          </div>
+          <span id="exp-label" class="eui-text">
+            Experience:
+          </span>
+          <div id="exp-bar" class="eui-progressbar exp-bar" data-value="0.3">
+            <div class="progress-fill" style="width: calc(0.3 * 100%); height: 100%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="footer" class="eui-panel footer">
+      <span id="status" class="eui-text">
+        Ready
+      </span>
+    </div>
+  </div>
+
+</body>
+</html>
