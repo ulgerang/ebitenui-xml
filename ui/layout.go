@@ -1,10 +1,6 @@
 package ui
 
-import (
-	"sort"
-
-	"github.com/hajimehoshi/ebiten/v2"
-)
+import "github.com/hajimehoshi/ebiten/v2"
 
 // LayoutEngine handles the layout calculation for widgets
 type LayoutEngine struct{}
@@ -25,92 +21,26 @@ func LayoutWidget(root Widget) {
 	le.Layout(root, rect.W, rect.H)
 }
 
-// DrawWidget recursively draws a widget and its children.
-// It respects z-index ordering, display:none, and visibility:hidden.
+// DrawWidget recursively draws a widget and its children
 func DrawWidget(screen *ebiten.Image, widget Widget) {
 	if widget == nil || !widget.Visible() {
 		return
 	}
-	s := widget.Style()
-	// display:none → skip entirely (no space, no rendering)
-	if s.Display == "none" {
-		return
-	}
-	// visibility:hidden → skip rendering but children may still be visible
-	if s.Visibility != "hidden" {
-		widget.Draw(screen)
-	}
-	children := sortByZIndex(widget.Children())
-	for _, child := range children {
+	widget.Draw(screen)
+	for _, child := range widget.Children() {
 		DrawWidget(screen, child)
 	}
-}
-
-// sortByZIndex returns children sorted by z-index (ascending, higher draws on top).
-// If no child has a non-zero z-index, returns the original slice unchanged.
-func sortByZIndex(children []Widget) []Widget {
-	if len(children) <= 1 {
-		return children
-	}
-	hasZIndex := false
-	for _, c := range children {
-		if c.Style().ZIndex != 0 {
-			hasZIndex = true
-			break
-		}
-	}
-	if !hasZIndex {
-		return children
-	}
-	sorted := make([]Widget, len(children))
-	copy(sorted, children)
-	sort.SliceStable(sorted, func(i, j int) bool {
-		return sorted[i].Style().ZIndex < sorted[j].Style().ZIndex
-	})
-	return sorted
-}
-
-// sortByZIndexReverse returns children sorted by z-index descending (highest first).
-// Used for hit-testing where higher z-index should be checked first.
-func sortByZIndexReverse(children []Widget) []Widget {
-	if len(children) <= 1 {
-		return children
-	}
-	hasZIndex := false
-	for _, c := range children {
-		if c.Style().ZIndex != 0 {
-			hasZIndex = true
-			break
-		}
-	}
-	if !hasZIndex {
-		return children
-	}
-	sorted := make([]Widget, len(children))
-	copy(sorted, children)
-	sort.SliceStable(sorted, func(i, j int) bool {
-		return sorted[i].Style().ZIndex > sorted[j].Style().ZIndex
-	})
-	return sorted
 }
 
 // Layout calculates positions and sizes for a widget tree
 func (le *LayoutEngine) Layout(root Widget, containerWidth, containerHeight float64) {
 	// Set root size
-	rootStyle := root.Style()
 	rootRect := Rect{X: 0, Y: 0, W: containerWidth, H: containerHeight}
-
-	// Apply root margin (like CSS block-level margin)
-	marginLeft := rootStyle.Margin.Left
-	marginTop := rootStyle.Margin.Top
-	rootRect.X += marginLeft
-	rootRect.Y += marginTop
-
-	if rootStyle.Width > 0 {
-		rootRect.W = rootStyle.Width
+	if root.Style().Width > 0 {
+		rootRect.W = root.Style().Width
 	}
-	if rootStyle.Height > 0 {
-		rootRect.H = rootStyle.Height
+	if root.Style().Height > 0 {
+		rootRect.H = root.Style().Height
 	}
 	root.SetComputedRect(rootRect)
 
@@ -118,9 +48,7 @@ func (le *LayoutEngine) Layout(root Widget, containerWidth, containerHeight floa
 	le.layoutChildren(root)
 }
 
-// layoutChildren arranges children within a parent widget.
-// Supports display:none (skip), position:absolute (out of flow),
-// and flex-wrap (multi-line layouts).
+// layoutChildren arranges children within a parent widget
 func (le *LayoutEngine) layoutChildren(parent Widget) {
 	children := parent.Children()
 	if len(children) == 0 {
@@ -144,187 +72,6 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 
 	gap := style.Gap
 
-	// Separate normal-flow children from absolutely positioned children
-	var flowChildren []Widget
-	var absChildren []Widget
-	for _, child := range children {
-		cs := child.Style()
-		// display:none → skip entirely
-		if cs.Display == "none" {
-			continue
-		}
-		if cs.Position == "absolute" || cs.Position == "fixed" {
-			absChildren = append(absChildren, child)
-		} else {
-			flowChildren = append(flowChildren, child)
-		}
-	}
-
-	// Layout absolutely positioned children
-	for _, child := range absChildren {
-		le.layoutAbsolute(child, availX, availY, availW, availH)
-	}
-
-	if len(flowChildren) == 0 {
-		return
-	}
-
-	// Check if flex-wrap is enabled
-	if style.FlexWrap == FlexWrapNormal || style.FlexWrap == FlexWrapReverse {
-		le.layoutFlexWrap(flowChildren, style, direction, gap, availX, availY, availW, availH)
-		return
-	}
-
-	// Normal (single-line) flex layout
-	le.layoutFlexLine(flowChildren, style, direction, gap, availX, availY, availW, availH)
-}
-
-// layoutAbsolute positions an absolutely positioned child relative to its parent's padding box.
-func (le *LayoutEngine) layoutAbsolute(child Widget, availX, availY, availW, availH float64) {
-	cs := child.Style()
-	var childRect Rect
-
-	// Width
-	if cs.Width > 0 {
-		childRect.W = cs.Width
-	} else {
-		// If both left and right are set, width = available - left - right
-		if cs.Left != 0 && cs.Right != 0 {
-			childRect.W = availW - cs.Left - cs.Right
-		} else {
-			childRect.W = 50 // default
-		}
-	}
-
-	// Height
-	if cs.Height > 0 {
-		childRect.H = cs.Height
-	} else {
-		if cs.Top != 0 && cs.Bottom != 0 {
-			childRect.H = availH - cs.Top - cs.Bottom
-		} else {
-			childRect.H = 30 // default
-		}
-	}
-
-	// Horizontal position
-	if cs.Left != 0 || cs.Right == 0 {
-		childRect.X = availX + cs.Left
-	} else {
-		childRect.X = availX + availW - childRect.W - cs.Right
-	}
-
-	// Vertical position
-	if cs.Top != 0 || cs.Bottom == 0 {
-		childRect.Y = availY + cs.Top
-	} else {
-		childRect.Y = availY + availH - childRect.H - cs.Bottom
-	}
-
-	// Apply min/max
-	le.applyMinMax(cs, &childRect)
-	child.SetComputedRect(childRect)
-	le.layoutChildren(child)
-}
-
-// layoutFlexWrap handles multi-line flex layout.
-func (le *LayoutEngine) layoutFlexWrap(children []Widget, style *Style, direction LayoutDirection, gap, availX, availY, availW, availH float64) {
-	// Break children into lines
-	type flexLine struct {
-		widgets  []Widget
-		mainSize float64
-	}
-
-	var lines []flexLine
-	var currentLine flexLine
-	var lineMainSize float64
-	mainAvail := availW
-	if direction == LayoutColumn {
-		mainAvail = availH
-	}
-
-	for _, child := range children {
-		cs := child.Style()
-		var itemMain float64
-		if direction == LayoutRow {
-			if cs.Width > 0 {
-				itemMain = cs.Width + cs.Margin.Left + cs.Margin.Right
-			} else {
-				itemMain = 50 + cs.Margin.Left + cs.Margin.Right
-			}
-		} else {
-			if cs.Height > 0 {
-				itemMain = cs.Height + cs.Margin.Top + cs.Margin.Bottom
-			} else {
-				itemMain = 30 + cs.Margin.Top + cs.Margin.Bottom
-			}
-		}
-
-		// Add gap if not first item on the line
-		gapAdd := 0.0
-		if len(currentLine.widgets) > 0 {
-			gapAdd = gap
-		}
-
-		if len(currentLine.widgets) > 0 && lineMainSize+gapAdd+itemMain > mainAvail {
-			// Start new line
-			currentLine.mainSize = lineMainSize
-			lines = append(lines, currentLine)
-			currentLine = flexLine{}
-			lineMainSize = 0
-			gapAdd = 0
-		}
-
-		currentLine.widgets = append(currentLine.widgets, child)
-		lineMainSize += gapAdd + itemMain
-	}
-	if len(currentLine.widgets) > 0 {
-		currentLine.mainSize = lineMainSize
-		lines = append(lines, currentLine)
-	}
-
-	// Reverse lines if wrap-reverse
-	if style.FlexWrap == FlexWrapReverse {
-		for i, j := 0, len(lines)-1; i < j; i, j = i+1, j-1 {
-			lines[i], lines[j] = lines[j], lines[i]
-		}
-	}
-
-	// Layout each line
-	crossOffset := 0.0
-	for _, line := range lines {
-		if direction == LayoutRow {
-			lineAvailH := availH / float64(len(lines))
-			le.layoutFlexLine(line.widgets, style, direction, gap, availX, availY+crossOffset, availW, lineAvailH)
-			// Calculate max height of this line
-			maxH := 0.0
-			for _, w := range line.widgets {
-				r := w.ComputedRect()
-				h := r.H + w.Style().Margin.Top + w.Style().Margin.Bottom
-				if h > maxH {
-					maxH = h
-				}
-			}
-			crossOffset += maxH + gap
-		} else {
-			lineAvailW := availW / float64(len(lines))
-			le.layoutFlexLine(line.widgets, style, direction, gap, availX+crossOffset, availY, lineAvailW, availH)
-			// Calculate max width of this line
-			maxW := 0.0
-			for _, w := range line.widgets {
-				r := w.ComputedRect()
-				ww := r.W + w.Style().Margin.Left + w.Style().Margin.Right
-				if ww > maxW {
-					maxW = ww
-				}
-			}
-			crossOffset += maxW + gap
-		}
-	}
-}
-
-// layoutFlexLine lays out a single line of flex children (the original layout logic).
-func (le *LayoutEngine) layoutFlexLine(children []Widget, style *Style, direction LayoutDirection, gap, availX, availY, availW, availH float64) {
 	// Calculate total fixed size and flex grow
 	var totalFixed float64
 	var totalFlexGrow float64
@@ -527,26 +274,21 @@ func (le *LayoutEngine) layoutFlexLine(children []Widget, style *Style, directio
 		child.SetComputedRect(childRect)
 
 		// Apply min/max constraints
-		le.applyMinMax(childStyle, &childRect)
+		if childStyle.MinWidth > 0 && childRect.W < childStyle.MinWidth {
+			childRect.W = childStyle.MinWidth
+		}
+		if childStyle.MaxWidth > 0 && childRect.W > childStyle.MaxWidth {
+			childRect.W = childStyle.MaxWidth
+		}
+		if childStyle.MinHeight > 0 && childRect.H < childStyle.MinHeight {
+			childRect.H = childStyle.MinHeight
+		}
+		if childStyle.MaxHeight > 0 && childRect.H > childStyle.MaxHeight {
+			childRect.H = childStyle.MaxHeight
+		}
 		child.SetComputedRect(childRect)
 
 		// Recursively layout grandchildren
 		le.layoutChildren(child)
-	}
-}
-
-// applyMinMax applies min/max width/height constraints to a rect.
-func (le *LayoutEngine) applyMinMax(s *Style, r *Rect) {
-	if s.MinWidth > 0 && r.W < s.MinWidth {
-		r.W = s.MinWidth
-	}
-	if s.MaxWidth > 0 && r.W > s.MaxWidth {
-		r.W = s.MaxWidth
-	}
-	if s.MinHeight > 0 && r.H < s.MinHeight {
-		r.H = s.MinHeight
-	}
-	if s.MaxHeight > 0 && r.H > s.MaxHeight {
-		r.H = s.MaxHeight
 	}
 }

@@ -29,23 +29,19 @@ type BaseWidget struct {
 	// Animation state
 	animating bool
 	animState *AnimationState
-
-	// CSS transition engine
-	transitionEngine *TransitionEngine
 }
 
 // NewBaseWidget creates a new base widget
 func NewBaseWidget(id, widgetType string) *BaseWidget {
 	return &BaseWidget{
-		id:               id,
-		widgetType:       widgetType,
-		classes:          make([]string, 0),
-		children:         make([]Widget, 0),
-		style:            &Style{Opacity: 1},
-		visible:          true,
-		enabled:          true,
-		state:            StateNormal,
-		transitionEngine: NewTransitionEngine(),
+		id:         id,
+		widgetType: widgetType,
+		classes:    make([]string, 0),
+		children:   make([]Widget, 0),
+		style:      &Style{Opacity: 1},
+		visible:    true,
+		enabled:    true,
+		state:      StateNormal,
 	}
 }
 
@@ -126,27 +122,8 @@ func (w *BaseWidget) SetStyle(s *Style) { w.style = s }
 // State returns the widget's state
 func (w *BaseWidget) State() WidgetState { return w.state }
 
-// SetState sets the widget's state and starts CSS transitions for changed properties.
-func (w *BaseWidget) SetState(s WidgetState) {
-	if w.state == s {
-		return // no change
-	}
-
-	// Snapshot the current active style BEFORE state change
-	oldActive := w.getActiveStyle()
-
-	// Change state
-	w.state = s
-
-	// Compute new active style AFTER state change
-	newActive := w.getActiveStyle()
-
-	// Start transitions using the BASE style's transition declarations
-	// (CSS spec: transitions are declared on the base style, not the state style)
-	if w.style != nil && len(w.style.parsedTransitions) > 0 {
-		w.transitionEngine.StartTransitions(oldActive, newActive, w.style.parsedTransitions)
-	}
-}
+// SetState sets the widget's state
+func (w *BaseWidget) SetState(s WidgetState) { w.state = s }
 
 // Visible returns whether the widget is visible
 func (w *BaseWidget) Visible() bool { return w.visible }
@@ -334,32 +311,6 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	// 1.5. Apply backdrop-filter (before background, captures what's behind)
-	if style.parsedBackdropFilter != nil && !backdropFilterIsDefault(style.parsedBackdropFilter) {
-		ApplyBackdropFilter(screen, r, style.parsedBackdropFilter)
-	}
-
-	// Determine rendering target for CSS filter.
-	// When a filter is active, widget content (background, border, outline,
-	// children) is rendered into an offscreen buffer, then the filter shader
-	// composites the result onto screen.  Box shadow is always drawn directly
-	// to screen because it extends outside the widget rect.
-	useFilter := style.parsedFilter != nil && !filterIsDefault(style.parsedFilter)
-	target := screen
-	drawRect := r
-	var filterOffscreen *ebiten.Image
-
-	if useFilter {
-		fw, fh := int(r.W), int(r.H)
-		if fw > 0 && fh > 0 {
-			filterOffscreen = ebiten.NewImage(fw, fh)
-			target = filterOffscreen
-			drawRect = Rect{X: 0, Y: 0, W: r.W, H: r.H}
-		} else {
-			useFilter = false
-		}
-	}
-
 	// 2. Draw background (9-slice, gradient, or solid)
 	if w.nineSlice != nil {
 		var colorScale *ebiten.ColorScale
@@ -368,21 +319,17 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 			cs.SetA(float32(opacity))
 			colorScale = &cs
 		}
-		w.nineSlice.Draw(target, drawRect.X, drawRect.Y, drawRect.W, drawRect.H, colorScale)
+		w.nineSlice.Draw(screen, r.X, r.Y, r.W, r.H, colorScale)
 	} else if style.parsedGradient != nil {
-		// Draw gradient background (linear or radial)
-		if style.parsedGradient.Type == GradientRadial {
-			DrawRadialGradient(target, drawRect, style.parsedGradient)
-		} else {
-			DrawGradient(target, drawRect, style.parsedGradient)
-		}
+		// Draw gradient background
+		DrawGradient(screen, r, style.parsedGradient)
 	} else if style.BackgroundColor != nil {
 		// Draw solid background
 		bgColor := style.BackgroundColor
 		if opacity < 1 {
 			bgColor = applyOpacity(bgColor, opacity)
 		}
-		DrawRoundedRectPath(target, drawRect, style.BorderRadius, bgColor)
+		DrawRoundedRectPath(screen, r, style.BorderRadius, bgColor)
 	}
 
 	// 3. Draw border
@@ -391,32 +338,31 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		if opacity < 1 {
 			borderColor = applyOpacity(borderColor, opacity)
 		}
-		drawRoundedRectStroke(target, drawRect, style.BorderRadius, style.BorderWidth, borderColor)
+		drawRoundedRectStroke(screen, r, style.BorderRadius, style.BorderWidth, borderColor)
 	}
 
 	// 4. Draw outline (outside the border)
 	if style.parsedOutline != nil {
 		style.parsedOutline.Offset = style.OutlineOffset
-		DrawOutline(target, drawRect, style.parsedOutline, style.BorderRadius)
+		DrawOutline(screen, r, style.parsedOutline, style.BorderRadius)
 	} else if style.Outline != "" {
 		// Parse on first use
 		style.parsedOutline = ParseOutline(style.Outline)
 		if style.parsedOutline != nil {
 			style.parsedOutline.Offset = style.OutlineOffset
-			DrawOutline(target, drawRect, style.parsedOutline, style.BorderRadius)
+			DrawOutline(screen, r, style.parsedOutline, style.BorderRadius)
 		}
 	}
 
 	// 5. Draw children - with overflow clipping
 	if style.Overflow == "hidden" || style.Overflow == "scroll" || style.Overflow == "auto" {
-		clipW := int(drawRect.W)
-		clipH := int(drawRect.H)
+		clipW := int(r.W)
+		clipH := int(r.H)
 		if clipW > 0 && clipH > 0 {
 			tmpImg := ebiten.NewImage(clipW, clipH)
 			// Translate so parent's origin is at (0,0) in temp image
-			sortedChildren := sortByZIndex(w.children)
-			for _, child := range sortedChildren {
-				// Save and adjust position — always shift by original screen-space r
+			for _, child := range w.children {
+				// Save and adjust position
 				origRect := child.ComputedRect()
 				shifted := Rect{
 					X: origRect.X - r.X,
@@ -429,86 +375,60 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 				child.SetComputedRect(origRect)
 			}
 			drawOp := &ebiten.DrawImageOptions{}
-			drawOp.GeoM.Translate(drawRect.X, drawRect.Y)
+			drawOp.GeoM.Translate(r.X, r.Y)
 			if opacity < 1 {
 				drawOp.ColorScale.SetA(float32(opacity))
 			}
-			target.DrawImage(tmpImg, drawOp)
+			screen.DrawImage(tmpImg, drawOp)
 			tmpImg.Deallocate()
 		}
-	} else if useFilter {
-		// When filter is active, shift children into offscreen coordinates
-		sortedChildren := sortByZIndex(w.children)
-		for _, child := range sortedChildren {
-			origRect := child.ComputedRect()
-			shifted := Rect{
-				X: origRect.X - r.X,
-				Y: origRect.Y - r.Y,
-				W: origRect.W,
-				H: origRect.H,
-			}
-			child.SetComputedRect(shifted)
-			DrawWidget(target, child)
-			child.SetComputedRect(origRect)
-		}
 	} else {
-		sortedChildren := sortByZIndex(w.children)
-		for _, child := range sortedChildren {
-			child.Draw(target)
+		for _, child := range w.children {
+			child.Draw(screen)
 		}
-	}
-
-	// 6. Apply CSS filter and composite onto screen
-	if useFilter && filterOffscreen != nil {
-		ApplyFilter(screen, filterOffscreen, r, style.parsedFilter)
-		filterOffscreen.Deallocate()
 	}
 }
 
-// applyOpacity applies opacity to a color.
-// Because Go's color.RGBA uses premultiplied alpha, ALL channels (R,G,B,A)
-// must be scaled by opacity to maintain the invariant R,G,B <= A.
+// applyOpacity applies opacity to a color, returning a non-premultiplied
+// (straight-alpha) color.NRGBA.  The previous implementation returned
+// color.RGBA (premultiplied type) but only scaled A — producing invalid
+// premultiplied values (R>A) that caused over-bright rendering in
+// vector.DrawFilledRect / ScaleWithColor.
 func applyOpacity(c color.Color, opacity float64) color.Color {
-	r, g, b, a := c.RGBA()
-	return color.RGBA{
-		R: uint8(float64(r>>8) * opacity),
-		G: uint8(float64(g>>8) * opacity),
-		B: uint8(float64(b>>8) * opacity),
+	r, g, b, a := c.RGBA() // premultiplied, [0..0xffff]
+	if a == 0 {
+		return color.NRGBA{}
+	}
+	// Un-premultiply to recover straight RGB, then scale alpha by opacity.
+	return color.NRGBA{
+		R: uint8(float64(r) * 0xffff / float64(a)),
+		G: uint8(float64(g) * 0xffff / float64(a)),
+		B: uint8(float64(b) * 0xffff / float64(a)),
 		A: uint8(float64(a>>8) * opacity),
 	}
 }
 
-// getActiveStyle returns the style based on current state, with CSS transitions applied.
+// getActiveStyle returns the style based on current state
 func (w *BaseWidget) getActiveStyle() *Style {
-	var active *Style
 	switch w.state {
 	case StateHover:
 		if w.style.HoverStyle != nil {
-			active = mergeStyles(w.style, w.style.HoverStyle)
+			return mergeStyles(w.style, w.style.HoverStyle)
 		}
 	case StateActive:
 		if w.style.ActiveStyle != nil {
-			active = mergeStyles(w.style, w.style.ActiveStyle)
+			return mergeStyles(w.style, w.style.ActiveStyle)
 		}
 	case StateDisabled:
 		if w.style.DisabledStyle != nil {
-			active = mergeStyles(w.style, w.style.DisabledStyle)
+			return mergeStyles(w.style, w.style.DisabledStyle)
 		}
 	case StateFocused:
 		if w.style.FocusStyle != nil {
-			active = mergeStyles(w.style, w.style.FocusStyle)
+			return mergeStyles(w.style, w.style.FocusStyle)
 		}
 	}
-	if active == nil {
-		active = w.style
-	}
-
-	// Apply CSS transitions (interpolate values for in-progress transitions)
-	if w.transitionEngine != nil {
-		active = w.transitionEngine.Apply(active)
-	}
-
-	return active
+	return w.style
 }
 
 // mergeStyles merges base style with override style

@@ -121,8 +121,7 @@ func (se *StyleEngine) parseStyleColors(style *Style) {
 	// Parse main colors
 	if style.Background != "" {
 		// Check if it's a gradient
-		if strings.HasPrefix(style.Background, "linear-gradient") ||
-			strings.HasPrefix(style.Background, "radial-gradient") {
+		if strings.HasPrefix(style.Background, "linear-gradient") {
 			style.parsedGradient = ParseGradient(style.Background)
 		} else {
 			style.BackgroundColor = parseColor(style.Background)
@@ -143,16 +142,6 @@ func (se *StyleEngine) parseStyleColors(style *Style) {
 	// Parse transitions
 	if style.Transition != "" {
 		style.parsedTransitions = parseTransitions(style.Transition)
-	}
-
-	// Parse filter
-	if style.Filter != "" {
-		style.parsedFilter = ParseFilter(style.Filter)
-	}
-
-	// Parse backdrop filter
-	if style.BackdropFilter != "" {
-		style.parsedBackdropFilter = ParseBackdropFilter(style.BackdropFilter)
 	}
 
 	// Parse state styles

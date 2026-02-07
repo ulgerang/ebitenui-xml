@@ -3,7 +3,6 @@
 package ui
 
 import (
-	"encoding/json"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -73,33 +72,6 @@ type Padding struct {
 	Top, Right, Bottom, Left float64
 }
 
-// UnmarshalJSON handles the "all" shorthand key: {"all":10} → all sides = 10
-func (p *Padding) UnmarshalJSON(data []byte) error {
-	type paddingRaw struct {
-		All    *float64 `json:"all"`
-		Top    float64  `json:"top"`
-		Right  float64  `json:"right"`
-		Bottom float64  `json:"bottom"`
-		Left   float64  `json:"left"`
-	}
-	var raw paddingRaw
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if raw.All != nil {
-		p.Top = *raw.All
-		p.Right = *raw.All
-		p.Bottom = *raw.All
-		p.Left = *raw.All
-	} else {
-		p.Top = raw.Top
-		p.Right = raw.Right
-		p.Bottom = raw.Bottom
-		p.Left = raw.Left
-	}
-	return nil
-}
-
 // All returns a Padding with all sides equal
 func PaddingAll(v float64) Padding {
 	return Padding{v, v, v, v}
@@ -118,33 +90,6 @@ func (p Padding) Vertical() float64 {
 // Margin represents margin values
 type Margin struct {
 	Top, Right, Bottom, Left float64
-}
-
-// UnmarshalJSON handles the "all" shorthand key: {"all":15} → all sides = 15
-func (m *Margin) UnmarshalJSON(data []byte) error {
-	type marginRaw struct {
-		All    *float64 `json:"all"`
-		Top    float64  `json:"top"`
-		Right  float64  `json:"right"`
-		Bottom float64  `json:"bottom"`
-		Left   float64  `json:"left"`
-	}
-	var raw marginRaw
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if raw.All != nil {
-		m.Top = *raw.All
-		m.Right = *raw.All
-		m.Bottom = *raw.All
-		m.Left = *raw.All
-	} else {
-		m.Top = raw.Top
-		m.Right = raw.Right
-		m.Bottom = raw.Bottom
-		m.Left = raw.Left
-	}
-	return nil
 }
 
 // All returns a Margin with all sides equal
@@ -281,14 +226,13 @@ type Style struct {
 	FocusStyle    *Style `json:"focus"`
 
 	// Parsed values (internal)
-	parsedBoxShadow      *BoxShadow      `json:"-"`
-	parsedTextShadow     *TextShadow     `json:"-"`
-	parsedOutline        *Outline        `json:"-"`
-	parsedTransitions    []Transition    `json:"-"`
-	parsed9Slice         *NineSlice      `json:"-"`
-	parsedGradient       *Gradient       `json:"-"`
-	parsedFilter         *Filter         `json:"-"`
-	parsedBackdropFilter *BackdropFilter `json:"-"`
+	parsedBoxShadow   *BoxShadow   `json:"-"`
+	parsedTextShadow  *TextShadow  `json:"-"`
+	parsedOutline     *Outline     `json:"-"`
+	parsedTransitions []Transition `json:"-"`
+	parsed9Slice      *NineSlice   `json:"-"`
+	parsedGradient    *Gradient    `json:"-"`
+	parsedFilter      *Filter      `json:"-"`
 }
 
 // Clone creates a deep copy of the style
@@ -469,18 +413,6 @@ func (s *Style) Merge(other *Style) {
 	if other.Position != "" {
 		s.Position = other.Position
 	}
-	if other.Top != 0 {
-		s.Top = other.Top
-	}
-	if other.Right != 0 {
-		s.Right = other.Right
-	}
-	if other.Bottom != 0 {
-		s.Bottom = other.Bottom
-	}
-	if other.Left != 0 {
-		s.Left = other.Left
-	}
 	if other.ZIndex != 0 {
 		s.ZIndex = other.ZIndex
 	}
@@ -491,87 +423,6 @@ func (s *Style) Merge(other *Style) {
 	}
 	if other.Visibility != "" {
 		s.Visibility = other.Visibility
-	}
-
-	// Per-side border widths
-	if other.BorderTopWidth != 0 {
-		s.BorderTopWidth = other.BorderTopWidth
-	}
-	if other.BorderRightWidth != 0 {
-		s.BorderRightWidth = other.BorderRightWidth
-	}
-	if other.BorderBottomWidth != 0 {
-		s.BorderBottomWidth = other.BorderBottomWidth
-	}
-	if other.BorderLeftWidth != 0 {
-		s.BorderLeftWidth = other.BorderLeftWidth
-	}
-
-	// Per-corner border radii
-	if other.BorderTopLeftRadius != 0 {
-		s.BorderTopLeftRadius = other.BorderTopLeftRadius
-	}
-	if other.BorderTopRightRadius != 0 {
-		s.BorderTopRightRadius = other.BorderTopRightRadius
-	}
-	if other.BorderBottomLeftRadius != 0 {
-		s.BorderBottomLeftRadius = other.BorderBottomLeftRadius
-	}
-	if other.BorderBottomRightRadius != 0 {
-		s.BorderBottomRightRadius = other.BorderBottomRightRadius
-	}
-
-	// Text extras
-	if other.FontWeight != "" {
-		s.FontWeight = other.FontWeight
-	}
-	if other.FontStyle != "" {
-		s.FontStyle = other.FontStyle
-	}
-	if other.LetterSpacing != 0 {
-		s.LetterSpacing = other.LetterSpacing
-	}
-
-	// Overflow (per-axis)
-	if other.OverflowX != "" {
-		s.OverflowX = other.OverflowX
-	}
-	if other.OverflowY != "" {
-		s.OverflowY = other.OverflowY
-	}
-
-	// Background extras
-	if other.BackgroundSize != "" {
-		s.BackgroundSize = other.BackgroundSize
-	}
-	if other.BackgroundPosition != "" {
-		s.BackgroundPosition = other.BackgroundPosition
-	}
-	if other.BackgroundRepeat != "" {
-		s.BackgroundRepeat = other.BackgroundRepeat
-	}
-
-	// Transform
-	if other.Transform != "" {
-		s.Transform = other.Transform
-	}
-	if other.TransformOrigin != "" {
-		s.TransformOrigin = other.TransformOrigin
-	}
-
-	// Filters
-	if other.Filter != "" {
-		s.Filter = other.Filter
-		s.parsedFilter = other.parsedFilter
-	}
-	if other.BackdropFilter != "" {
-		s.BackdropFilter = other.BackdropFilter
-		s.parsedBackdropFilter = other.parsedBackdropFilter
-	}
-
-	// Cursor
-	if other.Cursor != "" {
-		s.Cursor = other.Cursor
 	}
 
 	// States

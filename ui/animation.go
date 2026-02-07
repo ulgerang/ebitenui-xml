@@ -451,6 +451,82 @@ func lerpWithDefault(a, b, t, def float64) float64 {
 }
 
 // ============================================================================
+// Transition System
+// ============================================================================
+
+// TransitionManager handles smooth property transitions
+type TransitionManager struct {
+	transitions map[string]*PropertyTransition
+}
+
+// PropertyTransition represents a single property transition
+type PropertyTransition struct {
+	Property   string
+	StartValue float64
+	EndValue   float64
+	StartTime  time.Time
+	Duration   time.Duration
+	Delay      time.Duration
+	Easing     EasingFunc
+	IsActive   bool
+}
+
+// NewTransitionManager creates a new transition manager
+func NewTransitionManager() *TransitionManager {
+	return &TransitionManager{
+		transitions: make(map[string]*PropertyTransition),
+	}
+}
+
+// StartTransition begins a property transition
+func (tm *TransitionManager) StartTransition(property string, from, to float64, duration time.Duration, easing EasingFunc) {
+	tm.transitions[property] = &PropertyTransition{
+		Property:   property,
+		StartValue: from,
+		EndValue:   to,
+		StartTime:  time.Now(),
+		Duration:   duration,
+		Easing:     easing,
+		IsActive:   true,
+	}
+}
+
+// GetValue returns the current interpolated value for a property
+func (tm *TransitionManager) GetValue(property string, defaultValue float64) float64 {
+	t, exists := tm.transitions[property]
+	if !exists || !t.IsActive {
+		return defaultValue
+	}
+
+	elapsed := time.Since(t.StartTime) - t.Delay
+	if elapsed < 0 {
+		return t.StartValue
+	}
+
+	progress := float64(elapsed) / float64(t.Duration)
+	if progress >= 1 {
+		t.IsActive = false
+		return t.EndValue
+	}
+
+	if t.Easing != nil {
+		progress = t.Easing(progress)
+	}
+
+	return lerp(t.StartValue, t.EndValue, progress)
+}
+
+// IsTransitioning returns true if any transition is active
+func (tm *TransitionManager) IsTransitioning() bool {
+	for _, t := range tm.transitions {
+		if t.IsActive {
+			return true
+		}
+	}
+	return false
+}
+
+// ============================================================================
 // Ripple Effect (Material Design-like)
 // ============================================================================
 

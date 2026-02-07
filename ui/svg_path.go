@@ -17,9 +17,17 @@ type PathCommand struct {
 	Absolute bool
 }
 
-// ParsePathData parses SVG path data string into a vector.Path
+// ParsePathData parses SVG path data string into a vector.Path.
 // Supports: M, L, H, V, C, S, Q, T, A, Z (and lowercase relative versions)
 func ParsePathData(d string) *vector.Path {
+	return ParsePathDataScaled(d, 0, 0, 1, 1)
+}
+
+// ParsePathDataScaled parses SVG path data and applies offset+scale to all coordinates.
+// Every coordinate emitted to the path is transformed as: finalX = offsetX + x*scaleX, finalY = offsetY + y*scaleY.
+// Tracking state (currentX/Y, startX/Y, lastControlX/Y) is kept in source (pre-transform)
+// coordinate space so that relative commands compute correctly.
+func ParsePathDataScaled(d string, offsetX, offsetY, scaleX, scaleY float64) *vector.Path {
 	if d == "" {
 		return nil
 	}
@@ -28,6 +36,10 @@ func ParsePathData(d string) *vector.Path {
 	if len(commands) == 0 {
 		return nil
 	}
+
+	// tx/ty transform a source-space coordinate to target space.
+	tx := func(x float64) float32 { return float32(offsetX + x*scaleX) }
+	ty := func(y float64) float32 { return float32(offsetY + y*scaleY) }
 
 	var path vector.Path
 	var currentX, currentY float64
@@ -48,11 +60,11 @@ func ParsePathData(d string) *vector.Path {
 					y += currentY
 				}
 				if i == 0 {
-					path.MoveTo(float32(x), float32(y))
+					path.MoveTo(tx(x), ty(y))
 					startX, startY = x, y
 				} else {
 					// Subsequent pairs are treated as LineTo
-					path.LineTo(float32(x), float32(y))
+					path.LineTo(tx(x), ty(y))
 				}
 				currentX, currentY = x, y
 			}
@@ -64,7 +76,7 @@ func ParsePathData(d string) *vector.Path {
 					x += currentX
 					y += currentY
 				}
-				path.LineTo(float32(x), float32(y))
+				path.LineTo(tx(x), ty(y))
 				currentX, currentY = x, y
 			}
 
@@ -73,7 +85,7 @@ func ParsePathData(d string) *vector.Path {
 				if !isAbs {
 					x += currentX
 				}
-				path.LineTo(float32(x), float32(currentY))
+				path.LineTo(tx(x), ty(currentY))
 				currentX = x
 			}
 
@@ -82,7 +94,7 @@ func ParsePathData(d string) *vector.Path {
 				if !isAbs {
 					y += currentY
 				}
-				path.LineTo(float32(currentX), float32(y))
+				path.LineTo(tx(currentX), ty(y))
 				currentY = y
 			}
 
@@ -99,14 +111,14 @@ func ParsePathData(d string) *vector.Path {
 					x += currentX
 					y += currentY
 				}
-				path.CubicTo(float32(x1), float32(y1), float32(x2), float32(y2), float32(x), float32(y))
+				path.CubicTo(tx(x1), ty(y1), tx(x2), ty(y2), tx(x), ty(y))
 				lastControlX, lastControlY = x2, y2
 				currentX, currentY = x, y
 			}
 
 		case 'S', 's': // Smooth Cubic Bezier
 			for i := 0; i+3 < len(args); i += 4 {
-				// Reflect last control point
+				// Reflect last control point (in source space)
 				x1, y1 := currentX, currentY
 				if lastCommand == 'C' || lastCommand == 'c' || lastCommand == 'S' || lastCommand == 's' {
 					x1 = 2*currentX - lastControlX
@@ -120,7 +132,7 @@ func ParsePathData(d string) *vector.Path {
 					x += currentX
 					y += currentY
 				}
-				path.CubicTo(float32(x1), float32(y1), float32(x2), float32(y2), float32(x), float32(y))
+				path.CubicTo(tx(x1), ty(y1), tx(x2), ty(y2), tx(x), ty(y))
 				lastControlX, lastControlY = x2, y2
 				currentX, currentY = x, y
 			}
@@ -135,14 +147,14 @@ func ParsePathData(d string) *vector.Path {
 					x += currentX
 					y += currentY
 				}
-				path.QuadTo(float32(x1), float32(y1), float32(x), float32(y))
+				path.QuadTo(tx(x1), ty(y1), tx(x), ty(y))
 				lastControlX, lastControlY = x1, y1
 				currentX, currentY = x, y
 			}
 
 		case 'T', 't': // Smooth Quadratic Bezier
 			for i := 0; i+1 < len(args); i += 2 {
-				// Reflect last control point
+				// Reflect last control point (in source space)
 				x1, y1 := currentX, currentY
 				if lastCommand == 'Q' || lastCommand == 'q' || lastCommand == 'T' || lastCommand == 't' {
 					x1 = 2*currentX - lastControlX
@@ -153,7 +165,7 @@ func ParsePathData(d string) *vector.Path {
 					x += currentX
 					y += currentY
 				}
-				path.QuadTo(float32(x1), float32(y1), float32(x), float32(y))
+				path.QuadTo(tx(x1), ty(y1), tx(x), ty(y))
 				lastControlX, lastControlY = x1, y1
 				currentX, currentY = x, y
 			}
@@ -170,8 +182,14 @@ func ParsePathData(d string) *vector.Path {
 					y += currentY
 				}
 
-				// Convert arc to bezier curves
-				arcToBezier(&path, currentX, currentY, rx, ry, xAxisRotation, largeArcFlag, sweepFlag, x, y)
+				// Scale radii and pass all coordinates in transformed space to arcToBezier.
+				// arcToBezier computes bezier control points internally and calls path.CubicTo()
+				// directly, so its inputs must already be in target space.
+				arcToBezier(&path,
+					offsetX+currentX*scaleX, offsetY+currentY*scaleY,
+					rx*scaleX, ry*scaleY,
+					xAxisRotation, largeArcFlag, sweepFlag,
+					offsetX+x*scaleX, offsetY+y*scaleY)
 				currentX, currentY = x, y
 			}
 
@@ -198,12 +216,17 @@ func tokenizePathData(d string) []PathCommand {
 	inNumber := false
 	hasDecimal := false
 	hasExponent := false
+	isArcCmd := false // true when current command is 'a' or 'A'
+	arcArgCount := 0  // number of args flushed for current arc command
 
 	flushNumber := func() {
 		if numBuf.Len() > 0 {
 			s := numBuf.String()
 			if v, err := strconv.ParseFloat(s, 64); err == nil {
 				currentArgs = append(currentArgs, v)
+				if isArcCmd {
+					arcArgCount++
+				}
 			}
 			numBuf.Reset()
 			inNumber = false
@@ -230,10 +253,20 @@ func tokenizePathData(d string) []PathCommand {
 			flushCommand()
 			currentCmd = r
 			isAbs = unicode.IsUpper(r)
+			isArcCmd = (r == 'a' || r == 'A')
+			arcArgCount = 0
 
 		case unicode.IsDigit(r):
-			inNumber = true
-			numBuf.WriteRune(r)
+			if isArcCmd && !inNumber && (arcArgCount%7 == 3 || arcArgCount%7 == 4) {
+				// SVG arc flag position: single digit (0 or 1) is a complete token.
+				// Flags can be concatenated without separators per W3C SVG 1.1 §8.3.9.
+				flushNumber()
+				numBuf.WriteRune(r)
+				flushNumber()
+			} else {
+				inNumber = true
+				numBuf.WriteRune(r)
+			}
 
 		case r == '.':
 			if hasDecimal {
