@@ -16,6 +16,9 @@ import (
 //go:embed shaders/gradient_linear.kage
 var linearGradientShaderSrc []byte
 
+//go:embed shaders/gradient_radial.kage
+var radialGradientShaderSrc []byte
+
 //go:embed shaders/box_shadow.kage
 var boxShadowShaderSrc []byte
 
@@ -86,6 +89,28 @@ func (g *Gradient) clearGradientStrip() {
 		g.strip.Deallocate()
 		g.strip = nil
 	}
+}
+
+// --- Box shadow shader (singleton, lazy-compiled) ---------------------------
+
+// --- Radial gradient shader (singleton, lazy-compiled) -----------------------
+
+var (
+	radialGradientShader     *ebiten.Shader
+	radialGradientShaderOnce sync.Once
+)
+
+// getRadialGradientShader returns the compiled Kage shader for radial gradients.
+// The shader is compiled once on first use and cached for the process lifetime.
+func getRadialGradientShader() *ebiten.Shader {
+	radialGradientShaderOnce.Do(func() {
+		s, err := ebiten.NewShader(radialGradientShaderSrc)
+		if err != nil {
+			panic(fmt.Sprintf("ui: failed to compile radial gradient shader: %v", err))
+		}
+		radialGradientShader = s
+	})
+	return radialGradientShader
 }
 
 // --- Box shadow shader (singleton, lazy-compiled) ---------------------------

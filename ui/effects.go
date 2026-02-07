@@ -317,11 +317,16 @@ func lerpColor(c1, c2 color.Color, t float64) color.Color {
 
 // ParseGradient parses a CSS-like gradient string
 // e.g., "linear-gradient(90deg, #ff0000, #0000ff)"
+// e.g., "radial-gradient(circle, #ff0000, #0000ff)"
 func ParseGradient(s string) *Gradient {
 	s = strings.TrimSpace(s)
 
 	if strings.HasPrefix(s, "linear-gradient(") {
 		return parseLinearGradient(s)
+	}
+
+	if strings.HasPrefix(s, "radial-gradient(") {
+		return parseRadialGradient(s)
 	}
 
 	return nil
@@ -349,6 +354,60 @@ func parseLinearGradient(s string) *Gradient {
 	if strings.HasSuffix(first, "deg") {
 		angle := strings.TrimSuffix(first, "deg")
 		g.Angle = parseFloatValue(angle)
+		startIdx = 1
+	}
+
+	// Parse color stops
+	numColors := len(parts) - startIdx
+	for i := startIdx; i < len(parts); i++ {
+		colorStr := strings.TrimSpace(parts[i])
+		clr := parseColor(colorStr)
+		if clr != nil {
+			stopPos := float64(i-startIdx) / float64(numColors-1)
+			g.ColorStops = append(g.ColorStops, ColorStop{
+				Color:    clr,
+				Position: stopPos,
+			})
+		}
+	}
+
+	if len(g.ColorStops) < 2 {
+		return nil
+	}
+
+	return g
+}
+
+// parseRadialGradient parses a CSS radial-gradient() string.
+// Supports: "radial-gradient([circle|ellipse,] color1, color2, ...)"
+// The optional first argument "circle" or "ellipse" controls the shape;
+// the default is "ellipse" (CSS standard).
+func parseRadialGradient(s string) *Gradient {
+	// Remove "radial-gradient(" prefix and ")" suffix
+	s = strings.TrimPrefix(s, "radial-gradient(")
+	s = strings.TrimSuffix(s, ")")
+
+	parts := strings.Split(s, ",")
+	if len(parts) < 2 {
+		return nil
+	}
+
+	g := &Gradient{
+		Type:       GradientRadial,
+		ColorStops: make([]ColorStop, 0),
+	}
+
+	startIdx := 0
+	// Check if first part is a shape keyword (circle, ellipse)
+	first := strings.TrimSpace(parts[0])
+	lower := strings.ToLower(first)
+	if lower == "circle" || lower == "ellipse" {
+		// Shape keyword recognised; skip it for colour parsing.
+		// The Angle field is repurposed for radial gradients:
+		//   0 = ellipse (default CSS), 1 = circle.
+		if lower == "circle" {
+			g.Angle = 1
+		}
 		startIdx = 1
 	}
 
@@ -682,35 +741,57 @@ func drawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, 
 	screen.DrawTriangles(vs, is, whiteImage, op)
 }
 
-// DrawRadialGradient draws a radial gradient in the given rectangle
+// DrawRadialGradient draws a radial gradient in the given rectangle using a
+// GPU Kage shader for single-draw-call rendering.
+//
+// CSS default: the gradient forms an ellipse that exactly fills the element
+// box (equivalent to "closest-side" sizing for an ellipse centred in the box).
+// The 1D gradient strip texture is shared with linear gradients.
 func DrawRadialGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 	if g == nil || len(g.ColorStops) < 2 {
 		return
 	}
 
-	// Center of the radial gradient
+	w := int(r.W)
+	h := int(r.H)
+	if w <= 0 || h <= 0 {
+		return
+	}
+
+	// Centre of the radial gradient in destination coordinates.
 	centerX := r.X + r.W/2
 	centerY := r.Y + r.H/2
-	maxRadius := max(r.W, r.H) / 2
 
-	// Draw concentric circles from outside to inside
-	steps := int(maxRadius)
-	if steps > 100 {
-		steps = 100 // Performance limit
+	// Determine radii based on shape type.
+	// Angle field is repurposed for radial gradients: 0 = ellipse, 1 = circle.
+	var radiusX, radiusY float64
+	if g.Angle == 1 {
+		// Circle: use farthest-side radius (both axes equal).
+		circleR := max(r.W, r.H) / 2
+		radiusX = circleR
+		radiusY = circleR
+	} else {
+		// Ellipse (CSS default): radii match element half-extents,
+		// so the gradient exactly touches all four sides.
+		radiusX = r.W / 2
+		radiusY = r.H / 2
 	}
 
-	for i := steps; i >= 0; i-- {
-		t := float64(i) / float64(steps)
-		currentRadius := maxRadius * t
+	// Ensure the 1D gradient strip texture is ready (lazy, cached).
+	strip := g.ensureGradientStrip()
 
-		clr := interpolateGradient(g.ColorStops, t)
+	shader := getRadialGradientShader()
 
-		// Draw a circle at this radius
-		vector.DrawFilledCircle(screen,
-			float32(centerX), float32(centerY),
-			float32(currentRadius),
-			clr, true)
+	op := &ebiten.DrawRectShaderOptions{}
+	op.GeoM.Translate(r.X, r.Y)
+	op.Uniforms = map[string]any{
+		"CenterX": float32(centerX),
+		"CenterY": float32(centerY),
+		"RadiusX": float32(radiusX),
+		"RadiusY": float32(radiusY),
 	}
+	op.Images[0] = strip
+	screen.DrawRectShader(w, h, shader, op)
 }
 
 // max returns the larger of two float64 values

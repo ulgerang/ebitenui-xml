@@ -344,8 +344,12 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		}
 		w.nineSlice.Draw(screen, r.X, r.Y, r.W, r.H, colorScale)
 	} else if style.parsedGradient != nil {
-		// Draw gradient background
-		DrawGradient(screen, r, style.parsedGradient)
+		// Draw gradient background (linear or radial)
+		if style.parsedGradient.Type == GradientRadial {
+			DrawRadialGradient(screen, r, style.parsedGradient)
+		} else {
+			DrawGradient(screen, r, style.parsedGradient)
+		}
 	} else if style.BackgroundColor != nil {
 		// Draw solid background
 		bgColor := style.BackgroundColor

@@ -121,7 +121,8 @@ func (se *StyleEngine) parseStyleColors(style *Style) {
 	// Parse main colors
 	if style.Background != "" {
 		// Check if it's a gradient
-		if strings.HasPrefix(style.Background, "linear-gradient") {
+		if strings.HasPrefix(style.Background, "linear-gradient") ||
+			strings.HasPrefix(style.Background, "radial-gradient") {
 			style.parsedGradient = ParseGradient(style.Background)
 		} else {
 			style.BackgroundColor = parseColor(style.Background)

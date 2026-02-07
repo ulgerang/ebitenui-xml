@@ -1,0 +1,50 @@
+//kage:unit pixels
+
+// Radial gradient shader for ebitenui-xml.
+//
+// Computes the elliptical distance from the gradient centre for each pixel
+// and samples a 1D lookup texture (imageSrc0) with linear interpolation.
+//
+// The CPU passes CenterX/CenterY (in destination coordinates) and
+// RadiusX/RadiusY (half-extents of the gradient ellipse).  The shader
+// normalises the pixel position into unit-circle space so that t = 0 at the
+// centre and t = 1 at the ellipse boundary.
+//
+// CSS default: radial-gradient() uses an ellipse that touches the nearest
+// side of the element box, matching "closest-side" sizing for an ellipse.
+
+package main
+
+// CenterX, CenterY — centre of the gradient in destination coordinates.
+var CenterX float
+var CenterY float
+
+// RadiusX — half-width of the gradient ellipse (rect.W / 2).
+var RadiusX float
+
+// RadiusY — half-height of the gradient ellipse (rect.H / 2).
+var RadiusY float
+
+// Fragment computes the output colour for each pixel of the gradient rectangle.
+func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
+	// Normalise pixel position to unit-circle space (ellipse → circle mapping).
+	dx := (dstPos.x - CenterX) / RadiusX
+	dy := (dstPos.y - CenterY) / RadiusY
+	t := sqrt(dx*dx + dy*dy)
+	t = clamp(t, 0.0, 1.0)
+
+	// Sample the 1D gradient strip texture with manual linear interpolation.
+	origin := imageSrc0Origin()
+	size := imageSrc0Size()
+
+	// Map t to texel coordinate in [0, size.x-1].
+	fx := t * (size.x - 1.0)
+	ix := floor(fx)
+	frac := fx - ix
+
+	// Sample two adjacent texels and blend.
+	c0 := imageSrc0At(origin + vec2(ix+0.5, 0.5))
+	c1 := imageSrc0At(origin + vec2(min(ix+1.5, size.x-0.5), 0.5))
+
+	return mix(c0, c1, frac)
+}
