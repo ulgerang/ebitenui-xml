@@ -186,6 +186,10 @@ type Gradient struct {
 	Type       GradientType
 	Angle      float64 // for linear gradients, in degrees
 	ColorStops []ColorStop
+
+	// strip is the cached 1D gradient lookup texture (256×1 pixels).
+	// Built lazily on first GPU draw and reused across frames.
+	strip *ebiten.Image
 }
 
 type GradientType int
@@ -202,8 +206,18 @@ type ColorStop struct {
 
 // DrawGradient draws a linear gradient in the given rectangle with angle support.
 // CSS angles: 0deg=bottom-to-top, 90deg=left-to-right, 180deg=top-to-bottom, 270deg=right-to-left.
+//
+// This implementation uses a GPU Kage shader for single-draw-call rendering.
+// The gradient is baked into a 256×1 lookup texture and the shader computes
+// the gradient position per-pixel on the GPU.
 func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 	if g == nil || len(g.ColorStops) < 2 {
+		return
+	}
+
+	w := int(r.W)
+	h := int(r.H)
+	if w <= 0 || h <= 0 {
 		return
 	}
 
@@ -236,61 +250,34 @@ func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 		dotRange = 1
 	}
 
-	// Normalize angle to [0, 360) for fast-path checks
-	normAngle := math.Mod(g.Angle, 360)
-	if normAngle < 0 {
-		normAngle += 360
-	}
+	// Precompute shader uniforms so the fragment shader only does:
+	//   t = GradA * dstPos.x + GradB * dstPos.y + GradC
+	//
+	// Derivation (center-relative → absolute with GeoM translation):
+	//   px_rel = dstPos.x - r.X - hw
+	//   py_rel = dstPos.y - r.Y - hh
+	//   dot    = cosA*px_rel + sinA*py_rel
+	//   t      = (dot - minDot) / dotRange
+	//          = cosA/dotRange * dstPos.x + sinA/dotRange * dstPos.y
+	//            + (-(hw*cosA + hh*sinA + minDot) - cosA*r.X - sinA*r.Y) / dotRange
+	gradA := cosA / dotRange
+	gradB := sinA / dotRange
+	gradC := (-(hw*cosA + hh*sinA + minDot) - cosA*r.X - sinA*r.Y) / dotRange
 
-	if normAngle == 90 || normAngle == 270 {
-		// Horizontal gradient — draw vertical strips (1px wide, full height)
-		for px := 0.0; px < r.W; px++ {
-			rx := px - hw
-			dot := rx * cosA
-			t := (dot - minDot) / dotRange
-			if t < 0 {
-				t = 0
-			}
-			if t > 1 {
-				t = 1
-			}
-			clr := interpolateGradient(g.ColorStops, t)
-			vector.DrawFilledRect(screen, float32(r.X+px), float32(r.Y), 1, float32(r.H), clr, false)
-		}
-	} else if normAngle == 0 || normAngle == 180 {
-		// Vertical gradient — draw horizontal strips (full width, 1px tall)
-		for py := 0.0; py < r.H; py++ {
-			ry := py - hh
-			dot := ry * sinA
-			t := (dot - minDot) / dotRange
-			if t < 0 {
-				t = 0
-			}
-			if t > 1 {
-				t = 1
-			}
-			clr := interpolateGradient(g.ColorStops, t)
-			vector.DrawFilledRect(screen, float32(r.X), float32(r.Y+py), float32(r.W), 1, clr, false)
-		}
-	} else {
-		// Arbitrary angle — pixel-by-pixel rendering
-		for py := 0.0; py < r.H; py++ {
-			for px := 0.0; px < r.W; px++ {
-				rx := px - hw
-				ry := py - hh
-				dot := rx*cosA + ry*sinA
-				t := (dot - minDot) / dotRange
-				if t < 0 {
-					t = 0
-				}
-				if t > 1 {
-					t = 1
-				}
-				clr := interpolateGradient(g.ColorStops, t)
-				vector.DrawFilledRect(screen, float32(r.X+px), float32(r.Y+py), 1, 1, clr, false)
-			}
-		}
+	// Ensure the 1D gradient strip texture is ready (lazy, cached).
+	strip := g.ensureGradientStrip()
+
+	shader := getLinearGradientShader()
+
+	op := &ebiten.DrawRectShaderOptions{}
+	op.GeoM.Translate(r.X, r.Y)
+	op.Uniforms = map[string]any{
+		"GradA": float32(gradA),
+		"GradB": float32(gradB),
+		"GradC": float32(gradC),
 	}
+	op.Images[0] = strip
+	screen.DrawRectShader(w, h, shader, op)
 }
 
 // interpolateGradient finds the color at position t
