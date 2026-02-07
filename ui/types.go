@@ -3,6 +3,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -72,6 +73,33 @@ type Padding struct {
 	Top, Right, Bottom, Left float64
 }
 
+// UnmarshalJSON handles the "all" shorthand key: {"all":10} → all sides = 10
+func (p *Padding) UnmarshalJSON(data []byte) error {
+	type paddingRaw struct {
+		All    *float64 `json:"all"`
+		Top    float64  `json:"top"`
+		Right  float64  `json:"right"`
+		Bottom float64  `json:"bottom"`
+		Left   float64  `json:"left"`
+	}
+	var raw paddingRaw
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if raw.All != nil {
+		p.Top = *raw.All
+		p.Right = *raw.All
+		p.Bottom = *raw.All
+		p.Left = *raw.All
+	} else {
+		p.Top = raw.Top
+		p.Right = raw.Right
+		p.Bottom = raw.Bottom
+		p.Left = raw.Left
+	}
+	return nil
+}
+
 // All returns a Padding with all sides equal
 func PaddingAll(v float64) Padding {
 	return Padding{v, v, v, v}
@@ -90,6 +118,33 @@ func (p Padding) Vertical() float64 {
 // Margin represents margin values
 type Margin struct {
 	Top, Right, Bottom, Left float64
+}
+
+// UnmarshalJSON handles the "all" shorthand key: {"all":15} → all sides = 15
+func (m *Margin) UnmarshalJSON(data []byte) error {
+	type marginRaw struct {
+		All    *float64 `json:"all"`
+		Top    float64  `json:"top"`
+		Right  float64  `json:"right"`
+		Bottom float64  `json:"bottom"`
+		Left   float64  `json:"left"`
+	}
+	var raw marginRaw
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if raw.All != nil {
+		m.Top = *raw.All
+		m.Right = *raw.All
+		m.Bottom = *raw.All
+		m.Left = *raw.All
+	} else {
+		m.Top = raw.Top
+		m.Right = raw.Right
+		m.Bottom = raw.Bottom
+		m.Left = raw.Left
+	}
+	return nil
 }
 
 // All returns a Margin with all sides equal
