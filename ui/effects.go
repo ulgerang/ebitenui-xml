@@ -823,6 +823,153 @@ func NewFilter() *Filter {
 	}
 }
 
+// filterIsDefault reports whether a filter has no visible effect.
+// Used to skip the shader pass when filter values match the defaults.
+func filterIsDefault(f *Filter) bool {
+	if f == nil {
+		return true
+	}
+	return f.Blur == 0 &&
+		f.Brightness == 1 &&
+		f.Contrast == 1 &&
+		f.Saturate == 1 &&
+		f.Grayscale == 0 &&
+		f.Sepia == 0 &&
+		f.HueRotate == 0 &&
+		f.Invert == 0
+}
+
+// ParseFilter parses a CSS filter string into a Filter struct.
+// Supported functions: blur(), brightness(), contrast(), saturate(),
+// grayscale(), sepia(), hue-rotate(), invert().
+// Example: "brightness(1.5) contrast(0.8) grayscale(50%) hue-rotate(90deg)"
+func ParseFilter(s string) *Filter {
+	s = strings.TrimSpace(s)
+	if s == "" || s == "none" {
+		return nil
+	}
+
+	f := NewFilter()
+
+	// Find each function call: name(value)
+	for len(s) > 0 {
+		// Find function name
+		parenIdx := strings.Index(s, "(")
+		if parenIdx < 0 {
+			break
+		}
+		name := strings.TrimSpace(s[:parenIdx])
+		s = s[parenIdx+1:]
+
+		// Find closing paren
+		closeIdx := strings.Index(s, ")")
+		if closeIdx < 0 {
+			break
+		}
+		valStr := strings.TrimSpace(s[:closeIdx])
+		s = s[closeIdx+1:]
+
+		// Parse the value and assign to the appropriate field
+		val := parseFilterValue(name, valStr)
+		switch name {
+		case "blur":
+			f.Blur = val
+		case "brightness":
+			f.Brightness = val
+		case "contrast":
+			f.Contrast = val
+		case "saturate":
+			f.Saturate = val
+		case "grayscale":
+			f.Grayscale = val
+		case "sepia":
+			f.Sepia = val
+		case "hue-rotate":
+			f.HueRotate = val // stored as degrees
+		case "invert":
+			f.Invert = val
+		}
+	}
+
+	return f
+}
+
+// parseFilterValue parses a single CSS filter function value.
+// Handles percentage (e.g., "150%"), degrees ("90deg"), and plain numbers ("1.5").
+func parseFilterValue(name, valStr string) float64 {
+	if name == "hue-rotate" {
+		// hue-rotate uses angle units
+		valStr = strings.TrimSpace(valStr)
+		if strings.HasSuffix(valStr, "deg") {
+			v, _ := strconv.ParseFloat(strings.TrimSuffix(valStr, "deg"), 64)
+			return v // degrees
+		}
+		if strings.HasSuffix(valStr, "rad") {
+			v, _ := strconv.ParseFloat(strings.TrimSuffix(valStr, "rad"), 64)
+			return v * 180 / math.Pi // convert rad to degrees for storage
+		}
+		if strings.HasSuffix(valStr, "turn") {
+			v, _ := strconv.ParseFloat(strings.TrimSuffix(valStr, "turn"), 64)
+			return v * 360 // convert turns to degrees
+		}
+		// Plain number assumed to be degrees
+		v, _ := strconv.ParseFloat(valStr, 64)
+		return v
+	}
+
+	if name == "blur" {
+		// blur uses length units (px)
+		valStr = strings.TrimSuffix(strings.TrimSpace(valStr), "px")
+		v, _ := strconv.ParseFloat(valStr, 64)
+		return v
+	}
+
+	// For brightness, contrast, saturate, grayscale, sepia, invert:
+	// Percentage: "150%" → 1.5, "50%" → 0.5
+	// Plain number: "1.5" → 1.5
+	valStr = strings.TrimSpace(valStr)
+	if strings.HasSuffix(valStr, "%") {
+		v, _ := strconv.ParseFloat(strings.TrimSuffix(valStr, "%"), 64)
+		return v / 100
+	}
+	v, _ := strconv.ParseFloat(valStr, 64)
+	return v
+}
+
+// ApplyFilter renders a pre-rendered offscreen image through the CSS filter
+// shader and composites the result onto screen at the given rectangle position.
+func ApplyFilter(screen *ebiten.Image, content *ebiten.Image, r Rect, filter *Filter) {
+	if filter == nil || filterIsDefault(filter) {
+		// No filter — just draw directly
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(r.X, r.Y)
+		screen.DrawImage(content, op)
+		return
+	}
+
+	cw := content.Bounds().Dx()
+	ch := content.Bounds().Dy()
+	if cw <= 0 || ch <= 0 {
+		return
+	}
+
+	shader := getFilterShader()
+
+	sop := &ebiten.DrawRectShaderOptions{}
+	sop.GeoM.Translate(r.X, r.Y)
+	sop.Uniforms = map[string]any{
+		"Brightness": float32(filter.Brightness),
+		"Contrast":   float32(filter.Contrast),
+		"Saturate":   float32(filter.Saturate),
+		"Grayscale":  float32(filter.Grayscale),
+		"Sepia":      float32(filter.Sepia),
+		"HueRotate":  float32(filter.HueRotate * math.Pi / 180), // degrees → radians
+		"Invert":     float32(filter.Invert),
+	}
+	sop.Images[0] = content
+	screen.DrawRectShader(cw, ch, shader, sop)
+}
+
 // BackdropFilter represents CSS backdrop-filter for glassmorphism
 type BackdropFilter struct {
 	Blur       float64

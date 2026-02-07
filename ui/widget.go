@@ -334,6 +334,27 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		}
 	}
 
+	// Determine rendering target for CSS filter.
+	// When a filter is active, widget content (background, border, outline,
+	// children) is rendered into an offscreen buffer, then the filter shader
+	// composites the result onto screen.  Box shadow is always drawn directly
+	// to screen because it extends outside the widget rect.
+	useFilter := style.parsedFilter != nil && !filterIsDefault(style.parsedFilter)
+	target := screen
+	drawRect := r
+	var filterOffscreen *ebiten.Image
+
+	if useFilter {
+		fw, fh := int(r.W), int(r.H)
+		if fw > 0 && fh > 0 {
+			filterOffscreen = ebiten.NewImage(fw, fh)
+			target = filterOffscreen
+			drawRect = Rect{X: 0, Y: 0, W: r.W, H: r.H}
+		} else {
+			useFilter = false
+		}
+	}
+
 	// 2. Draw background (9-slice, gradient, or solid)
 	if w.nineSlice != nil {
 		var colorScale *ebiten.ColorScale
@@ -342,13 +363,13 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 			cs.SetA(float32(opacity))
 			colorScale = &cs
 		}
-		w.nineSlice.Draw(screen, r.X, r.Y, r.W, r.H, colorScale)
+		w.nineSlice.Draw(target, drawRect.X, drawRect.Y, drawRect.W, drawRect.H, colorScale)
 	} else if style.parsedGradient != nil {
 		// Draw gradient background (linear or radial)
 		if style.parsedGradient.Type == GradientRadial {
-			DrawRadialGradient(screen, r, style.parsedGradient)
+			DrawRadialGradient(target, drawRect, style.parsedGradient)
 		} else {
-			DrawGradient(screen, r, style.parsedGradient)
+			DrawGradient(target, drawRect, style.parsedGradient)
 		}
 	} else if style.BackgroundColor != nil {
 		// Draw solid background
@@ -356,7 +377,7 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		if opacity < 1 {
 			bgColor = applyOpacity(bgColor, opacity)
 		}
-		DrawRoundedRectPath(screen, r, style.BorderRadius, bgColor)
+		DrawRoundedRectPath(target, drawRect, style.BorderRadius, bgColor)
 	}
 
 	// 3. Draw border
@@ -365,32 +386,32 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		if opacity < 1 {
 			borderColor = applyOpacity(borderColor, opacity)
 		}
-		drawRoundedRectStroke(screen, r, style.BorderRadius, style.BorderWidth, borderColor)
+		drawRoundedRectStroke(target, drawRect, style.BorderRadius, style.BorderWidth, borderColor)
 	}
 
 	// 4. Draw outline (outside the border)
 	if style.parsedOutline != nil {
 		style.parsedOutline.Offset = style.OutlineOffset
-		DrawOutline(screen, r, style.parsedOutline, style.BorderRadius)
+		DrawOutline(target, drawRect, style.parsedOutline, style.BorderRadius)
 	} else if style.Outline != "" {
 		// Parse on first use
 		style.parsedOutline = ParseOutline(style.Outline)
 		if style.parsedOutline != nil {
 			style.parsedOutline.Offset = style.OutlineOffset
-			DrawOutline(screen, r, style.parsedOutline, style.BorderRadius)
+			DrawOutline(target, drawRect, style.parsedOutline, style.BorderRadius)
 		}
 	}
 
 	// 5. Draw children - with overflow clipping
 	if style.Overflow == "hidden" || style.Overflow == "scroll" || style.Overflow == "auto" {
-		clipW := int(r.W)
-		clipH := int(r.H)
+		clipW := int(drawRect.W)
+		clipH := int(drawRect.H)
 		if clipW > 0 && clipH > 0 {
 			tmpImg := ebiten.NewImage(clipW, clipH)
 			// Translate so parent's origin is at (0,0) in temp image
 			sortedChildren := sortByZIndex(w.children)
 			for _, child := range sortedChildren {
-				// Save and adjust position
+				// Save and adjust position — always shift by original screen-space r
 				origRect := child.ComputedRect()
 				shifted := Rect{
 					X: origRect.X - r.X,
@@ -403,18 +424,39 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 				child.SetComputedRect(origRect)
 			}
 			drawOp := &ebiten.DrawImageOptions{}
-			drawOp.GeoM.Translate(r.X, r.Y)
+			drawOp.GeoM.Translate(drawRect.X, drawRect.Y)
 			if opacity < 1 {
 				drawOp.ColorScale.SetA(float32(opacity))
 			}
-			screen.DrawImage(tmpImg, drawOp)
+			target.DrawImage(tmpImg, drawOp)
 			tmpImg.Deallocate()
+		}
+	} else if useFilter {
+		// When filter is active, shift children into offscreen coordinates
+		sortedChildren := sortByZIndex(w.children)
+		for _, child := range sortedChildren {
+			origRect := child.ComputedRect()
+			shifted := Rect{
+				X: origRect.X - r.X,
+				Y: origRect.Y - r.Y,
+				W: origRect.W,
+				H: origRect.H,
+			}
+			child.SetComputedRect(shifted)
+			DrawWidget(target, child)
+			child.SetComputedRect(origRect)
 		}
 	} else {
 		sortedChildren := sortByZIndex(w.children)
 		for _, child := range sortedChildren {
-			child.Draw(screen)
+			child.Draw(target)
 		}
+	}
+
+	// 6. Apply CSS filter and composite onto screen
+	if useFilter && filterOffscreen != nil {
+		ApplyFilter(screen, filterOffscreen, r, style.parsedFilter)
+		filterOffscreen.Deallocate()
 	}
 }
 

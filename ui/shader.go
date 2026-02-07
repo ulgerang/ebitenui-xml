@@ -133,6 +133,29 @@ func getBoxShadowShader() *ebiten.Shader {
 	return boxShadowShader
 }
 
+// --- CSS filter shader (singleton, lazy-compiled) ----------------------------
+
+//go:embed shaders/filter.kage
+var filterShaderSrc []byte
+
+var (
+	filterShader     *ebiten.Shader
+	filterShaderOnce sync.Once
+)
+
+// getFilterShader returns the compiled Kage shader for CSS colour-matrix filters.
+// The shader is compiled once on first use and cached for the process lifetime.
+func getFilterShader() *ebiten.Shader {
+	filterShaderOnce.Do(func() {
+		s, err := ebiten.NewShader(filterShaderSrc)
+		if err != nil {
+			panic(fmt.Sprintf("ui: failed to compile filter shader: %v", err))
+		}
+		filterShader = s
+	})
+	return filterShader
+}
+
 // --- Premultiplied alpha colour helper --------------------------------------
 
 // colorToPremultiplied converts any color.Color to premultiplied RGBA bytes.

@@ -1,0 +1,105 @@
+//kage:unit pixels
+
+// CSS colour-matrix filter shader for ebitenui-xml.
+//
+// Applies the following CSS filter functions in a single GPU pass:
+//   grayscale → sepia → saturate → hue-rotate → brightness → contrast → invert
+//
+// The input image (imageSrc0) contains the widget's pre-rendered content as an
+// offscreen texture.  All colour math is performed in straight (non-premultiplied)
+// alpha space and re-premultiplied before output, matching the Ebitengine pipeline.
+//
+// Blur is NOT handled here — it requires a multi-pass separable kernel and is
+// deferred to a future phase.
+
+package main
+
+// Brightness multiplier (1.0 = no change).
+var Brightness float
+
+// Contrast multiplier (1.0 = no change).
+var Contrast float
+
+// Saturate multiplier (1.0 = no change, 0.0 = grayscale).
+var Saturate float
+
+// Grayscale amount (0.0 = no change, 1.0 = fully desaturated).
+var Grayscale float
+
+// Sepia amount (0.0 = no change, 1.0 = full sepia tone).
+var Sepia float
+
+// HueRotate angle in radians.
+var HueRotate float
+
+// Invert amount (0.0 = no change, 1.0 = fully inverted).
+var Invert float
+
+// Fragment computes the filtered output colour for each pixel.
+func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
+	// Sample source pixel (premultiplied alpha).
+	src := imageSrc0At(srcPos)
+
+	// Skip fully transparent pixels.
+	if src.a < 1.0/255.0 {
+		return vec4(0.0)
+	}
+
+	// Un-premultiply alpha for correct colour math.
+	r := src.x / src.a
+	g := src.y / src.a
+	b := src.z / src.a
+
+	// --- 1. Grayscale (Rec. 709 luma) ---
+	luma := 0.2126*r + 0.7152*g + 0.0722*b
+	r = mix(r, luma, Grayscale)
+	g = mix(g, luma, Grayscale)
+	b = mix(b, luma, Grayscale)
+
+	// --- 2. Sepia ---
+	sr := min(0.393*r+0.769*g+0.189*b, 1.0)
+	sg := min(0.349*r+0.686*g+0.168*b, 1.0)
+	sb := min(0.272*r+0.534*g+0.131*b, 1.0)
+	r = mix(r, sr, Sepia)
+	g = mix(g, sg, Sepia)
+	b = mix(b, sb, Sepia)
+
+	// --- 3. Saturate ---
+	luma = 0.2126*r + 0.7152*g + 0.0722*b
+	r = mix(luma, r, Saturate)
+	g = mix(luma, g, Saturate)
+	b = mix(luma, b, Saturate)
+
+	// --- 4. Hue-rotate (CSS spec rotation matrix, Rec. 709 coefficients) ---
+	cosH := cos(HueRotate)
+	sinH := sin(HueRotate)
+	hr := r*(0.213+0.787*cosH-0.213*sinH) + g*(0.715-0.715*cosH-0.715*sinH) + b*(0.072-0.072*cosH+0.928*sinH)
+	hg := r*(0.213-0.213*cosH+0.143*sinH) + g*(0.715+0.285*cosH+0.140*sinH) + b*(0.072-0.072*cosH-0.283*sinH)
+	hb := r*(0.213-0.213*cosH-0.787*sinH) + g*(0.715-0.715*cosH+0.715*sinH) + b*(0.072+0.928*cosH+0.072*sinH)
+	r = hr
+	g = hg
+	b = hb
+
+	// --- 5. Brightness ---
+	r *= Brightness
+	g *= Brightness
+	b *= Brightness
+
+	// --- 6. Contrast ---
+	r = (r-0.5)*Contrast + 0.5
+	g = (g-0.5)*Contrast + 0.5
+	b = (b-0.5)*Contrast + 0.5
+
+	// --- 7. Invert ---
+	r = mix(r, 1.0-r, Invert)
+	g = mix(g, 1.0-g, Invert)
+	b = mix(b, 1.0-b, Invert)
+
+	// Clamp to valid [0, 1] range.
+	r = clamp(r, 0.0, 1.0)
+	g = clamp(g, 0.0, 1.0)
+	b = clamp(b, 0.0, 1.0)
+
+	// Re-premultiply alpha for Ebitengine output.
+	return vec4(r*src.a, g*src.a, b*src.a, src.a)
+}

@@ -145,6 +145,11 @@ func (se *StyleEngine) parseStyleColors(style *Style) {
 		style.parsedTransitions = parseTransitions(style.Transition)
 	}
 
+	// Parse filter
+	if style.Filter != "" {
+		style.parsedFilter = ParseFilter(style.Filter)
+	}
+
 	// Parse state styles
 	if style.HoverStyle != nil {
 		se.parseStyleColors(style.HoverStyle)
