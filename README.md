@@ -21,7 +21,7 @@ package main
 
 import (
     "log"
-    "github.com/example/ebitenui-xml/ui"
+    "github.com/ulgerang/ebitenui-xml/ui"
     "github.com/hajimehoshi/ebiten/v2"
 )
 

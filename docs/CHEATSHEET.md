@@ -243,3 +243,4 @@ modal.Draw(screen)  // Draw에서
 - [REFERENCE.md](./REFERENCE.md) - 전체 레퍼런스
 - [WIDGETS_EXTENDED.md](./WIDGETS_EXTENDED.md) - 확장 위젯 가이드
 - [SVG_REFERENCE.md](./SVG_REFERENCE.md) - SVG 렌더링 가이드
+- [CSS_COMPARE.md](./CSS_COMPARE.md) - CSS 비주얼 비교 도구

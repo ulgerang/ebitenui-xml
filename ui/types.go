@@ -136,8 +136,10 @@ type Style struct {
 	FlexShrink float64 `json:"flexShrink"`
 
 	// Spacing
-	Padding Padding `json:"padding"`
-	Margin  Margin  `json:"margin"`
+	Padding    Padding `json:"padding"`
+	Margin     Margin  `json:"margin"`
+	PaddingSet bool    `json:"-"` // true if padding was explicitly set (allows zero override)
+	MarginSet  bool    `json:"-"` // true if margin was explicitly set (allows zero override)
 
 	// Colors
 	BackgroundColor color.Color `json:"-"`
@@ -152,6 +154,7 @@ type Style struct {
 	// Border (expanded CSS-like properties)
 	BorderWidth             float64 `json:"borderWidth"`
 	BorderRadius            float64 `json:"borderRadius"`
+	BorderWidthSet          bool    `json:"-"` // true if borderWidth was explicitly set
 	BorderTopWidth          float64 `json:"borderTopWidth"`
 	BorderRightWidth        float64 `json:"borderRightWidth"`
 	BorderBottomWidth       float64 `json:"borderBottomWidth"`
@@ -302,12 +305,14 @@ func (s *Style) Merge(other *Style) {
 		s.FlexShrink = other.FlexShrink
 	}
 
-	// Spacing
-	if other.Padding.Top != 0 || other.Padding.Right != 0 || other.Padding.Bottom != 0 || other.Padding.Left != 0 {
+	// Spacing - PaddingSet/MarginSet allow explicit zero-padding overrides
+	if other.PaddingSet || other.Padding.Top != 0 || other.Padding.Right != 0 || other.Padding.Bottom != 0 || other.Padding.Left != 0 {
 		s.Padding = other.Padding
+		s.PaddingSet = true
 	}
-	if other.Margin.Top != 0 || other.Margin.Right != 0 || other.Margin.Bottom != 0 || other.Margin.Left != 0 {
+	if other.MarginSet || other.Margin.Top != 0 || other.Margin.Right != 0 || other.Margin.Bottom != 0 || other.Margin.Left != 0 {
 		s.Margin = other.Margin
+		s.MarginSet = true
 	}
 
 	// Colors
@@ -322,6 +327,11 @@ func (s *Style) Merge(other *Style) {
 	}
 	if other.Background != "" {
 		s.Background = other.Background
+		// Propagate parsed gradient/color when background string changes
+		s.parsedGradient = other.parsedGradient
+		if other.parsedGradient != nil {
+			s.BackgroundColor = nil // gradient takes priority
+		}
 	}
 	if other.Border != "" {
 		s.Border = other.Border
@@ -331,8 +341,9 @@ func (s *Style) Merge(other *Style) {
 	}
 
 	// Border
-	if other.BorderWidth != 0 {
+	if other.BorderWidthSet || other.BorderWidth != 0 {
 		s.BorderWidth = other.BorderWidth
+		s.BorderWidthSet = true
 	}
 	if other.BorderRadius != 0 {
 		s.BorderRadius = other.BorderRadius
@@ -364,9 +375,22 @@ func (s *Style) Merge(other *Style) {
 	}
 	if other.BoxShadow != "" {
 		s.BoxShadow = other.BoxShadow
+		s.parsedBoxShadow = other.parsedBoxShadow
+	}
+	if other.TextShadow != "" {
+		s.TextShadow = other.TextShadow
+		s.parsedTextShadow = other.parsedTextShadow
+	}
+	if other.Outline != "" {
+		s.Outline = other.Outline
+		s.parsedOutline = other.parsedOutline
+	}
+	if other.OutlineOffset != 0 {
+		s.OutlineOffset = other.OutlineOffset
 	}
 	if other.Transition != "" {
 		s.Transition = other.Transition
+		s.parsedTransitions = other.parsedTransitions
 	}
 
 	// 9-Slice

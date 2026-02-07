@@ -94,17 +94,6 @@
         },
         "#footer": {
             "height": 30,
-            "background": "#16213e",
-            "padding": {
-                "top": 5,
-                "right": 20,
-                "bottom": 5,
-                "left": 20
-            },
-            "borderRadius": 0
-        },
-        "#footer": {
-            "height": 30,
             "background": "linear-gradient(90deg, #16213e, #1a1a2e)",
             "padding": {
                 "top": 5,

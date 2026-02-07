@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -271,14 +272,7 @@ func (ti *TextInput) Draw(screen *ebiten.Image) {
 	// Determine display text
 	displayText := ti.Text
 	if ti.Password {
-		displayText = string(make([]rune, utf8.RuneCountInString(ti.Text)))
-		for i := range displayText {
-			displayText = displayText[:i] + "?? + displayText[i+1:]
-		}
-		displayText = ""
-		for range []rune(ti.Text) {
-			displayText += "??
-		}
+		displayText = strings.Repeat("●", utf8.RuneCountInString(ti.Text))
 	}
 
 	// Draw placeholder if empty

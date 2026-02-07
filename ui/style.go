@@ -44,43 +44,72 @@ func (se *StyleEngine) LoadFromFile(filename string) error {
 // LoadFromJSON loads styles from JSON data
 // Supports both flat format: { "#root": {...} } and nested format: { "styles": { "#root": {...} } }
 func (se *StyleEngine) LoadFromJSON(data []byte) error {
-	// First, try to parse as direct map (flat format)
-	var directStyles map[string]*Style
-	if err := json.Unmarshal(data, &directStyles); err == nil && len(directStyles) > 0 {
-		// Check if it's actually a nested format with "styles" key
-		if styleProp, ok := directStyles["styles"]; ok && styleProp == nil {
-			// Might be nested format, try that
-			var sheet StyleSheet
-			if err := json.Unmarshal(data, &sheet); err == nil && len(sheet.Styles) > 0 {
-				for selector, style := range sheet.Styles {
-					se.parseStyleColors(style)
-					se.styles[selector] = style
-				}
-				return nil
-			}
-		}
-		// Use direct map
-		for selector, style := range directStyles {
-			if style != nil {
-				se.parseStyleColors(style)
-				se.styles[selector] = style
-			}
-		}
-		return nil
-	}
-
-	// Try nested format as fallback
-	var sheet StyleSheet
-	if err := json.Unmarshal(data, &sheet); err != nil {
+	// Parse raw JSON to detect explicitly-set fields
+	var rawMap map[string]json.RawMessage
+	if err := json.Unmarshal(data, &rawMap); err != nil {
 		return fmt.Errorf("failed to parse styles: %w", err)
 	}
 
-	for selector, style := range sheet.Styles {
-		se.parseStyleColors(style)
-		se.styles[selector] = style
+	// Determine the style map source
+	var styleRawMap map[string]json.RawMessage
+
+	// Check if it's nested format with "styles" key
+	if stylesRaw, ok := rawMap["styles"]; ok {
+		if err := json.Unmarshal(stylesRaw, &styleRawMap); err == nil && len(styleRawMap) > 0 {
+			// nested format
+		} else {
+			styleRawMap = rawMap // fallback to flat
+		}
+	} else {
+		styleRawMap = rawMap // flat format
+	}
+
+	for selector, rawStyle := range styleRawMap {
+		var style Style
+		if err := json.Unmarshal(rawStyle, &style); err != nil {
+			continue
+		}
+
+		// Detect explicitly-set fields from raw JSON
+		se.detectExplicitFields(&style, rawStyle)
+
+		se.parseStyleColors(&style)
+		se.styles[selector] = &style
 	}
 
 	return nil
+}
+
+// detectExplicitFields scans raw JSON to set flags for explicitly-specified fields
+func (se *StyleEngine) detectExplicitFields(style *Style, rawJSON json.RawMessage) {
+	var rawFields map[string]json.RawMessage
+	if err := json.Unmarshal(rawJSON, &rawFields); err != nil {
+		return
+	}
+
+	if _, ok := rawFields["padding"]; ok {
+		style.PaddingSet = true
+	}
+	if _, ok := rawFields["margin"]; ok {
+		style.MarginSet = true
+	}
+	if _, ok := rawFields["borderWidth"]; ok {
+		style.BorderWidthSet = true
+	}
+
+	// Recursively handle state styles
+	if hoverRaw, ok := rawFields["hover"]; ok && style.HoverStyle != nil {
+		se.detectExplicitFields(style.HoverStyle, hoverRaw)
+	}
+	if activeRaw, ok := rawFields["active"]; ok && style.ActiveStyle != nil {
+		se.detectExplicitFields(style.ActiveStyle, activeRaw)
+	}
+	if disabledRaw, ok := rawFields["disabled"]; ok && style.DisabledStyle != nil {
+		se.detectExplicitFields(style.DisabledStyle, disabledRaw)
+	}
+	if focusRaw, ok := rawFields["focus"]; ok && style.FocusStyle != nil {
+		se.detectExplicitFields(style.FocusStyle, focusRaw)
+	}
 }
 
 // parseStyleColors recursively parses color strings in a style

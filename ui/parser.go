@@ -113,24 +113,19 @@ func (f *WidgetFactory) CreateFromXML(node *XMLNode) Widget {
 		return nil
 	}
 
-	// Apply styles
-	if f.styleEngine != nil {
-		// Apply by element type
-		f.styleEngine.ApplyStyle(widget, node.XMLName.Local)
-		// Apply by ID
-		if node.ID != "" {
-			f.styleEngine.ApplyStyle(widget, "#"+node.ID)
-		}
-		// Apply by class
-		if node.Class != "" {
-			classes := strings.Fields(node.Class)
-			for _, class := range classes {
-				f.styleEngine.ApplyStyle(widget, "."+class)
-			}
+	// Transfer XML class attribute to widget's classes field
+	// This is essential for class-based style selectors (e.g., ".danger")
+	if node.Class != "" {
+		for _, class := range strings.Fields(node.Class) {
+			widget.AddClass(class)
 		}
 	}
 
-	// Apply inline style attributes
+	// NOTE: Style application (type/id/class selectors) is handled by
+	// reapplyStyles() in LoadLayout/LoadStyles. Applying here would cause
+	// double-application, where type defaults overwrite class overrides.
+
+	// Apply inline style attributes (XML attributes like width="100")
 	f.applyInlineStyles(widget, node)
 
 	// Create children

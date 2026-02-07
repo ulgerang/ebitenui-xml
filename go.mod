@@ -15,8 +15,11 @@ require (
 	github.com/jezek/xgb v1.1.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	golang.org/x/image v0.31.0 // indirect
+	github.com/ulgerang/ebiten-ertp v0.0.0
+	golang.org/x/image v0.31.0
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 )
+
+replace github.com/ulgerang/ebiten-ertp => ../ebiten-ertp
