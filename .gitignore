@@ -30,6 +30,7 @@ screenshots/
 /report_svg.html
 
 # Visual regression test output directories
+cmd/css_testloop/output/
 tools/css_compare/output/
 tools/css_compare/css_compare_output/*.png
 tools/css_compare/css_compare_output/*.exe
