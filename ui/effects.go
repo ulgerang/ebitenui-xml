@@ -772,13 +772,36 @@ func DrawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, 
 
 // drawRoundedRectStrokeEx is the internal implementation for stroked rounded rects
 // with independent per-corner radii.
+//
+// CSS border-box: the border sits entirely INSIDE the element rect.
+// Ebiten stroke is centered on the path, so we inset the path by strokeWidth/2.
+// Border radii are also reduced by strokeWidth/2 so the outer edge of the
+// stroke matches the CSS border-radius.
 func drawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, radBL float64, strokeWidth float64, clr color.Color) {
 	if strokeWidth <= 0 {
 		return
 	}
 
+	// Inset the rect by half the stroke width (CSS border-box model).
+	inset := strokeWidth / 2
+	ir := Rect{
+		X: r.X + inset,
+		Y: r.Y + inset,
+		W: r.W - strokeWidth,
+		H: r.H - strokeWidth,
+	}
+	if ir.W <= 0 || ir.H <= 0 {
+		return
+	}
+
+	// Adjust radii for the inset path so outer stroke edge matches CSS border-radius.
+	radTL = math.Max(0, radTL-inset)
+	radTR = math.Max(0, radTR-inset)
+	radBR = math.Max(0, radBR-inset)
+	radBL = math.Max(0, radBL-inset)
+
 	// Clamp each radius
-	maxRadius := min(r.W, r.H) / 2
+	maxRadius := min(ir.W, ir.H) / 2
 	if radTL > maxRadius {
 		radTL = maxRadius
 	}
@@ -793,8 +816,8 @@ func drawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, 
 	}
 
 	path := &vector.Path{}
-	x, y := float32(r.X), float32(r.Y)
-	w, h := float32(r.W), float32(r.H)
+	x, y := float32(ir.X), float32(ir.Y)
+	w, h := float32(ir.W), float32(ir.H)
 	rTL := float32(radTL)
 	rTR := float32(radTR)
 	rBR := float32(radBR)

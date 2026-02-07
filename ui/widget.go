@@ -389,13 +389,15 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 	}
 }
 
-// applyOpacity applies opacity to a color
+// applyOpacity applies opacity to a color.
+// Because Go's color.RGBA uses premultiplied alpha, ALL channels (R,G,B,A)
+// must be scaled by opacity to maintain the invariant R,G,B <= A.
 func applyOpacity(c color.Color, opacity float64) color.Color {
 	r, g, b, a := c.RGBA()
 	return color.RGBA{
-		R: uint8(r >> 8),
-		G: uint8(g >> 8),
-		B: uint8(b >> 8),
+		R: uint8(float64(r>>8) * opacity),
+		G: uint8(float64(g>>8) * opacity),
+		B: uint8(float64(b>>8) * opacity),
 		A: uint8(float64(a>>8) * opacity),
 	}
 }
