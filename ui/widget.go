@@ -361,7 +361,8 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		if clipW > 0 && clipH > 0 {
 			tmpImg := ebiten.NewImage(clipW, clipH)
 			// Translate so parent's origin is at (0,0) in temp image
-			for _, child := range w.children {
+			sortedChildren := sortByZIndex(w.children)
+			for _, child := range sortedChildren {
 				// Save and adjust position
 				origRect := child.ComputedRect()
 				shifted := Rect{
@@ -383,7 +384,8 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 			tmpImg.Deallocate()
 		}
 	} else {
-		for _, child := range w.children {
+		sortedChildren := sortByZIndex(w.children)
+		for _, child := range sortedChildren {
 			child.Draw(screen)
 		}
 	}

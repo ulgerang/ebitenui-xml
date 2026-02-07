@@ -468,6 +468,18 @@ func (s *Style) Merge(other *Style) {
 	if other.Position != "" {
 		s.Position = other.Position
 	}
+	if other.Top != 0 {
+		s.Top = other.Top
+	}
+	if other.Right != 0 {
+		s.Right = other.Right
+	}
+	if other.Bottom != 0 {
+		s.Bottom = other.Bottom
+	}
+	if other.Left != 0 {
+		s.Left = other.Left
+	}
 	if other.ZIndex != 0 {
 		s.ZIndex = other.ZIndex
 	}
@@ -478,6 +490,86 @@ func (s *Style) Merge(other *Style) {
 	}
 	if other.Visibility != "" {
 		s.Visibility = other.Visibility
+	}
+
+	// Per-side border widths
+	if other.BorderTopWidth != 0 {
+		s.BorderTopWidth = other.BorderTopWidth
+	}
+	if other.BorderRightWidth != 0 {
+		s.BorderRightWidth = other.BorderRightWidth
+	}
+	if other.BorderBottomWidth != 0 {
+		s.BorderBottomWidth = other.BorderBottomWidth
+	}
+	if other.BorderLeftWidth != 0 {
+		s.BorderLeftWidth = other.BorderLeftWidth
+	}
+
+	// Per-corner border radii
+	if other.BorderTopLeftRadius != 0 {
+		s.BorderTopLeftRadius = other.BorderTopLeftRadius
+	}
+	if other.BorderTopRightRadius != 0 {
+		s.BorderTopRightRadius = other.BorderTopRightRadius
+	}
+	if other.BorderBottomLeftRadius != 0 {
+		s.BorderBottomLeftRadius = other.BorderBottomLeftRadius
+	}
+	if other.BorderBottomRightRadius != 0 {
+		s.BorderBottomRightRadius = other.BorderBottomRightRadius
+	}
+
+	// Text extras
+	if other.FontWeight != "" {
+		s.FontWeight = other.FontWeight
+	}
+	if other.FontStyle != "" {
+		s.FontStyle = other.FontStyle
+	}
+	if other.LetterSpacing != 0 {
+		s.LetterSpacing = other.LetterSpacing
+	}
+
+	// Overflow (per-axis)
+	if other.OverflowX != "" {
+		s.OverflowX = other.OverflowX
+	}
+	if other.OverflowY != "" {
+		s.OverflowY = other.OverflowY
+	}
+
+	// Background extras
+	if other.BackgroundSize != "" {
+		s.BackgroundSize = other.BackgroundSize
+	}
+	if other.BackgroundPosition != "" {
+		s.BackgroundPosition = other.BackgroundPosition
+	}
+	if other.BackgroundRepeat != "" {
+		s.BackgroundRepeat = other.BackgroundRepeat
+	}
+
+	// Transform
+	if other.Transform != "" {
+		s.Transform = other.Transform
+	}
+	if other.TransformOrigin != "" {
+		s.TransformOrigin = other.TransformOrigin
+	}
+
+	// Filters
+	if other.Filter != "" {
+		s.Filter = other.Filter
+		s.parsedFilter = other.parsedFilter
+	}
+	if other.BackdropFilter != "" {
+		s.BackdropFilter = other.BackdropFilter
+	}
+
+	// Cursor
+	if other.Cursor != "" {
+		s.Cursor = other.Cursor
 	}
 
 	// States

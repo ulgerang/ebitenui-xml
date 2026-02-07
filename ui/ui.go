@@ -420,16 +420,21 @@ func (ui *UI) buildWidgetCache(widget Widget) {
 	}
 }
 
-// findWidgetAt finds the deepest widget at a given position
+// findWidgetAt finds the deepest widget at a given position.
+// Respects z-index ordering, display:none, and visibility:hidden.
 func (ui *UI) findWidgetAt(widget Widget, x, y float64) Widget {
 	if widget == nil || !widget.Visible() {
 		return nil
 	}
+	s := widget.Style()
+	if s.Display == "none" || s.Visibility == "hidden" {
+		return nil
+	}
 
-	// Check children first (in reverse order for proper z-order)
-	children := widget.Children()
-	for i := len(children) - 1; i >= 0; i-- {
-		found := ui.findWidgetAt(children[i], x, y)
+	// Check children in z-index descending order (highest first for hit-testing)
+	children := sortByZIndexReverse(widget.Children())
+	for _, child := range children {
+		found := ui.findWidgetAt(child, x, y)
 		if found != nil {
 			return found
 		}
