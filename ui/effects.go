@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image"
 	"image/color"
 	"math"
 	"strconv"
@@ -989,6 +990,125 @@ func GlassmorphismStyle(blurAmount float64, bgAlpha float64) (*Style, *BackdropF
 			Brightness: 1.05,
 			Saturate:   1.2,
 		}
+}
+
+// NewBackdropFilter creates a BackdropFilter with identity defaults.
+func NewBackdropFilter() *BackdropFilter {
+	return &BackdropFilter{Brightness: 1, Saturate: 1}
+}
+
+// backdropFilterIsDefault returns true when the filter would have no visible effect.
+func backdropFilterIsDefault(bf *BackdropFilter) bool {
+	return bf.Blur == 0 && bf.Brightness == 1 && bf.Saturate == 1
+}
+
+// ParseBackdropFilter parses a CSS backdrop-filter string.
+// Supported functions: blur(), brightness(), saturate().
+// Example: "blur(10px) brightness(1.05) saturate(1.2)"
+func ParseBackdropFilter(s string) *BackdropFilter {
+	s = strings.TrimSpace(s)
+	if s == "" || s == "none" {
+		return nil
+	}
+
+	bf := NewBackdropFilter()
+
+	for len(s) > 0 {
+		parenIdx := strings.Index(s, "(")
+		if parenIdx < 0 {
+			break
+		}
+		name := strings.TrimSpace(s[:parenIdx])
+		s = s[parenIdx+1:]
+
+		closeIdx := strings.Index(s, ")")
+		if closeIdx < 0 {
+			break
+		}
+		valStr := strings.TrimSpace(s[:closeIdx])
+		s = s[closeIdx+1:]
+
+		val := parseFilterValue(name, valStr)
+		switch name {
+		case "blur":
+			bf.Blur = val
+		case "brightness":
+			bf.Brightness = val
+		case "saturate":
+			bf.Saturate = val
+		}
+	}
+
+	return bf
+}
+
+// ApplyBackdropFilter captures the screen region behind a widget, applies
+// blur/brightness/saturate effects, and composites the result back.
+func ApplyBackdropFilter(screen *ebiten.Image, r Rect, bf *BackdropFilter) {
+	x0, y0 := int(r.X), int(r.Y)
+	x1, y1 := int(r.X+r.W), int(r.Y+r.H)
+	w, h := x1-x0, y1-y0
+	if w <= 0 || h <= 0 {
+		return
+	}
+
+	// Capture what's currently on screen behind this widget
+	captured := screen.SubImage(image.Rect(x0, y0, x1, y1)).(*ebiten.Image)
+
+	// Copy captured region into an offscreen buffer (origin-shifted)
+	buf := ebiten.NewImage(w, h)
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(-x0), float64(-y0))
+	buf.DrawImage(captured, op)
+
+	// 2-pass separable Gaussian blur
+	if bf.Blur > 0 {
+		shader := getBackdropBlurShader()
+		if shader != nil {
+			tmp := ebiten.NewImage(w, h)
+
+			// Horizontal pass: buf → tmp
+			sop := &ebiten.DrawRectShaderOptions{}
+			sop.Images[0] = buf
+			sop.Uniforms = map[string]interface{}{
+				"Sigma":     float32(bf.Blur),
+				"Direction": [2]float32{1, 0},
+			}
+			tmp.DrawRectShader(w, h, shader, sop)
+
+			// Vertical pass: tmp → buf
+			buf.Clear()
+			sop2 := &ebiten.DrawRectShaderOptions{}
+			sop2.Images[0] = tmp
+			sop2.Uniforms = map[string]interface{}{
+				"Sigma":     float32(bf.Blur),
+				"Direction": [2]float32{0, 1},
+			}
+			buf.DrawRectShader(w, h, shader, sop2)
+		}
+	}
+
+	// Apply brightness/saturate using the existing filter shader
+	if bf.Brightness != 1 || bf.Saturate != 1 {
+		f := &Filter{
+			Brightness: bf.Brightness,
+			Contrast:   1,
+			Saturate:   bf.Saturate,
+			Grayscale:  0,
+			Sepia:      0,
+			HueRotate:  0,
+			Invert:     0,
+		}
+		tmp := ebiten.NewImage(w, h)
+		localRect := Rect{X: 0, Y: 0, W: float64(w), H: float64(h)}
+		ApplyFilter(tmp, buf, localRect, f)
+		buf = tmp
+	}
+
+	// Composite back onto screen at the original position
+	compOp := &ebiten.DrawImageOptions{}
+	compOp.GeoM.Translate(float64(x0), float64(y0))
+	screen.DrawImage(buf, compOp)
 }
 
 // ParseBoxShadow parses a CSS-like box-shadow string

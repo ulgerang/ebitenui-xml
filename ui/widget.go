@@ -334,6 +334,11 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		}
 	}
 
+	// 1.5. Apply backdrop-filter (before background, captures what's behind)
+	if style.parsedBackdropFilter != nil && !backdropFilterIsDefault(style.parsedBackdropFilter) {
+		ApplyBackdropFilter(screen, r, style.parsedBackdropFilter)
+	}
+
 	// Determine rendering target for CSS filter.
 	// When a filter is active, widget content (background, border, outline,
 	// children) is rendered into an offscreen buffer, then the filter shader

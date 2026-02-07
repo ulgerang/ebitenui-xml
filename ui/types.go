@@ -281,13 +281,14 @@ type Style struct {
 	FocusStyle    *Style `json:"focus"`
 
 	// Parsed values (internal)
-	parsedBoxShadow   *BoxShadow   `json:"-"`
-	parsedTextShadow  *TextShadow  `json:"-"`
-	parsedOutline     *Outline     `json:"-"`
-	parsedTransitions []Transition `json:"-"`
-	parsed9Slice      *NineSlice   `json:"-"`
-	parsedGradient    *Gradient    `json:"-"`
-	parsedFilter      *Filter      `json:"-"`
+	parsedBoxShadow      *BoxShadow      `json:"-"`
+	parsedTextShadow     *TextShadow     `json:"-"`
+	parsedOutline        *Outline        `json:"-"`
+	parsedTransitions    []Transition    `json:"-"`
+	parsed9Slice         *NineSlice      `json:"-"`
+	parsedGradient       *Gradient       `json:"-"`
+	parsedFilter         *Filter         `json:"-"`
+	parsedBackdropFilter *BackdropFilter `json:"-"`
 }
 
 // Clone creates a deep copy of the style
@@ -565,6 +566,7 @@ func (s *Style) Merge(other *Style) {
 	}
 	if other.BackdropFilter != "" {
 		s.BackdropFilter = other.BackdropFilter
+		s.parsedBackdropFilter = other.parsedBackdropFilter
 	}
 
 	// Cursor

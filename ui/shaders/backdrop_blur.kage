@@ -1,0 +1,57 @@
+//kage:unit pixels
+
+// Separable Gaussian blur shader for CSS backdrop-filter.
+//
+// This shader performs a single-direction blur pass.  The Go-side driver calls
+// it twice (horizontal then vertical) with different Direction uniforms to
+// produce a full 2D Gaussian blur.
+//
+// Kernel size adapts automatically: radius = ceil(3*Sigma).  Samples beyond
+// the source image bounds return vec4(0) via imageSrc0At, which is acceptable
+// for backdrop captures where the entire widget region is populated.
+
+package main
+
+// Sigma is the Gaussian standard deviation in pixels.
+// Larger values produce a stronger blur.  CSS blur(Npx) maps to Sigma = N.
+var Sigma float
+
+// Direction selects the blur axis:
+//   vec2(1, 0) = horizontal pass
+//   vec2(0, 1) = vertical pass
+var Direction vec2
+
+// Fragment computes a weighted average of neighbouring pixels along Direction.
+func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
+	if Sigma < 0.5 {
+		// No meaningful blur — pass through.
+		return imageSrc0At(srcPos)
+	}
+
+	// Kernel radius: 3 standard deviations captures ~99.7% of the Gaussian.
+	radius := int(ceil(3.0 * Sigma))
+	if radius < 1 {
+		radius = 1
+	}
+
+	// Precompute denominator: -1 / (2 * sigma^2)
+	invTwoSigmaSq := -0.5 / (Sigma * Sigma)
+
+	result := vec4(0.0)
+	totalWeight := 0.0
+
+	for i := -radius; i <= radius; i++ {
+		fi := float(i)
+		// Gaussian weight: exp(-x^2 / (2*sigma^2))
+		w := exp(fi * fi * invTwoSigmaSq)
+		pos := srcPos + Direction*fi
+		result += imageSrc0At(pos) * w
+		totalWeight += w
+	}
+
+	// Normalise by total weight.
+	if totalWeight > 0.0 {
+		result = result / totalWeight
+	}
+	return result
+}

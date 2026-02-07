@@ -156,6 +156,29 @@ func getFilterShader() *ebiten.Shader {
 	return filterShader
 }
 
+// --- CSS backdrop-filter blur shader (singleton, lazy-compiled) ---------------
+
+//go:embed shaders/backdrop_blur.kage
+var backdropBlurShaderSrc []byte
+
+var (
+	backdropBlurShader     *ebiten.Shader
+	backdropBlurShaderOnce sync.Once
+)
+
+// getBackdropBlurShader returns the compiled Kage shader for separable Gaussian blur.
+// The shader is compiled once on first use and cached for the process lifetime.
+func getBackdropBlurShader() *ebiten.Shader {
+	backdropBlurShaderOnce.Do(func() {
+		s, err := ebiten.NewShader(backdropBlurShaderSrc)
+		if err != nil {
+			panic(fmt.Sprintf("ui: failed to compile backdrop blur shader: %v", err))
+		}
+		backdropBlurShader = s
+	})
+	return backdropBlurShader
+}
+
 // --- Premultiplied alpha colour helper --------------------------------------
 
 // colorToPremultiplied converts any color.Color to premultiplied RGBA bytes.

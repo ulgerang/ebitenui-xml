@@ -150,6 +150,11 @@ func (se *StyleEngine) parseStyleColors(style *Style) {
 		style.parsedFilter = ParseFilter(style.Filter)
 	}
 
+	// Parse backdrop filter
+	if style.BackdropFilter != "" {
+		style.parsedBackdropFilter = ParseBackdropFilter(style.BackdropFilter)
+	}
+
 	// Parse state styles
 	if style.HoverStyle != nil {
 		se.parseStyleColors(style.HoverStyle)
