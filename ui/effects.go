@@ -270,15 +270,25 @@ func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 
 	shader := getLinearGradientShader()
 
-	op := &ebiten.DrawRectShaderOptions{}
-	op.GeoM.Translate(r.X, r.Y)
-	op.Uniforms = map[string]any{
+	// Use DrawTrianglesShader because DrawRectShader requires the source
+	// image to match the rect dimensions, but our strip is 256×1.
+	sw, sh := float32(strip.Bounds().Dx()), float32(strip.Bounds().Dy())
+	vertices := []ebiten.Vertex{
+		{DstX: float32(r.X), DstY: float32(r.Y), SrcX: 0, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X) + float32(w), DstY: float32(r.Y), SrcX: sw, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X), DstY: float32(r.Y) + float32(h), SrcX: 0, SrcY: sh, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X) + float32(w), DstY: float32(r.Y) + float32(h), SrcX: sw, SrcY: sh, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+	}
+	indices := []uint16{0, 1, 2, 1, 3, 2}
+
+	top := &ebiten.DrawTrianglesShaderOptions{}
+	top.Uniforms = map[string]any{
 		"GradA": float32(gradA),
 		"GradB": float32(gradB),
 		"GradC": float32(gradC),
 	}
-	op.Images[0] = strip
-	screen.DrawRectShader(w, h, shader, op)
+	top.Images[0] = strip
+	screen.DrawTrianglesShader(vertices, indices, shader, top)
 }
 
 // interpolateGradient finds the color at position t
@@ -783,16 +793,26 @@ func DrawRadialGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 
 	shader := getRadialGradientShader()
 
-	op := &ebiten.DrawRectShaderOptions{}
-	op.GeoM.Translate(r.X, r.Y)
-	op.Uniforms = map[string]any{
+	// Use DrawTrianglesShader because DrawRectShader requires the source
+	// image to match the rect dimensions, but our strip is 256×1.
+	sw, sh := float32(strip.Bounds().Dx()), float32(strip.Bounds().Dy())
+	vertices := []ebiten.Vertex{
+		{DstX: float32(r.X), DstY: float32(r.Y), SrcX: 0, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X) + float32(w), DstY: float32(r.Y), SrcX: sw, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X), DstY: float32(r.Y) + float32(h), SrcX: 0, SrcY: sh, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X) + float32(w), DstY: float32(r.Y) + float32(h), SrcX: sw, SrcY: sh, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+	}
+	indices := []uint16{0, 1, 2, 1, 3, 2}
+
+	top := &ebiten.DrawTrianglesShaderOptions{}
+	top.Uniforms = map[string]any{
 		"CenterX": float32(centerX),
 		"CenterY": float32(centerY),
 		"RadiusX": float32(radiusX),
 		"RadiusY": float32(radiusY),
 	}
-	op.Images[0] = strip
-	screen.DrawRectShader(w, h, shader, op)
+	top.Images[0] = strip
+	screen.DrawTrianglesShader(vertices, indices, shader, top)
 }
 
 // max returns the larger of two float64 values
