@@ -21,19 +21,20 @@
 .DS_Store
 Thumbs.db
 
-# Screenshots & generated HTML reports (visual regression test output)
+# Visual regression test output
 screenshots/
 *.png
-/reference.html
-/reference_svg.html
-/svg_reference.html
-/report_svg.html
+/*.html
+!/index.html
+!/cmd/**/index.html
+/cmd/css_testloop/output/
+/cmd/svg_testloop/output/
+/tools/css_compare/output/
+/tools/css_compare/css_compare_output/*.png
+/tools/css_compare/css_compare_output/*.exe
 
-# Visual regression test output directories
-cmd/css_testloop/output/
-tools/css_compare/output/
-tools/css_compare/css_compare_output/*.png
-tools/css_compare/css_compare_output/*.exe
+# Windows special
+nul
 
 # Node.js (Puppeteer for screenshot testing)
 node_modules/

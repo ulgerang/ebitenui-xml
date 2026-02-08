@@ -1,0 +1,43 @@
+<panel id="main">
+	<panel id="header">
+		<text id="title">ANTIGRAVITY OS</text>
+	</panel>
+	
+	<panel id="content">
+		<panel id="sidebar">
+			<panel class="nav-item active"><text>Dashboard</text></panel>
+			<panel class="nav-item"><text>Analytics</text></panel>
+			<panel class="nav-item"><text>Security</text></panel>
+			<panel class="nav-item"><text>Settings</text></panel>
+		</panel>
+		
+		<panel id="viewport">
+			<panel id="card">
+				<panel id="card-header">
+					<text>System Performance</text>
+				</panel>
+				<panel id="stats">
+					<panel class="stat-box">
+						<text class="stat-label">CPU</text>
+						<text class="stat-val">12%</text>
+					</panel>
+					<panel class="stat-box">
+						<text class="stat-label">GPU</text>
+						<text class="stat-val">45%</text>
+					</panel>
+					<panel class="stat-box">
+						<text class="stat-label">RAM</text>
+						<text class="stat-val">2.4GB</text>
+					</panel>
+				</panel>
+				<panel id="progress-container">
+					<panel id="progress-bar"></panel>
+				</panel>
+				<panel id="footer-actions">
+					<panel class="btn-primary"><text>OPTIMIZE</text></panel>
+					<panel class="btn-secondary"><text>REBOOT</text></panel>
+				</panel>
+			</panel>
+		</panel>
+	</panel>
+</panel>

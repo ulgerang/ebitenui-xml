@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+	body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
+	#main { width: 800px; height: 600px; background: #0f172a; display: flex; flex-direction: column; overflow: hidden; }
+	#header { height: 60px; background: linear-gradient(90deg, #1e293b, #334155); padding: 0 20px; display: flex; align-items: center; border-bottom: 2px solid #38bdf8; box-sizing: border-box; }
+	#title { color: #f8fafc; font-size: 20px; font-weight: bold; }
+	#content { flex: 1; display: flex; flex-direction: row; }
+	#sidebar { width: 200px; background: #1e293b; padding: 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid #334155; box-sizing: border-box; }
+	.nav-item { height: 40px; padding: 0 15px; display: flex; align-items: center; border-radius: 6px; color: #94a3b8; font-size: 14px; }
+	.nav-item.active { background: #38bdf8; color: #ffffff; }
+	#viewport { flex: 1; background: #0f172a; padding: 30px; display: flex; justify-content: center; align-items: center; }
+	#card { width: 450px; height: 320px; background: #1e293b; border-radius: 12px; border: 1px solid #334155; padding: 20px; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 10px 25px 0 rgba(0,0,0,0.5); box-sizing: border-box; }
+	#card-header { color: #f8fafc; font-size: 18px; font-weight: bold; }
+	#stats { display: flex; flex-direction: row; gap: 15px; }
+	.stat-box { flex: 1; background: #0f172a; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+	.stat-label { color: #64748b; font-size: 12px; }
+	.stat-val { color: #38bdf8; font-size: 18px; font-weight: bold; }
+	#progress-container { height: 10px; background: #0f172a; border-radius: 5px; overflow: hidden; }
+	#progress-bar { width: 65%; height: 100%; background: linear-gradient(90deg, #38bdf8, #818cf8); }
+	#footer-actions { display: flex; flex-direction: row; justify-content: flex-end; gap: 10px; }
+	.btn-primary { width: 100px; height: 36px; background: #38bdf8; border-radius: 6px; display: flex; justify-content: center; align-items: center; color: #ffffff; font-size: 13px; font-weight: bold; }
+	.btn-secondary { width: 100px; height: 36px; border: 1px solid #64748b; border-radius: 6px; display: flex; justify-content: center; align-items: center; color: #94a3b8; font-size: 13px; box-sizing: border-box; }
+</style>
+</head>
+<body>
+	<div id="main">
+		<div id="header"><div id="title">ANTIGRAVITY OS</div></div>
+		<div id="content">
+			<div id="sidebar">
+				<div class="nav-item active">Dashboard</div>
+				<div class="nav-item">Analytics</div>
+				<div class="nav-item">Security</div>
+				<div class="nav-item">Settings</div>
+			</div>
+			<div id="viewport">
+				<div id="card">
+					<div id="card-header">System Performance</div>
+					<div id="stats">
+						<div class="stat-box">
+							<div class="stat-label">CPU</div>
+							<div class="stat-val">12%</div>
+						</div>
+						<div class="stat-box">
+							<div class="stat-label">GPU</div>
+							<div class="stat-val">45%</div>
+						</div>
+						<div class="stat-box">
+							<div class="stat-label">RAM</div>
+							<div class="stat-val">2.4GB</div>
+						</div>
+					</div>
+					<div id="progress-container"><div id="progress-bar"></div></div>
+					<div id="footer-actions">
+						<div class="btn-primary">OPTIMIZE</div>
+						<div class="btn-secondary">REBOOT</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</body></html>
