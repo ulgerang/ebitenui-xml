@@ -57,14 +57,35 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 	}
 
 	style := parent.Style()
+	if bw, ok := parent.(*BaseWidget); ok {
+		style = bw.getActiveStyle()
+	}
 	parentRect := parent.ComputedRect()
 
 	// Available space after padding AND border (border-box model)
-	borderW := style.BorderWidth
-	availX := parentRect.X + style.Padding.Left + borderW
-	availY := parentRect.Y + style.Padding.Top + borderW
-	availW := parentRect.W - style.Padding.Left - style.Padding.Right - borderW*2
-	availH := parentRect.H - style.Padding.Top - style.Padding.Bottom - borderW*2
+	bwTop := style.BorderTopWidth
+	bwRight := style.BorderRightWidth
+	bwBottom := style.BorderBottomWidth
+	bwLeft := style.BorderLeftWidth
+	if style.BorderWidth > 0 {
+		if bwTop == 0 {
+			bwTop = style.BorderWidth
+		}
+		if bwRight == 0 {
+			bwRight = style.BorderWidth
+		}
+		if bwBottom == 0 {
+			bwBottom = style.BorderWidth
+		}
+		if bwLeft == 0 {
+			bwLeft = style.BorderWidth
+		}
+	}
+
+	availX := parentRect.X + style.Padding.Left + bwLeft
+	availY := parentRect.Y + style.Padding.Top + bwTop
+	availW := parentRect.W - style.Padding.Left - style.Padding.Right - bwLeft - bwRight
+	availH := parentRect.H - style.Padding.Top - style.Padding.Bottom - bwTop - bwBottom
 
 	direction := style.Direction
 	if direction == "" {
@@ -206,7 +227,7 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 			childRect.X = currentX + childStyle.Margin.Left
 			childRect.Y = availY + childStyle.Margin.Top
 
-			// Width
+			// Width (Main Axis)
 			if childStyle.Width > 0 {
 				childRect.W = childStyle.Width * shrinkFactor
 			} else if childStyle.FlexGrow > 0 && totalFlexGrow > 0 {
@@ -216,17 +237,10 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 				if iw <= 0 {
 					iw = 50
 				}
-				// If parent has align: center/end, don't stretch
-				if style.Align == AlignCenter || style.Align == AlignEnd {
-					childRect.W = iw * shrinkFactor
-				} else {
-					childRect.W = iw * shrinkFactor // default to intrinsic in Row for non-flex
-					// Wait, in Row, non-flex items should fit content.
-					// If they have no width and no flex, they behave like width: auto.
-				}
+				childRect.W = iw * shrinkFactor
 			}
 
-			// Height
+			// Height (Cross Axis)
 			if childStyle.Height > 0 {
 				childRect.H = childStyle.Height
 			} else {
@@ -239,11 +253,16 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 						childRect.H = availH - childStyle.Margin.Top - childStyle.Margin.Bottom
 					}
 				} else {
+					// Stretch (default)
 					childRect.H = availH - childStyle.Margin.Top - childStyle.Margin.Bottom
 				}
 			}
 
-			// Apply alignment
+			if childRect.H < 0 {
+				childRect.H = 0
+			}
+
+			// Apply alignment (offset within Cross Axis)
 			switch style.Align {
 			case AlignCenter:
 				childRect.Y = availY + (availH-childRect.H)/2
@@ -264,24 +283,21 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 			childRect.X = availX + childStyle.Margin.Left
 			childRect.Y = currentY + childStyle.Margin.Top
 
-			// Width - use parent's computed available width
+			// Width
 			if childStyle.Width > 0 {
 				childRect.W = childStyle.Width
 			} else {
 				// Default to stretch (fill cross-axis) unless align is center/end/start
 				if style.Align == AlignCenter || style.Align == AlignEnd || style.Align == AlignStart {
-					iw := child.IntrinsicWidth()
-					if iw > 0 {
-						childRect.W = iw
-					} else {
-						childRect.W = availW - childStyle.Margin.Left - childStyle.Margin.Right
-					}
+					childRect.W = child.IntrinsicWidth()
 				} else {
+					// Stretch
 					childRect.W = availW - childStyle.Margin.Left - childStyle.Margin.Right
 				}
-				if childRect.W < 0 {
-					childRect.W = 0
-				}
+			}
+
+			if childRect.W < 0 {
+				childRect.W = 0
 			}
 
 			// Height
