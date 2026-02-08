@@ -159,6 +159,7 @@ func main() {
 	},
 	"#stats": {
 		"direction": "row",
+		"align": "stretch",
 		"gap": 15
 	},
 	".stat-box": {
@@ -168,10 +169,11 @@ func main() {
 		"padding": {"all": 12},
 		"direction": "column",
 		"align": "center",
+		"justify": "center",
 		"gap": 5
 	},
-	".stat-label": { "color": "#64748b", "fontSize": 12 },
-	".stat-val": { "color": "#38bdf8", "fontSize": 18, "fontWeight": "bold" },
+	".stat-label": { "color": "#64748b", "fontSize": 12, "textAlign": "center" },
+	".stat-val": { "color": "#38bdf8", "fontSize": 18, "fontWeight": "bold", "textAlign": "center" },
 	"#progress-container": {
 		"height": 10,
 		"background": "#0f172a",

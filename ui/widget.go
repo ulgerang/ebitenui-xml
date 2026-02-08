@@ -124,7 +124,90 @@ func (w *BaseWidget) Style() *Style { return w.style }
 // SetStyle sets the widget's style
 func (w *BaseWidget) SetStyle(s *Style) { w.style = s }
 
+// IntrinsicWidth returns the widget's natural width based on content or children
+func (w *BaseWidget) IntrinsicWidth() float64 {
+	if len(w.children) == 0 {
+		return 0
+	}
+
+	style := w.getActiveStyle()
+	padding := style.Padding
+	bw := style.BorderWidth
+	gap := style.Gap
+
+	var width float64
+	if style.Direction == LayoutRow {
+		// Sum of children widths + gaps
+		for i, child := range w.children {
+			cw := child.Style().Width
+			if cw <= 0 {
+				cw = child.IntrinsicWidth()
+			}
+			width += cw + child.Style().Margin.Left + child.Style().Margin.Right
+			if i < len(w.children)-1 {
+				width += gap
+			}
+		}
+	} else {
+		// Max of children widths
+		for _, child := range w.children {
+			cw := child.Style().Width
+			if cw <= 0 {
+				cw = child.IntrinsicWidth()
+			}
+			cw += child.Style().Margin.Left + child.Style().Margin.Right
+			if cw > width {
+				width = cw
+			}
+		}
+	}
+
+	return width + padding.Left + padding.Right + bw*2
+}
+
+// IntrinsicHeight returns the widget's natural height based on content or children
+func (w *BaseWidget) IntrinsicHeight() float64 {
+	if len(w.children) == 0 {
+		return 0
+	}
+
+	style := w.getActiveStyle()
+	padding := style.Padding
+	bw := style.BorderWidth
+	gap := style.Gap
+
+	var height float64
+	if style.Direction == LayoutRow {
+		// Max of children heights
+		for _, child := range w.children {
+			ch := child.Style().Height
+			if ch <= 0 {
+				ch = child.IntrinsicHeight()
+			}
+			ch += child.Style().Margin.Top + child.Style().Margin.Bottom
+			if ch > height {
+				height = ch
+			}
+		}
+	} else {
+		// Sum of children heights + gaps
+		for i, child := range w.children {
+			ch := child.Style().Height
+			if ch <= 0 {
+				ch = child.IntrinsicHeight()
+			}
+			height += ch + child.Style().Margin.Top + child.Style().Margin.Bottom
+			if i < len(w.children)-1 {
+				height += gap
+			}
+		}
+	}
+
+	return height + padding.Top + padding.Bottom + bw*2
+}
+
 // State returns the widget's state
+
 func (w *BaseWidget) State() WidgetState { return w.state }
 
 // SetState sets the widget's state

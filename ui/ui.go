@@ -530,15 +530,29 @@ func (ui *UI) reapplyStyles(widget Widget) {
 		return
 	}
 
-	// Apply by type (e.g., "panel", "svg", "button")
+	// 1. Apply by type (e.g., "panel", "svg", "button")
 	ui.styleEngine.ApplyStyle(widget, widget.Type())
 
-	// Apply by class (e.g., ".icon-box", ".icon-row")
+	// 2. Apply by individual classes
 	for _, class := range widget.Classes() {
 		ui.styleEngine.ApplyStyle(widget, "."+class)
 	}
 
-	// Apply by ID (e.g., "#root", "#header")
+	// 3. Apply by compound classes (e.g., ".nav-item.active")
+	// This is a simple implementation: try all pairs of classes.
+	// For better support, we'd need a real CSS selector engine.
+	classes := widget.Classes()
+	if len(classes) >= 2 {
+		// Try combinations (only pairs for now as it's most common)
+		for i := 0; i < len(classes); i++ {
+			for j := i + 1; j < len(classes); j++ {
+				ui.styleEngine.ApplyStyle(widget, "."+classes[i]+"."+classes[j])
+				ui.styleEngine.ApplyStyle(widget, "."+classes[j]+"."+classes[i])
+			}
+		}
+	}
+
+	// 4. Apply by ID (e.g., "#root", "#header")
 	if widget.ID() != "" {
 		ui.styleEngine.ApplyStyle(widget, "#"+widget.ID())
 	}

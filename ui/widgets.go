@@ -34,6 +34,26 @@ func NewButton(id, label string) *Button {
 	}
 }
 
+// IntrinsicWidth returns the button's natural width based on label and padding
+func (b *Button) IntrinsicWidth() float64 {
+	if b.Label == "" || b.FontFace == nil {
+		return 0
+	}
+	tw, _ := text.Measure(b.Label, b.FontFace, 0)
+	bw := b.style.BorderWidth
+	return tw + b.style.Padding.Left + b.style.Padding.Right + bw*2
+}
+
+// IntrinsicHeight returns the button's natural height based on label and padding
+func (b *Button) IntrinsicHeight() float64 {
+	if b.Label == "" || b.FontFace == nil {
+		return 0
+	}
+	_, th := text.Measure(b.Label, b.FontFace, 0)
+	bw := b.style.BorderWidth
+	return th + b.style.Padding.Top + b.style.Padding.Bottom + bw*2
+}
+
 // Draw renders the button
 func (b *Button) Draw(screen *ebiten.Image) {
 	if !b.visible {
@@ -109,6 +129,26 @@ func NewText(id, content string) *Text {
 		BaseWidget: NewBaseWidget(id, "text"),
 		Content:    content,
 	}
+}
+
+// IntrinsicWidth returns the text's natural width
+func (t *Text) IntrinsicWidth() float64 {
+	if t.Content == "" || t.FontFace == nil {
+		return 0
+	}
+	tw, _ := text.Measure(t.Content, t.FontFace, 0)
+	bw := t.style.BorderWidth
+	return tw + t.style.Padding.Left + t.style.Padding.Right + bw*2
+}
+
+// IntrinsicHeight returns the text's natural height
+func (t *Text) IntrinsicHeight() float64 {
+	if t.Content == "" || t.FontFace == nil {
+		return 0
+	}
+	_, th := text.Measure(t.Content, t.FontFace, 0)
+	bw := t.style.BorderWidth
+	return th + t.style.Padding.Top + t.style.Padding.Bottom + bw*2
 }
 
 // SetContent sets the text content and invalidates cache

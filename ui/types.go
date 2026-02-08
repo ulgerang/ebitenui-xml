@@ -560,6 +560,8 @@ type Widget interface {
 	SetComputedRect(r Rect)
 	Style() *Style
 	SetStyle(s *Style)
+	IntrinsicWidth() float64
+	IntrinsicHeight() float64
 
 	// State
 	State() WidgetState
