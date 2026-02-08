@@ -167,9 +167,10 @@ type Style struct {
 	// Text
 	FontSize      float64 `json:"fontSize"`
 	FontFamily    string  `json:"fontFamily"`
-	FontWeight    string  `json:"fontWeight"` // normal, bold, 100-900
-	FontStyle     string  `json:"fontStyle"`  // normal, italic
-	TextAlign     string  `json:"textAlign"`  // left, center, right
+	FontWeight    string  `json:"fontWeight"`    // normal, bold, 100-900
+	FontStyle     string  `json:"fontStyle"`     // normal, italic
+	TextAlign     string  `json:"textAlign"`     // left, center, right
+	VerticalAlign string  `json:"verticalAlign"` // top, center, bottom
 	LineHeight    float64 `json:"lineHeight"`
 	LetterSpacing float64 `json:"letterSpacing"`
 	TextWrap      string  `json:"textWrap"`     // normal, nowrap
@@ -402,6 +403,9 @@ func (s *Style) Merge(other *Style) {
 	}
 	if other.FontStyle != "" {
 		s.FontStyle = other.FontStyle
+	}
+	if other.VerticalAlign != "" {
+		s.VerticalAlign = other.VerticalAlign
 	}
 	if other.LetterSpacing != 0 {
 		s.LetterSpacing = other.LetterSpacing

@@ -59,9 +59,12 @@ func (b *Button) Draw(screen *ebiten.Image) {
 		}
 
 		// Measure text for centering
-		textW, textH := text.Measure(b.Label, b.FontFace, 0)
+		textW, _ := text.Measure(b.Label, b.FontFace, 0)
+		metrics := b.FontFace.Metrics()
+		ascent := metrics.HAscent
+		emHeight := ascent + metrics.HDescent
 		x := r.X + (r.W-textW)/2
-		y := r.Y + (r.H-textH)/2 + textH*0.7
+		y := r.Y + (r.H-emHeight)/2 + ascent
 
 		// Draw text shadow for button label
 		shadow := style.parsedTextShadow
@@ -170,8 +173,22 @@ func (t *Text) Draw(screen *ebiten.Image) {
 		lines[0] = wrapper.TruncateWithEllipsis(lines[0], r.W)
 	}
 
-	// Draw each line
-	y := r.Y + lineHeight*0.8
+	// Draw each line — use font metrics for precise vertical positioning
+	metrics := t.FontFace.Metrics()
+	ascent := metrics.HAscent
+	emHeight := ascent + metrics.HDescent
+	halfLeading := (lineHeight - emHeight) / 2
+
+	// Vertical alignment within content rect
+	totalTextHeight := float64(len(lines)) * lineHeight
+	startY := r.Y // default: top
+	if style.VerticalAlign == "center" {
+		startY = r.Y + (r.H-totalTextHeight)/2
+	} else if style.VerticalAlign == "bottom" {
+		startY = r.Y + r.H - totalTextHeight
+	}
+
+	y := startY + halfLeading + ascent
 	for _, line := range lines {
 		// Calculate x position based on text alignment
 		x := r.X
@@ -434,8 +451,10 @@ func (c *Checkbox) Draw(screen *ebiten.Image) {
 		}
 
 		x := r.X + boxSize + 8
-		_, textH := text.Measure(c.Label, c.FontFace, 0)
-		y := r.Y + (r.H+textH)/2 - textH*0.2
+		metrics := c.FontFace.Metrics()
+		ascent := metrics.HAscent
+		emHeight := ascent + metrics.HDescent
+		y := r.Y + (r.H-emHeight)/2 + ascent
 
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(x, y)

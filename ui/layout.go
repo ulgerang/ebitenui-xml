@@ -21,15 +21,16 @@ func LayoutWidget(root Widget) {
 	le.Layout(root, rect.W, rect.H)
 }
 
-// DrawWidget recursively draws a widget and its children
+// DrawWidget draws a widget (and its children via widget.Draw's internal
+// drawChildren call).  The previous recursive child loop has been removed
+// because widget.Draw() already calls drawChildren() internally — the extra
+// loop caused every child to be drawn twice, resulting in double-blend
+// artefacts (visible in overflow:hidden tests).
 func DrawWidget(screen *ebiten.Image, widget Widget) {
 	if widget == nil || !widget.Visible() {
 		return
 	}
 	widget.Draw(screen)
-	for _, child := range widget.Children() {
-		DrawWidget(screen, child)
-	}
 }
 
 // Layout calculates positions and sizes for a widget tree

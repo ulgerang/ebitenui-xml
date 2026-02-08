@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image"
 	"image/color"
 	"math"
 	"strconv"
@@ -388,7 +389,10 @@ func (w *BaseWidget) drawWithCompositing(screen *ebiten.Image, r Rect, style *St
 		op.ColorScale.ScaleAlpha(float32(opacity))
 	}
 
-	screen.DrawImage(offscreen, op)
+	// Crop to the actual screen size because the pooled image may be larger
+	// (power-of-2 bucketing).
+	cropped := offscreen.SubImage(image.Rect(0, 0, screenW, screenH)).(*ebiten.Image)
+	screen.DrawImage(cropped, op)
 	globalImagePool.Put(offscreen)
 }
 
@@ -517,7 +521,11 @@ func (w *BaseWidget) drawChildren(screen *ebiten.Image, r Rect, style *Style) {
 			}
 			drawOp := &ebiten.DrawImageOptions{}
 			drawOp.GeoM.Translate(r.X, r.Y)
-			screen.DrawImage(tmpImg, drawOp)
+			// Crop to the actual clip size because the pooled image may be
+			// larger (power-of-2 bucketing); without this, transparent padding
+			// from the oversized buffer leaks into the composite.
+			cropped := tmpImg.SubImage(image.Rect(0, 0, clipW, clipH)).(*ebiten.Image)
+			screen.DrawImage(cropped, drawOp)
 			globalImagePool.Put(tmpImg)
 		}
 	} else {

@@ -15,7 +15,12 @@ type UI struct {
 
 	// Font for text rendering (use text.Face interface)
 	DefaultFont     *text.GoTextFaceSource // For GoTextFace (TTF fonts)
+	DefaultBoldFont *text.GoTextFaceSource // For bold weight font
 	DefaultFontFace text.Face              // For GoXFace (bitmap fonts)
+
+	// Font caches (lazily initialised)
+	fontCache     *FontCache // regular weight
+	boldFontCache *FontCache // bold weight
 
 	// Dimensions
 	width, height float64
@@ -69,11 +74,10 @@ func (ui *UI) LoadLayout(xmlContent string) error {
 	ui.root = ui.factory.CreateFromXML(node)
 	ui.buildWidgetCache(ui.root)
 
-	// Set font on text widgets
-	ui.setFonts(ui.root)
-
-	// Apply styles from style engine to all widgets
+	// Pipeline: styles → inherit → fonts → layout
 	ui.reapplyStyles(ui.root)
+	ui.inheritCSSProperties(ui.root, nil)
+	ui.setFonts(ui.root)
 
 	// Initial layout
 	ui.Layout()
@@ -91,8 +95,11 @@ func (ui *UI) LoadLayoutFile(filename string) error {
 
 	ui.root = ui.factory.CreateFromXML(node)
 	ui.buildWidgetCache(ui.root)
-	ui.setFonts(ui.root)
+
+	// Pipeline: styles → inherit → fonts → layout
 	ui.reapplyStyles(ui.root)
+	ui.inheritCSSProperties(ui.root, nil)
+	ui.setFonts(ui.root)
 	ui.Layout()
 
 	return nil
@@ -104,9 +111,11 @@ func (ui *UI) LoadStyles(jsonContent string) error {
 		return err
 	}
 
-	// Reapply styles to existing widgets
+	// Pipeline: styles → inherit → fonts → layout
 	if ui.root != nil {
 		ui.reapplyStyles(ui.root)
+		ui.inheritCSSProperties(ui.root, nil)
+		ui.setFonts(ui.root)
 		ui.Layout()
 	}
 
@@ -119,8 +128,11 @@ func (ui *UI) LoadStylesFile(filename string) error {
 		return err
 	}
 
+	// Pipeline: styles → inherit → fonts → layout
 	if ui.root != nil {
 		ui.reapplyStyles(ui.root)
+		ui.inheritCSSProperties(ui.root, nil)
+		ui.setFonts(ui.root)
 		ui.Layout()
 	}
 
@@ -443,49 +455,68 @@ func (ui *UI) findWidgetAt(widget Widget, x, y float64) Widget {
 	return nil
 }
 
-// setFonts sets the default font on text widgets
+// setFonts sets font faces on text-bearing widgets based on their style properties.
+// Respects fontWeight (bold) and fontSize via FontCache for efficient face reuse.
 func (ui *UI) setFonts(widget Widget) {
 	if widget == nil {
 		return
 	}
 
-	// Determine which font to use
+	// Lazily create font caches
+	if ui.fontCache == nil && ui.DefaultFont != nil {
+		ui.fontCache = NewFontCache(ui.DefaultFont)
+	}
+	if ui.boldFontCache == nil && ui.DefaultBoldFont != nil {
+		ui.boldFontCache = NewFontCache(ui.DefaultBoldFont)
+	}
+
+	// Determine font face for this widget
 	var fontFace text.Face
 	if ui.DefaultFontFace != nil {
+		// Bitmap font — can't vary size, use as-is
 		fontFace = ui.DefaultFontFace
-	} else if ui.DefaultFont != nil {
-		fontFace = &text.GoTextFace{
-			Source: ui.DefaultFont,
-			Size:   14,
+	} else {
+		style := widget.Style()
+		fontSize := style.FontSize
+		if fontSize <= 0 {
+			fontSize = 14
+		}
+
+		// Select bold or regular font source
+		isBold := style.FontWeight == "bold" || style.FontWeight == "700" ||
+			style.FontWeight == "800" || style.FontWeight == "900"
+		if isBold && ui.boldFontCache != nil {
+			fontFace = ui.boldFontCache.GetFace(fontSize)
+		} else if ui.fontCache != nil {
+			fontFace = ui.fontCache.GetFace(fontSize)
 		}
 	}
 
-	if fontFace == nil {
-		return
-	}
-
-	switch w := widget.(type) {
-	case *Button:
-		w.FontFace = fontFace
-	case *Text:
-		w.FontFace = fontFace
-	case *Toggle:
-		w.FontFace = fontFace
-	case *RadioButton:
-		w.FontFace = fontFace
-	case *Dropdown:
-		w.FontFace = fontFace
-	case *Badge:
-		w.FontFace = fontFace
-	case *Spinner:
-		// Spinner doesn't need text
-	case *Toast:
-		w.FontFace = fontFace
-	case *Modal:
-		w.FontFace = fontFace
-		w.TitleFontFace = fontFace
-	case *Tooltip:
-		w.FontFace = fontFace
+	// Apply to text-bearing widgets
+	if fontFace != nil {
+		switch w := widget.(type) {
+		case *Button:
+			w.FontFace = fontFace
+		case *Text:
+			w.FontFace = fontFace
+		case *Toggle:
+			w.FontFace = fontFace
+		case *RadioButton:
+			w.FontFace = fontFace
+		case *Dropdown:
+			w.FontFace = fontFace
+		case *Badge:
+			w.FontFace = fontFace
+		case *Spinner:
+			// Spinner doesn't need text
+		case *Toast:
+			w.FontFace = fontFace
+		case *Modal:
+			w.FontFace = fontFace
+			w.TitleFontFace = fontFace
+		case *Tooltip:
+			w.FontFace = fontFace
+		}
 	}
 
 	for _, child := range widget.Children() {
@@ -515,5 +546,55 @@ func (ui *UI) reapplyStyles(widget Widget) {
 	// Recursively apply to children
 	for _, child := range widget.Children() {
 		ui.reapplyStyles(child)
+	}
+}
+
+// inheritCSSProperties inherits CSS-inheritable properties from parent to child.
+// Properties like color, font-size, font-weight, text-align, vertical-align, etc.
+// cascade down the widget tree following CSS inheritance rules: if the child has
+// no explicit value, it inherits from its nearest ancestor that does.
+func (ui *UI) inheritCSSProperties(widget Widget, parentStyle *Style) {
+	if widget == nil {
+		return
+	}
+
+	style := widget.Style()
+	if parentStyle != nil {
+		// Color / TextColor
+		if style.Color == "" && parentStyle.Color != "" {
+			style.Color = parentStyle.Color
+		}
+		if style.TextColor == nil && parentStyle.TextColor != nil {
+			style.TextColor = parentStyle.TextColor
+		}
+
+		// Font properties
+		if style.FontSize == 0 && parentStyle.FontSize != 0 {
+			style.FontSize = parentStyle.FontSize
+		}
+		if style.FontWeight == "" && parentStyle.FontWeight != "" {
+			style.FontWeight = parentStyle.FontWeight
+		}
+		if style.FontStyle == "" && parentStyle.FontStyle != "" {
+			style.FontStyle = parentStyle.FontStyle
+		}
+
+		// Text layout
+		if style.TextAlign == "" && parentStyle.TextAlign != "" {
+			style.TextAlign = parentStyle.TextAlign
+		}
+		if style.VerticalAlign == "" && parentStyle.VerticalAlign != "" {
+			style.VerticalAlign = parentStyle.VerticalAlign
+		}
+		if style.LineHeight == 0 && parentStyle.LineHeight != 0 {
+			style.LineHeight = parentStyle.LineHeight
+		}
+		if style.LetterSpacing == 0 && parentStyle.LetterSpacing != 0 {
+			style.LetterSpacing = parentStyle.LetterSpacing
+		}
+	}
+
+	for _, child := range widget.Children() {
+		ui.inheritCSSProperties(child, style)
 	}
 }

@@ -1629,19 +1629,15 @@ func svgStopsToColorStops(stops []SVGGradientStop) []ColorStop {
 	return result
 }
 
-// buildSVGLinearGradientTexture creates a 2D gradient texture using the GPU
-// linear gradient Kage shader instead of CPU per-pixel computation.
-//
-// The shader computes t = GradA*px + GradB*py + GradC for each pixel, where
-// the uniforms map pixel coordinates to the SVG objectBoundingBox gradient line
-// projection: t = ((px/scaleW - X1)*dx + (py/scaleH - Y1)*dy) / lenSq.
+// buildSVGLinearGradientTexture creates a 2D gradient texture by sampling the
+// linear gradient per-pixel in objectBoundingBox coordinates.
 func buildSVGLinearGradientTexture(grad *SVGLinearGradient, w, h int) *ebiten.Image {
 	if w <= 0 || h <= 0 {
 		return nil
 	}
-
-	strip := grad.ensureStrip()
-	shader := getLinearGradientShader()
+	stops := svgStopsToColorStops(grad.Stops)
+	img := ebiten.NewImage(w, h)
+	pix := make([]byte, w*h*4)
 
 	dx := grad.X2 - grad.X1
 	dy := grad.Y2 - grad.Y1
@@ -1650,89 +1646,118 @@ func buildSVGLinearGradientTexture(grad *SVGLinearGradient, w, h int) *ebiten.Im
 		lenSq = 1 // avoid division by zero — fallback to first stop
 	}
 
-	// Map pixel coords to objectBoundingBox then project onto gradient line.
-	// Original CPU: nx = px / max(w-1, 1), t = ((nx-X1)*dx + (ny-Y1)*dy) / lenSq
-	// Rearranged:   t = (dx/(scaleW*lenSq))*px + (dy/(scaleH*lenSq))*py + (-X1*dx-Y1*dy)/lenSq
-	// where scaleW = max(w-1, 1), scaleH = max(h-1, 1).
-	scaleW := math.Max(float64(w-1), 1)
-	scaleH := math.Max(float64(h-1), 1)
-	gradA := dx / (scaleW * lenSq)
-	gradB := dy / (scaleH * lenSq)
-	gradC := (-grad.X1*dx - grad.Y1*dy) / lenSq
+	for py := 0; py < h; py++ {
+		for px := 0; px < w; px++ {
+			// Normalise pixel to objectBoundingBox [0,1]
+			var nx, ny float64
+			if w > 1 {
+				nx = float64(px) / float64(w-1)
+			}
+			if h > 1 {
+				ny = float64(py) / float64(h-1)
+			}
 
-	img := globalImagePool.Get(w, h)
-	op := &ebiten.DrawRectShaderOptions{}
-	op.Images[0] = strip
-	op.Uniforms = map[string]any{
-		"GradA": float32(gradA),
-		"GradB": float32(gradB),
-		"GradC": float32(gradC),
+			// Project onto gradient line
+			t := ((nx-grad.X1)*dx + (ny-grad.Y1)*dy) / lenSq
+			if t < 0 {
+				t = 0
+			}
+			if t > 1 {
+				t = 1
+			}
+
+			c := interpolateGradient(stops, t)
+			r, g, b, a := c.RGBA()
+			off := (py*w + px) * 4
+			pix[off+0] = uint8(r >> 8)
+			pix[off+1] = uint8(g >> 8)
+			pix[off+2] = uint8(b >> 8)
+			pix[off+3] = uint8(a >> 8)
+		}
 	}
-	img.DrawRectShader(w, h, shader, op)
+	img.WritePixels(pix)
 	return img
 }
 
-// buildSVGRadialGradientTexture creates a 2D gradient texture using the GPU
-// radial gradient Kage shader instead of CPU per-pixel computation.
-//
-// The shader computes t = sqrt(dx² + dy²) where dx = (px - CenterX) / RadiusX
-// and dy = (py - CenterY) / RadiusY.  The uniforms are derived from the SVG
-// objectBoundingBox coordinates: CenterX = CX*scaleW, RadiusX = R*scaleW, etc.
+// buildSVGRadialGradientTexture creates a 2D texture by sampling the radial
+// gradient defined in objectBoundingBox coordinates with centre (cx,cy) and radius r.
 func buildSVGRadialGradientTexture(grad *SVGRadialGradient, w, h int) *ebiten.Image {
 	if w <= 0 || h <= 0 {
 		return nil
 	}
-
-	strip := grad.ensureStrip()
-	shader := getRadialGradientShader()
+	stops := svgStopsToColorStops(grad.Stops)
+	img := ebiten.NewImage(w, h)
+	pix := make([]byte, w*h*4)
 
 	radius := grad.R
 	if radius <= 0 {
 		radius = 0.5
 	}
 
-	// Map pixel coords to objectBoundingBox for the radial distance calculation.
-	// Original CPU: nx = px / max(w-1,1), ddx = (nx - CX) / radius
-	// Shader form:  dx = (px - CenterX) / RadiusX  where CenterX = CX*scale, RadiusX = R*scale
-	// Proof: (px - CX*scale) / (R*scale) = px/(R*scale) - CX/R = nx/R - CX/R = (nx-CX)/R ✓
-	scaleW := math.Max(float64(w-1), 1)
-	scaleH := math.Max(float64(h-1), 1)
-	centerX := grad.CX * scaleW
-	centerY := grad.CY * scaleH
-	radiusX := radius * scaleW
-	radiusY := radius * scaleH
+	for py := 0; py < h; py++ {
+		for px := 0; px < w; px++ {
+			var nx, ny float64
+			if w > 1 {
+				nx = float64(px) / float64(w-1)
+			}
+			if h > 1 {
+				ny = float64(py) / float64(h-1)
+			}
 
-	img := globalImagePool.Get(w, h)
-	op := &ebiten.DrawRectShaderOptions{}
-	op.Images[0] = strip
-	op.Uniforms = map[string]any{
-		"CenterX": float32(centerX),
-		"CenterY": float32(centerY),
-		"RadiusX": float32(radiusX),
-		"RadiusY": float32(radiusY),
+			ddx := (nx - grad.CX) / radius
+			ddy := (ny - grad.CY) / radius
+			dist := math.Sqrt(ddx*ddx + ddy*ddy)
+			if dist > 1 {
+				dist = 1
+			}
+
+			c := interpolateGradient(stops, dist)
+			r, g, b, a := c.RGBA()
+			off := (py*w + px) * 4
+			pix[off+0] = uint8(r >> 8)
+			pix[off+1] = uint8(g >> 8)
+			pix[off+2] = uint8(b >> 8)
+			pix[off+3] = uint8(a >> 8)
+		}
 	}
-	img.DrawRectShader(w, h, shader, op)
+	img.WritePixels(pix)
 	return img
 }
 
 // drawSVGGradientFill renders a gradient-filled shape using the tessellated
 // fill vertices. It maps vertex positions to gradient-texture UV coordinates
-// using the pre-computed bounding box (minX, minY, bw, bh) to avoid redundant
-// vertex iteration.  The caller must compute the bounding box once and pass it.
-//
-// The texture UV dimensions are derived from bw/bh (matching the texture build
-// formula) rather than from gradTex.Bounds(), because pooled images may be
-// larger than the original requested size (power-of-two bucketing).
-func drawSVGGradientFill(screen *ebiten.Image, vs []ebiten.Vertex, is []uint16, gradTex *ebiten.Image, opacity float64, minX, minY, bw, bh float32) {
-	if len(vs) == 0 || gradTex == nil || bw <= 0 || bh <= 0 {
+// based on the vertex bounding box.
+func drawSVGGradientFill(screen *ebiten.Image, vs []ebiten.Vertex, is []uint16, gradTex *ebiten.Image, opacity float64) {
+	if len(vs) == 0 || gradTex == nil {
 		return
 	}
 
-	// Derive texture dimensions from the bounding box, matching the formula
-	// used by svgGradientFillPath: tw = int(bw) + 1, th = int(bh) + 1.
-	// This is correct even when the underlying image is bucketed (larger).
-	tw := float32(int(bw) + 1)
-	th := float32(int(bh) + 1)
+	// Find vertex bounding box
+	minX, minY := float32(math.MaxFloat32), float32(math.MaxFloat32)
+	maxX, maxY := float32(-math.MaxFloat32), float32(-math.MaxFloat32)
+	for _, v := range vs {
+		if v.DstX < minX {
+			minX = v.DstX
+		}
+		if v.DstY < minY {
+			minY = v.DstY
+		}
+		if v.DstX > maxX {
+			maxX = v.DstX
+		}
+		if v.DstY > maxY {
+			maxY = v.DstY
+		}
+	}
+
+	bw := maxX - minX
+	bh := maxY - minY
+	if bw <= 0 || bh <= 0 {
+		return
+	}
+
+	tw := float32(gradTex.Bounds().Dx())
+	th := float32(gradTex.Bounds().Dy())
 	opf := float32(opacity)
 
 	// Map vertex positions to texture UV coordinates
@@ -1762,8 +1787,6 @@ func svgBuildGradientTex(fillGradient interface{}, w, h int) *ebiten.Image {
 
 // svgGradientFillPath tessellates the given path, builds a gradient texture
 // matching the vertex bounding box, and draws the textured fill.
-// The bounding box is computed once and reused by drawSVGGradientFill, avoiding
-// the duplicate bounding box traversal (F8).
 // Returns true if gradient was drawn, false if no gradient is set.
 func svgGradientFillPath(screen *ebiten.Image, path *vector.Path, fillGradient interface{}, opacity float64) bool {
 	if fillGradient == nil {
@@ -1774,7 +1797,7 @@ func svgGradientFillPath(screen *ebiten.Image, path *vector.Path, fillGradient i
 		return true // gradient set but nothing to draw
 	}
 
-	// Compute bounding box once — used for both texture dimensions and UV mapping.
+	// Compute bounding box for texture dimensions
 	minX, minY := float32(math.MaxFloat32), float32(math.MaxFloat32)
 	maxX, maxY := float32(-math.MaxFloat32), float32(-math.MaxFloat32)
 	for _, v := range vs {
@@ -1791,10 +1814,8 @@ func svgGradientFillPath(screen *ebiten.Image, path *vector.Path, fillGradient i
 			maxY = v.DstY
 		}
 	}
-	bw := maxX - minX
-	bh := maxY - minY
-	tw := int(bw) + 1
-	th := int(bh) + 1
+	tw := int(maxX-minX) + 1
+	th := int(maxY-minY) + 1
 	if tw < 1 {
 		tw = 1
 	}
@@ -1806,7 +1827,7 @@ func svgGradientFillPath(screen *ebiten.Image, path *vector.Path, fillGradient i
 	if gradTex == nil {
 		return true
 	}
-	drawSVGGradientFill(screen, vs, is, gradTex, opacity, minX, minY, bw, bh)
-	globalImagePool.Put(gradTex)
+	drawSVGGradientFill(screen, vs, is, gradTex, opacity)
+	gradTex.Deallocate()
 	return true
 }

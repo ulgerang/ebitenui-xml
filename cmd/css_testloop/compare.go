@@ -151,6 +151,13 @@ tr:hover{background:#1c2128}
 	if err := os.WriteFile(outPath, []byte(html), 0644); err != nil {
 		return err
 	}
+	for _, r := range results {
+		status := "PASS"
+		if !r.Pass {
+			status = "FAIL"
+		}
+		fmt.Printf("  %-25s %5.1f%%  %s\n", r.TC.ID, r.DiffPct, status)
+	}
 	fmt.Printf("Report: %s (%d passed, %d failed)\n", outPath, passed, failed)
 	return nil
 }

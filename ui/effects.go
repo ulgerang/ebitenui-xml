@@ -237,7 +237,10 @@ func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 	}
 
 	// Precompute shader uniforms: t = GradA*dstPos.x + GradB*dstPos.y + GradC
-	// maps destination pixel coords (including GeoM translation) directly to t ∈ [0,1].
+	// maps destination pixel coords directly to t ∈ [0,1].
+	// Since DrawTrianglesShader makes dstPos equal to actual pixel position,
+	// and our vertices include r.X/r.Y offsets, the bias GradC must also
+	// subtract the origin contribution: -gradA*r.X - gradB*r.Y.
 	gradA := cosA / dotRange
 	gradB := sinA / dotRange
 	gradC := -(hw*cosA+hh*sinA+minDot)/dotRange - gradA*r.X - gradB*r.Y
@@ -253,15 +256,25 @@ func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 		h = 1
 	}
 
-	op := &ebiten.DrawRectShaderOptions{}
-	op.GeoM.Translate(r.X, r.Y)
-	op.Images[0] = strip
-	op.Uniforms = map[string]any{
+	// Use DrawTrianglesShader because DrawRectShader requires the source
+	// image to match the rect dimensions, but our strip is 256×1.
+	sw, sh := float32(strip.Bounds().Dx()), float32(strip.Bounds().Dy())
+	vertices := []ebiten.Vertex{
+		{DstX: float32(r.X), DstY: float32(r.Y), SrcX: 0, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X) + float32(w), DstY: float32(r.Y), SrcX: sw, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X), DstY: float32(r.Y) + float32(h), SrcX: 0, SrcY: sh, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X) + float32(w), DstY: float32(r.Y) + float32(h), SrcX: sw, SrcY: sh, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+	}
+	indices := []uint16{0, 1, 2, 1, 3, 2}
+
+	top := &ebiten.DrawTrianglesShaderOptions{}
+	top.Images[0] = strip
+	top.Uniforms = map[string]any{
 		"GradA": float32(gradA),
 		"GradB": float32(gradB),
 		"GradC": float32(gradC),
 	}
-	screen.DrawRectShader(w, h, shader, op)
+	screen.DrawTrianglesShader(vertices, indices, shader, top)
 }
 
 // interpolateGradient finds the color at position t
@@ -482,7 +495,11 @@ func clipComposite(screen *ebiten.Image, w, h int, contentFunc, maskFunc func(*e
 	if screenOp == nil {
 		screenOp = &ebiten.DrawImageOptions{}
 	}
-	screen.DrawImage(content, screenOp)
+	// Crop to the requested size because the pooled image may be larger
+	// (power-of-2 bucketing).  Without this, transparent padding leaks into
+	// the composite and shifts/dilutes the visible content.
+	cropped := content.SubImage(image.Rect(0, 0, w, h)).(*ebiten.Image)
+	screen.DrawImage(cropped, screenOp)
 
 	globalImagePool.Put(content)
 	globalImagePool.Put(mask)
@@ -697,8 +714,43 @@ func drawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, 
 // rendering for a rounded rectangle.  It is called either directly (opaque
 // border) or via an offscreen buffer (semi-transparent border).
 func drawRoundedRectStrokeCore(screen *ebiten.Image, r Rect, radTL, radTR, radBR, radBL float64, strokeWidth float64, clr color.Color) {
+	// CSS box-sizing: border-box — the entire stroke must fit inside rect r.
+	// vector.Path stroke is centered on the path, so inset the path by half
+	// the stroke width to keep the outer edge flush with r's edge.
+	halfStroke := strokeWidth / 2
+	insetR := Rect{
+		X: r.X + halfStroke,
+		Y: r.Y + halfStroke,
+		W: r.W - strokeWidth,
+		H: r.H - strokeWidth,
+	}
+	if insetR.W < 0 {
+		insetR.W = 0
+	}
+	if insetR.H < 0 {
+		insetR.H = 0
+	}
+
+	// Shrink radii to match the inset rect
+	radTL -= halfStroke
+	radTR -= halfStroke
+	radBR -= halfStroke
+	radBL -= halfStroke
+	if radTL < 0 {
+		radTL = 0
+	}
+	if radTR < 0 {
+		radTR = 0
+	}
+	if radBR < 0 {
+		radBR = 0
+	}
+	if radBL < 0 {
+		radBL = 0
+	}
+
 	// Clamp each radius
-	maxRadius := min(r.W, r.H) / 2
+	maxRadius := min(insetR.W, insetR.H) / 2
 	if radTL > maxRadius {
 		radTL = maxRadius
 	}
@@ -713,8 +765,8 @@ func drawRoundedRectStrokeCore(screen *ebiten.Image, r Rect, radTL, radTR, radBR
 	}
 
 	path := &vector.Path{}
-	x, y := float32(r.X), float32(r.Y)
-	w, h := float32(r.W), float32(r.H)
+	x, y := float32(insetR.X), float32(insetR.Y)
+	w, h := float32(insetR.W), float32(insetR.H)
 	rTL := float32(radTL)
 	rTR := float32(radTR)
 	rBR := float32(radBR)
@@ -766,16 +818,26 @@ func DrawRadialGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 		h = 1
 	}
 
-	op := &ebiten.DrawRectShaderOptions{}
-	op.GeoM.Translate(r.X, r.Y)
-	op.Images[0] = strip
-	op.Uniforms = map[string]any{
+	// Use DrawTrianglesShader because DrawRectShader requires the source
+	// image to match the rect dimensions, but our strip is 256×1.
+	sw, sh := float32(strip.Bounds().Dx()), float32(strip.Bounds().Dy())
+	vertices := []ebiten.Vertex{
+		{DstX: float32(r.X), DstY: float32(r.Y), SrcX: 0, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X) + float32(w), DstY: float32(r.Y), SrcX: sw, SrcY: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X), DstY: float32(r.Y) + float32(h), SrcX: 0, SrcY: sh, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(r.X) + float32(w), DstY: float32(r.Y) + float32(h), SrcX: sw, SrcY: sh, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+	}
+	indices := []uint16{0, 1, 2, 1, 3, 2}
+
+	top := &ebiten.DrawTrianglesShaderOptions{}
+	top.Images[0] = strip
+	top.Uniforms = map[string]any{
 		"CenterX": float32(r.X + r.W/2),
 		"CenterY": float32(r.Y + r.H/2),
 		"RadiusX": float32(r.W / 2),
 		"RadiusY": float32(r.H / 2),
 	}
-	screen.DrawRectShader(w, h, shader, op)
+	screen.DrawTrianglesShader(vertices, indices, shader, top)
 }
 
 // max returns the larger of two float64 values
