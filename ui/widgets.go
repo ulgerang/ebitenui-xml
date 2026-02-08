@@ -63,8 +63,9 @@ func (b *Button) Draw(screen *ebiten.Image) {
 		metrics := b.FontFace.Metrics()
 		ascent := metrics.HAscent
 		emHeight := ascent + metrics.HDescent
+		// In Ebitengine v2 text/v2, the origin is the top-left of the glyph's em-box.
 		x := r.X + (r.W-textW)/2
-		y := r.Y + (r.H-emHeight)/2 + ascent
+		y := r.Y + (r.H-emHeight)/2
 
 		// Draw text shadow for button label
 		shadow := style.parsedTextShadow
@@ -188,7 +189,9 @@ func (t *Text) Draw(screen *ebiten.Image) {
 		startY = r.Y + r.H - totalTextHeight
 	}
 
-	y := startY + halfLeading + ascent
+	// In Ebitengine v2 text/v2, the origin is the top-left of the glyph's em-box.
+	// So we only need to move to the top of the centered em-box.
+	y := startY + halfLeading
 	for _, line := range lines {
 		// Calculate x position based on text alignment
 		x := r.X
@@ -450,11 +453,11 @@ func (c *Checkbox) Draw(screen *ebiten.Image) {
 			textColor = color.White
 		}
 
+		// In Ebitengine v2 text/v2, the origin is the top-left of the glyph's em-box.
 		x := r.X + boxSize + 8
 		metrics := c.FontFace.Metrics()
-		ascent := metrics.HAscent
-		emHeight := ascent + metrics.HDescent
-		y := r.Y + (r.H-emHeight)/2 + ascent
+		emHeight := metrics.HAscent + metrics.HDescent
+		y := r.Y + (r.H-emHeight)/2
 
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(x, y)

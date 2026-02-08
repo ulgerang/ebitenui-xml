@@ -209,19 +209,20 @@ func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 	}
 
 	// CSS angle to math direction vector.
-	// CSS: 0deg points upward (bottom-to-top), 90deg points right.
-	// angleRad = (cssAngle - 90) * pi/180 gives: cos=dx, sin=dy of gradient direction.
+	// CSS: 0deg points upward (bottom-to-top), 90deg points right,
+	// 180deg points downward, 270deg points left.
+	// The vector direction should be the direction of color change.
 	angleRad := (g.Angle - 90) * math.Pi / 180
 	cosA := math.Cos(angleRad)
 	sinA := math.Sin(angleRad)
 
-	// Half-dimensions for center-relative corner projection
+	// In CSS, the gradient line center is at the element center.
+	// Corner projection determines the line length so that the gradient
+	// starts at the earliest corner and ends at the latest corner.
 	hw, hh := r.W/2, r.H/2
-
-	// Project all four corners onto the gradient direction to find the
-	// full extent of the gradient line across the rectangle.
-	corners := [4][2]float64{{-hw, -hh}, {hw, -hh}, {-hw, hh}, {hw, hh}}
-	minDot, maxDot := math.Inf(1), math.Inf(-1)
+	corners := [4][2]float64{{-hw, -hh}, {hw, -hh}, {hw, hh}, {-hw, hh}}
+	minDot := math.Inf(1)
+	maxDot := math.Inf(-1)
 	for _, c := range corners {
 		dot := c[0]*cosA + c[1]*sinA
 		if dot < minDot {
@@ -231,19 +232,20 @@ func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 			maxDot = dot
 		}
 	}
+
 	dotRange := maxDot - minDot
-	if dotRange == 0 {
+	if dotRange < 1 {
 		dotRange = 1
 	}
 
-	// Precompute shader uniforms: t = GradA*dstPos.x + GradB*dstPos.y + GradC
-	// maps destination pixel coords directly to t ∈ [0,1].
-	// Since DrawTrianglesShader makes dstPos equal to actual pixel position,
-	// and our vertices include r.X/r.Y offsets, the bias GradC must also
-	// subtract the origin contribution: -gradA*r.X - gradB*r.Y.
+	// Shader mapping: t = (projected_point - minDot) / dotRange
+	// projected_point = (x - centerX)*cosA + (y - centerY)*sinA
+	// t = (x*cosA + y*sinA - centerX*cosA - centerY*sinA - minDot) / dotRange
+	centerX := r.X + hw
+	centerY := r.Y + hh
 	gradA := cosA / dotRange
 	gradB := sinA / dotRange
-	gradC := -(hw*cosA+hh*sinA+minDot)/dotRange - gradA*r.X - gradB*r.Y
+	gradC := (-centerX*cosA - centerY*sinA - minDot) / dotRange
 
 	shader := getLinearGradientShader()
 	strip := g.ensureGradientStrip()

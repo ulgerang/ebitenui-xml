@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>CSS TestLoop Report</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:'Segoe UI',system-ui,sans-serif;padding:24px}
+h1{color:#58a6ff;margin-bottom:16px}
+.summary{display:flex;gap:16px;margin-bottom:24px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px 24px;text-align:center;flex:1}
+.card .val{font-size:28px;font-weight:bold}
+.card .lbl{font-size:12px;color:#8b949e;margin-top:4px}
+table{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden}
+th{text-align:left;padding:10px 14px;background:#1c2128;color:#8b949e;font-size:12px;border-bottom:1px solid #30363d}
+td{padding:8px 14px;border-bottom:1px solid #21262d;font-size:13px;font-family:monospace}
+tr.pass td:last-child{color:#3fb950}
+tr.fail td:last-child{color:#f85149;font-weight:bold}
+tr:hover{background:#1c2128}
+</style></head><body>
+<h1>CSS TestLoop Comparison Report</h1>
+<div class="summary">
+  <div class="card"><div class="val">20</div><div class="lbl">Total Tests</div></div>
+  <div class="card"><div class="val" style="color:#3fb950">11</div><div class="lbl">Passed (<5% diff)</div></div>
+  <div class="card"><div class="val" style="color:#f85149">9</div><div class="lbl">Failed (>=5% diff)</div></div>
+</div>
+<table>
+<thead><tr><th>Test ID</th><th>Category</th><th>Property</th><th>Diff %</th><th>Avg Delta</th><th>Status</th></tr></thead>
+<tbody>
+<tr class="pass"><td>bg-solid</td><td>background</td><td>background</td><td>0.3%</td><td>0.4</td><td>PASS</td></tr>
+<tr class="pass"><td>bg-gradient-h</td><td>background</td><td>background(gradient)</td><td>0.0%</td><td>0.4</td><td>PASS</td></tr>
+<tr class="fail"><td>bg-gradient-v</td><td>background</td><td>background(gradient-v)</td><td>69.6%</td><td>38.0</td><td>FAIL</td></tr>
+<tr class="fail"><td>bg-gradient-diag</td><td>background</td><td>background(gradient-45)</td><td>77.1%</td><td>51.6</td><td>FAIL</td></tr>
+<tr class="pass"><td>border-basic</td><td>border</td><td>border</td><td>0.0%</td><td>0.0</td><td>PASS</td></tr>
+<tr class="pass"><td>border-radius</td><td>border</td><td>border-radius</td><td>0.2%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>border-radius-per-corner</td><td>border</td><td>border-radius(per-corner)</td><td>1.4%</td><td>1.6</td><td>PASS</td></tr>
+<tr class="fail"><td>box-shadow</td><td>shadow</td><td>box-shadow</td><td>25.4%</td><td>55.6</td><td>FAIL</td></tr>
+<tr class="fail"><td>flex-row</td><td>layout</td><td>flex-direction:row</td><td>13.6%</td><td>14.4</td><td>FAIL</td></tr>
+<tr class="fail"><td>flex-col</td><td>layout</td><td>flex-direction:column</td><td>32.7%</td><td>34.0</td><td>FAIL</td></tr>
+<tr class="pass"><td>justify-center</td><td>layout</td><td>justify-content:center</td><td>4.0%</td><td>3.1</td><td>PASS</td></tr>
+<tr class="fail"><td>justify-between</td><td>layout</td><td>justify-content:space-between</td><td>8.7%</td><td>6.0</td><td>FAIL</td></tr>
+<tr class="fail"><td>justify-evenly</td><td>layout</td><td>justify-content:space-evenly</td><td>7.3%</td><td>5.1</td><td>FAIL</td></tr>
+<tr class="pass"><td>align-center</td><td>layout</td><td>align-items:center</td><td>4.0%</td><td>3.2</td><td>PASS</td></tr>
+<tr class="fail"><td>flex-grow</td><td>layout</td><td>flex-grow</td><td>13.6%</td><td>10.7</td><td>FAIL</td></tr>
+<tr class="pass"><td>padding</td><td>spacing</td><td>padding</td><td>0.0%</td><td>0.0</td><td>PASS</td></tr>
+<tr class="pass"><td>opacity</td><td>visual</td><td>opacity</td><td>0.0%</td><td>0.3</td><td>PASS</td></tr>
+<tr class="fail"><td>nested-layout</td><td>layout</td><td>nested flex</td><td>22.7%</td><td>21.4</td><td>FAIL</td></tr>
+<tr class="pass"><td>overflow-hidden</td><td>visual</td><td>overflow:hidden</td><td>0.0%</td><td>0.0</td><td>PASS</td></tr>
+<tr class="pass"><td>border-bg-combined</td><td>border</td><td>border+bg+radius</td><td>0.3%</td><td>0.1</td><td>PASS</td></tr>
+
+</tbody></table>
+</body></html>

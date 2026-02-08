@@ -275,10 +275,13 @@ func (ti *TextInput) Draw(screen *ebiten.Image) {
 		displayText = strings.Repeat("●", utf8.RuneCountInString(ti.Text))
 	}
 
-	// Draw placeholder if empty
+	// Draw Placeholder if empty
 	if displayText == "" && ti.Placeholder != "" && !ti.Focused {
+		metrics := ti.FontFace.Metrics()
+		emHeight := metrics.HAscent + metrics.HDescent
+		y := r.Y + (r.H-emHeight)/2
 		op := &text.DrawOptions{}
-		op.GeoM.Translate(r.X, r.Y+r.H/2)
+		op.GeoM.Translate(r.X, y)
 		op.ColorScale.ScaleWithColor(ti.PlaceholderColor)
 		text.Draw(screen, ti.Placeholder, ti.FontFace, op)
 		return
@@ -309,8 +312,9 @@ func (ti *TextInput) Draw(screen *ebiten.Image) {
 		textColor = color.White
 	}
 
-	_, textH := text.Measure("Ag", ti.FontFace, 0)
-	y := r.Y + (r.H-textH)/2 + textH*0.8
+	metrics := ti.FontFace.Metrics()
+	emHeight := metrics.HAscent + metrics.HDescent
+	y := r.Y + (r.H-emHeight)/2
 
 	op := &text.DrawOptions{}
 	op.GeoM.Translate(r.X-ti.scrollOffset, y)
@@ -595,7 +599,7 @@ func (ta *TextArea) Draw(screen *ebiten.Image) {
 	// Draw placeholder if empty
 	if ta.Text == "" && ta.Placeholder != "" && !ta.Focused {
 		op := &text.DrawOptions{}
-		op.GeoM.Translate(r.X, r.Y+16)
+		op.GeoM.Translate(r.X, r.Y)
 		op.ColorScale.ScaleWithColor(ta.PlaceholderColor)
 		text.Draw(screen, ta.Placeholder, ta.FontFace, op)
 		return
@@ -611,7 +615,7 @@ func (ta *TextArea) Draw(screen *ebiten.Image) {
 	lineHeight := lineH * 1.2
 
 	for i, line := range ta.lines {
-		y := r.Y + float64(i+1)*lineHeight - ta.ScrollY
+		y := r.Y + float64(i)*lineHeight - ta.ScrollY
 		if y < r.Y-lineHeight || y > r.Y+r.H+lineHeight {
 			continue // Skip lines outside visible area
 		}

@@ -81,10 +81,12 @@ func (t *Toggle) Draw(screen *ebiten.Image) {
 		}
 
 		x := r.X + trackW + 12
-		_, textH := text.Measure(t.Label, t.FontFace, 0)
-		y := r.Y + (r.H+textH)/2 - textH*0.2
+		metrics := t.FontFace.Metrics()
+		emHeight := metrics.HAscent + metrics.HDescent
+		y := r.Y + (r.H-emHeight)/2
 
 		op := &text.DrawOptions{}
+
 		op.GeoM.Translate(x, y)
 		op.ColorScale.ScaleWithColor(textColor)
 		text.Draw(screen, t.Label, t.FontFace, op)
@@ -208,8 +210,9 @@ func (rb *RadioButton) Draw(screen *ebiten.Image) {
 		}
 
 		x := r.X + circleSize + 8
-		_, textH := text.Measure(rb.Label, rb.FontFace, 0)
-		y := r.Y + (r.H+textH)/2 - textH*0.2
+		metrics := rb.FontFace.Metrics()
+		emHeight := metrics.HAscent + metrics.HDescent
+		y := r.Y + (r.H-emHeight)/2
 
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(x, y)
@@ -322,8 +325,9 @@ func (d *Dropdown) Draw(screen *ebiten.Image) {
 
 		// Text with padding
 		textX := r.X + 12
-		_, textH := text.Measure(displayText, d.FontFace, 0)
-		textY := r.Y + (r.H+textH)/2 - textH*0.2
+		metrics := d.FontFace.Metrics()
+		emHeight := metrics.HAscent + metrics.HDescent
+		textY := r.Y + (r.H-emHeight)/2
 
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(textX, textY)
@@ -398,8 +402,9 @@ func (d *Dropdown) drawDropdownList(screen *ebiten.Image) {
 			}
 
 			textX := itemRect.X + 10
-			_, textH := text.Measure(opt.Label, d.FontFace, 0)
-			textY := itemY + (itemHeight+textH)/2 - textH*0.2
+			metrics := d.FontFace.Metrics()
+			emHeight := metrics.HAscent + metrics.HDescent
+			textY := itemY + (itemHeight-emHeight)/2
 
 			op := &text.DrawOptions{}
 			op.GeoM.Translate(textX, textY)
@@ -588,7 +593,7 @@ func (m *Modal) Draw(screen *ebiten.Image) {
 
 			titleW, titleH := text.Measure(m.Title, titleFace, 0)
 			titleX := modalX + (modalW-titleW)/2
-			titleY := modalY + 30 + titleH*0.7
+			titleY := modalY + 30 + (40-titleH)/2 // center in 40px title area
 
 			op := &text.DrawOptions{}
 			op.GeoM.Translate(titleX, titleY)
@@ -733,7 +738,7 @@ func (t *Tooltip) Draw(screen *ebiten.Image) {
 	}
 
 	op := &text.DrawOptions{}
-	op.GeoM.Translate(tooltipX+paddingX, tooltipY+paddingY+textH*0.75)
+	op.GeoM.Translate(tooltipX+paddingX, tooltipY+paddingY)
 	op.ColorScale.ScaleWithColor(textColor)
 	text.Draw(screen, t.Text, t.FontFace, op)
 }
@@ -799,7 +804,7 @@ func (b *Badge) Draw(screen *ebiten.Image) {
 	}
 
 	textX := r.X + (badgeW-textW)/2
-	textY := r.Y + (badgeH+textH)/2 - textH*0.2
+	textY := r.Y + (badgeH-textH)/2
 
 	op := &text.DrawOptions{}
 	op.GeoM.Translate(textX, textY)

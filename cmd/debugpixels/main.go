@@ -77,6 +77,7 @@ func main() {
 		name  string
 		index int
 	}{
+		{"bg-solid", 0},
 		{"bg-gradient-v", 2},
 		{"bg-gradient-diag", 3},
 		{"box-shadow", 7},
@@ -97,6 +98,14 @@ func main() {
 			tc.name, tc.index, r.Min.X, r.Min.Y, r.Max.X, r.Max.Y)
 
 		switch tc.name {
+		case "bg-solid":
+			// Solid red background #e74c3c, white text "BG" centered
+			sampleAndPrint("bg-color", ebitenImg, browserImg, r.Min.X+5, r.Min.Y+5)
+			sampleAndPrint("text-center", ebitenImg, browserImg, r.Min.X+90, r.Min.Y+65)
+			// Sample points where text should be
+			for dy := 55; dy <= 75; dy += 2 {
+				sampleAndPrint(fmt.Sprintf("text-y-%d", dy), ebitenImg, browserImg, r.Min.X+90, r.Min.Y+dy)
+			}
 		case "bg-gradient-v":
 			// 180deg gradient: green (#2ecc71) at top → purple (#8e44ad) at bottom
 			// Widget at (0,0) within cell, size 180x130
