@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image"
 	"image/color"
 	"math"
 	"strconv"
@@ -201,6 +202,7 @@ type ColorStop struct {
 
 // DrawGradient draws a linear gradient in the given rectangle with angle support.
 // CSS angles: 0deg=bottom-to-top, 90deg=left-to-right, 180deg=top-to-bottom, 270deg=right-to-left.
+// Uses a GPU shader with a 1D gradient strip texture for O(1) draw calls regardless of size.
 func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 	if g == nil || len(g.ColorStops) < 2 {
 		return
@@ -208,13 +210,12 @@ func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 
 	// CSS angle to math direction vector.
 	// CSS: 0deg points upward (bottom-to-top), 90deg points right.
-	// Math: we need the gradient-line direction in screen coords (Y-down).
-	// angleRad = (cssAngle - 90) * pi/180 gives us: cos=dx, sin=dy of gradient direction.
+	// angleRad = (cssAngle - 90) * pi/180 gives: cos=dx, sin=dy of gradient direction.
 	angleRad := (g.Angle - 90) * math.Pi / 180
 	cosA := math.Cos(angleRad)
 	sinA := math.Sin(angleRad)
 
-	// Half-dimensions for center-relative coordinates
+	// Half-dimensions for center-relative corner projection
 	hw, hh := r.W/2, r.H/2
 
 	// Project all four corners onto the gradient direction to find the
@@ -235,61 +236,32 @@ func DrawGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 		dotRange = 1
 	}
 
-	// Normalize angle to [0, 360) for fast-path checks
-	normAngle := math.Mod(g.Angle, 360)
-	if normAngle < 0 {
-		normAngle += 360
+	// Precompute shader uniforms: t = GradA*dstPos.x + GradB*dstPos.y + GradC
+	// maps destination pixel coords (including GeoM translation) directly to t ∈ [0,1].
+	gradA := cosA / dotRange
+	gradB := sinA / dotRange
+	gradC := -(hw*cosA+hh*sinA+minDot)/dotRange - gradA*r.X - gradB*r.Y
+
+	shader := getLinearGradientShader()
+	strip := g.ensureGradientStrip()
+
+	w, h := int(r.W), int(r.H)
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
 	}
 
-	if normAngle == 90 || normAngle == 270 {
-		// Horizontal gradient — draw vertical strips (1px wide, full height)
-		for px := 0.0; px < r.W; px++ {
-			rx := px - hw
-			dot := rx * cosA
-			t := (dot - minDot) / dotRange
-			if t < 0 {
-				t = 0
-			}
-			if t > 1 {
-				t = 1
-			}
-			clr := interpolateGradient(g.ColorStops, t)
-			vector.DrawFilledRect(screen, float32(r.X+px), float32(r.Y), 1, float32(r.H), clr, false)
-		}
-	} else if normAngle == 0 || normAngle == 180 {
-		// Vertical gradient — draw horizontal strips (full width, 1px tall)
-		for py := 0.0; py < r.H; py++ {
-			ry := py - hh
-			dot := ry * sinA
-			t := (dot - minDot) / dotRange
-			if t < 0 {
-				t = 0
-			}
-			if t > 1 {
-				t = 1
-			}
-			clr := interpolateGradient(g.ColorStops, t)
-			vector.DrawFilledRect(screen, float32(r.X), float32(r.Y+py), float32(r.W), 1, clr, false)
-		}
-	} else {
-		// Arbitrary angle — pixel-by-pixel rendering
-		for py := 0.0; py < r.H; py++ {
-			for px := 0.0; px < r.W; px++ {
-				rx := px - hw
-				ry := py - hh
-				dot := rx*cosA + ry*sinA
-				t := (dot - minDot) / dotRange
-				if t < 0 {
-					t = 0
-				}
-				if t > 1 {
-					t = 1
-				}
-				clr := interpolateGradient(g.ColorStops, t)
-				vector.DrawFilledRect(screen, float32(r.X+px), float32(r.Y+py), 1, 1, clr, false)
-			}
-		}
+	op := &ebiten.DrawRectShaderOptions{}
+	op.GeoM.Translate(r.X, r.Y)
+	op.Images[0] = strip
+	op.Uniforms = map[string]any{
+		"GradA": float32(gradA),
+		"GradB": float32(gradB),
+		"GradC": float32(gradC),
 	}
+	screen.DrawRectShader(w, h, shader, op)
 }
 
 // interpolateGradient finds the color at position t
@@ -487,12 +459,80 @@ func min(a, b float64) float64 {
 // Modern CSS Effects - Box Shadow, Text Shadow, Outline, Radial Gradient, etc.
 // ============================================================================
 
-// DrawBoxShadow draws a box shadow effect around a rectangle
+// DrawBoxShadow draws a box shadow effect around a rectangle.
+// Outset shadows use a GPU SDF shader with analytical Gaussian blur (single draw call).
+// Inset shadows fall back to a CPU multi-layer approach for now.
 func DrawBoxShadow(screen *ebiten.Image, r Rect, shadow *BoxShadow, borderRadius float64) {
 	if shadow == nil {
 		return
 	}
 
+	if shadow.Inset {
+		// Inset shadow: keep CPU fallback for now
+		drawBoxShadowInsetCPU(screen, r, shadow, borderRadius)
+		return
+	}
+
+	shader := getBoxShadowShader()
+	sigma := shadow.Blur / 2
+	if sigma < 0.001 {
+		sigma = 0.001
+	}
+
+	expand := shadow.Blur*3 + math.Abs(shadow.Spread)
+
+	// Shadow shape dimensions (element + spread)
+	shapeHalfW := r.W/2 + shadow.Spread
+	shapeHalfH := r.H/2 + shadow.Spread
+	cornerRadius := borderRadius + shadow.Spread
+	if cornerRadius < 0 {
+		cornerRadius = 0
+	}
+	maxR := min(shapeHalfW, shapeHalfH)
+	if cornerRadius > maxR {
+		cornerRadius = maxR
+	}
+
+	// Draw rect (expanded to cover blur extent)
+	drawX := r.X + shadow.OffsetX - expand
+	drawY := r.Y + shadow.OffsetY - expand
+	drawW := r.W + expand*2
+	drawH := r.H + expand*2
+
+	// Shadow center in destination coords
+	centerX := r.X + r.W/2 + shadow.OffsetX
+	centerY := r.Y + r.H/2 + shadow.OffsetY
+
+	sr, sg, sb, sa := shadow.Color.RGBA()
+
+	w, h := int(drawW), int(drawH)
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
+	}
+
+	op := &ebiten.DrawRectShaderOptions{}
+	op.GeoM.Translate(drawX, drawY)
+	op.Uniforms = map[string]any{
+		"CenterX": float32(centerX),
+		"CenterY": float32(centerY),
+		"HalfW":   float32(shapeHalfW),
+		"HalfH":   float32(shapeHalfH),
+		"Radius":  float32(cornerRadius),
+		"Sigma":   float32(sigma),
+		"ShadowR": float32(sr) / 0xffff,
+		"ShadowG": float32(sg) / 0xffff,
+		"ShadowB": float32(sb) / 0xffff,
+		"ShadowA": float32(sa) / 0xffff,
+	}
+	screen.DrawRectShader(w, h, shader, op)
+}
+
+// drawBoxShadowInsetCPU draws an inset box shadow using CPU multi-layer approach.
+// This is a fallback for inset shadows until a dedicated GPU shader is implemented.
+func drawBoxShadowInsetCPU(screen *ebiten.Image, r Rect, shadow *BoxShadow, borderRadius float64) {
 	// Shadow color with alpha for blur
 	sr, sg, sb, sa := shadow.Color.RGBA()
 	baseAlpha := float64(sa) / 0xffff
@@ -637,35 +677,34 @@ func drawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, 
 	screen.DrawTriangles(vs, is, whiteImage, op)
 }
 
-// DrawRadialGradient draws a radial gradient in the given rectangle
+// DrawRadialGradient draws a radial gradient in the given rectangle.
+// Uses a GPU shader with a 1D gradient strip texture for proper elliptical rendering.
 func DrawRadialGradient(screen *ebiten.Image, r Rect, g *Gradient) {
 	if g == nil || len(g.ColorStops) < 2 {
 		return
 	}
 
-	// Center of the radial gradient
-	centerX := r.X + r.W/2
-	centerY := r.Y + r.H/2
-	maxRadius := max(r.W, r.H) / 2
+	shader := getRadialGradientShader()
+	strip := g.ensureGradientStrip()
 
-	// Draw concentric circles from outside to inside
-	steps := int(maxRadius)
-	if steps > 100 {
-		steps = 100 // Performance limit
+	w, h := int(r.W), int(r.H)
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
 	}
 
-	for i := steps; i >= 0; i-- {
-		t := float64(i) / float64(steps)
-		currentRadius := maxRadius * t
-
-		clr := interpolateGradient(g.ColorStops, t)
-
-		// Draw a circle at this radius
-		vector.DrawFilledCircle(screen,
-			float32(centerX), float32(centerY),
-			float32(currentRadius),
-			clr, true)
+	op := &ebiten.DrawRectShaderOptions{}
+	op.GeoM.Translate(r.X, r.Y)
+	op.Images[0] = strip
+	op.Uniforms = map[string]any{
+		"CenterX": float32(r.X + r.W/2),
+		"CenterY": float32(r.Y + r.H/2),
+		"RadiusX": float32(r.W / 2),
+		"RadiusY": float32(r.H / 2),
 	}
+	screen.DrawRectShader(w, h, shader, op)
 }
 
 // max returns the larger of two float64 values
@@ -716,6 +755,101 @@ func GlassmorphismStyle(blurAmount float64, bgAlpha float64) (*Style, *BackdropF
 			Brightness: 1.05,
 			Saturate:   1.2,
 		}
+}
+
+// NewBackdropFilter creates a BackdropFilter with identity defaults.
+func NewBackdropFilter() *BackdropFilter {
+	return &BackdropFilter{Brightness: 1, Saturate: 1}
+}
+
+// backdropFilterIsDefault returns true when the filter would have no visible effect.
+func backdropFilterIsDefault(bf *BackdropFilter) bool {
+	return bf.Blur == 0 && bf.Brightness == 1 && bf.Saturate == 1
+}
+
+// filterIsDefault returns true when a CSS filter would have no visible effect.
+func filterIsDefault(f *Filter) bool {
+	return f.Blur == 0 && f.Brightness == 1 && f.Contrast == 1 &&
+		f.Saturate == 1 && f.Grayscale == 0 && f.Sepia == 0 &&
+		f.HueRotate == 0 && f.Invert == 0
+}
+
+// ApplyBackdropFilter captures the screen region behind a widget, applies
+// blur/brightness/saturate effects, and composites the result back.
+func ApplyBackdropFilter(screen *ebiten.Image, r Rect, bf *BackdropFilter) {
+	if bf == nil || backdropFilterIsDefault(bf) {
+		return
+	}
+
+	x0, y0 := int(r.X), int(r.Y)
+	x1, y1 := int(r.X+r.W), int(r.Y+r.H)
+	w, h := x1-x0, y1-y0
+	if w <= 0 || h <= 0 {
+		return
+	}
+
+	// Capture what's currently on screen behind this widget
+	captured := screen.SubImage(image.Rect(x0, y0, x1, y1)).(*ebiten.Image)
+
+	// Copy captured region into an offscreen buffer (origin-shifted)
+	buf := ebiten.NewImage(w, h)
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(-x0), float64(-y0))
+	buf.DrawImage(captured, op)
+
+	// 2-pass separable Gaussian blur
+	if bf.Blur > 0 {
+		shader := getBackdropBlurShader()
+		if shader != nil {
+			tmp := ebiten.NewImage(w, h)
+
+			// Horizontal pass: buf → tmp
+			sop := &ebiten.DrawRectShaderOptions{}
+			sop.Images[0] = buf
+			sop.Uniforms = map[string]interface{}{
+				"Sigma":     float32(bf.Blur),
+				"Direction": [2]float32{1, 0},
+			}
+			tmp.DrawRectShader(w, h, shader, sop)
+
+			// Vertical pass: tmp → buf
+			buf.Clear()
+			sop2 := &ebiten.DrawRectShaderOptions{}
+			sop2.Images[0] = tmp
+			sop2.Uniforms = map[string]interface{}{
+				"Sigma":     float32(bf.Blur),
+				"Direction": [2]float32{0, 1},
+			}
+			buf.DrawRectShader(w, h, shader, sop2)
+
+			tmp.Deallocate()
+		}
+	}
+
+	// Apply brightness/saturate using the CSS filter shader
+	if bf.Brightness != 1 || bf.Saturate != 1 {
+		f := &Filter{
+			Brightness: bf.Brightness,
+			Contrast:   1,
+			Saturate:   bf.Saturate,
+			Grayscale:  0,
+			Sepia:      0,
+			HueRotate:  0,
+			Invert:     0,
+		}
+		filtered := applyCSSFilter(buf, f)
+		if filtered != buf {
+			buf.Deallocate()
+			buf = filtered
+		}
+	}
+
+	// Composite back onto screen at the original position
+	compOp := &ebiten.DrawImageOptions{}
+	compOp.GeoM.Translate(float64(x0), float64(y0))
+	screen.DrawImage(buf, compOp)
+
+	buf.Deallocate()
 }
 
 // ParseBoxShadow parses a CSS-like box-shadow string
@@ -872,4 +1006,199 @@ func DrawPerSideBorder(screen *ebiten.Image, r Rect, top, right, bottom, left fl
 	if right > 0 {
 		vector.DrawFilledRect(screen, float32(r.X+r.W-right), float32(r.Y), float32(right), float32(r.H), clr, false)
 	}
+}
+
+// ============================================================================
+// Gradient with border-radius clipping (tessellate + UV-mapped gradient texture)
+// ============================================================================
+
+// DrawGradientClipped draws a gradient clipped to a rounded rectangle path.
+// Uses tessellation of the rounded rect path with UV-mapped gradient texture.
+// Falls back to the fast GPU shader path when no rounding is needed.
+func DrawGradientClipped(screen *ebiten.Image, r Rect, g *Gradient, radTL, radTR, radBR, radBL float64) {
+	if g == nil || len(g.ColorStops) < 2 {
+		return
+	}
+
+	// If no rounding, use fast GPU shader path
+	if radTL <= 0 && radTR <= 0 && radBR <= 0 && radBL <= 0 {
+		if g.Type == GradientRadial {
+			DrawRadialGradient(screen, r, g)
+		} else {
+			DrawGradient(screen, r, g)
+		}
+		return
+	}
+
+	// Build rounded rect path (same as DrawRoundedRectPathEx)
+	maxRadius := min(r.W, r.H) / 2
+	if radTL > maxRadius {
+		radTL = maxRadius
+	}
+	if radTR > maxRadius {
+		radTR = maxRadius
+	}
+	if radBR > maxRadius {
+		radBR = maxRadius
+	}
+	if radBL > maxRadius {
+		radBL = maxRadius
+	}
+
+	path := &vector.Path{}
+	x, y := float32(r.X), float32(r.Y)
+	w, h := float32(r.W), float32(r.H)
+	rTL := float32(radTL)
+	rTR := float32(radTR)
+	rBR := float32(radBR)
+	rBL := float32(radBL)
+
+	path.MoveTo(x+rTL, y)
+	path.LineTo(x+w-rTR, y)
+	path.QuadTo(x+w, y, x+w, y+rTR)
+	path.LineTo(x+w, y+h-rBR)
+	path.QuadTo(x+w, y+h, x+w-rBR, y+h)
+	path.LineTo(x+rBL, y+h)
+	path.QuadTo(x, y+h, x, y+h-rBL)
+	path.LineTo(x, y+rTL)
+	path.QuadTo(x, y, x+rTL, y)
+	path.Close()
+
+	// Tessellate path
+	vs, is := path.AppendVerticesAndIndicesForFilling(nil, nil)
+	if len(vs) == 0 {
+		return
+	}
+
+	// Build gradient texture
+	gradW := int(r.W) + 1
+	gradH := int(r.H) + 1
+	if gradW < 1 {
+		gradW = 1
+	}
+	if gradH < 1 {
+		gradH = 1
+	}
+
+	var gradTex *ebiten.Image
+	if g.Type == GradientRadial {
+		gradTex = buildRadialGradientTexture(g, gradW, gradH)
+	} else {
+		gradTex = buildLinearGradientTexture(g, gradW, gradH)
+	}
+	if gradTex == nil {
+		return
+	}
+	defer gradTex.Deallocate()
+
+	// UV-map vertices to gradient texture
+	tw := float32(gradTex.Bounds().Dx())
+	th := float32(gradTex.Bounds().Dy())
+
+	for i := range vs {
+		vs[i].SrcX = (vs[i].DstX - float32(r.X)) / float32(r.W) * tw
+		vs[i].SrcY = (vs[i].DstY - float32(r.Y)) / float32(r.H) * th
+		vs[i].ColorR = 1
+		vs[i].ColorG = 1
+		vs[i].ColorB = 1
+		vs[i].ColorA = 1
+	}
+
+	screen.DrawTriangles(vs, is, gradTex, &ebiten.DrawTrianglesOptions{AntiAlias: true})
+}
+
+// buildLinearGradientTexture creates a 2D texture for a CSS linear gradient.
+// Used by DrawGradientClipped for UV-mapped tessellated rendering with border-radius.
+func buildLinearGradientTexture(g *Gradient, w, h int) *ebiten.Image {
+	if w <= 0 || h <= 0 {
+		return nil
+	}
+
+	angleRad := (g.Angle - 90) * math.Pi / 180
+	cosA := math.Cos(angleRad)
+	sinA := math.Sin(angleRad)
+
+	hw, hh := float64(w)/2, float64(h)/2
+	corners := [4][2]float64{{-hw, -hh}, {hw, -hh}, {-hw, hh}, {hw, hh}}
+	minDot, maxDot := math.Inf(1), math.Inf(-1)
+	for _, c := range corners {
+		dot := c[0]*cosA + c[1]*sinA
+		if dot < minDot {
+			minDot = dot
+		}
+		if dot > maxDot {
+			maxDot = dot
+		}
+	}
+	dotRange := maxDot - minDot
+	if dotRange == 0 {
+		dotRange = 1
+	}
+
+	img := ebiten.NewImage(w, h)
+	pix := make([]byte, w*h*4)
+
+	for py := 0; py < h; py++ {
+		for px := 0; px < w; px++ {
+			rx := float64(px) - hw
+			ry := float64(py) - hh
+			dot := rx*cosA + ry*sinA
+			t := (dot - minDot) / dotRange
+			if t < 0 {
+				t = 0
+			}
+			if t > 1 {
+				t = 1
+			}
+			c := interpolateGradient(g.ColorStops, t)
+			cr, cg, cb, ca := c.RGBA()
+			off := (py*w + px) * 4
+			pix[off+0] = uint8(cr >> 8)
+			pix[off+1] = uint8(cg >> 8)
+			pix[off+2] = uint8(cb >> 8)
+			pix[off+3] = uint8(ca >> 8)
+		}
+	}
+	img.WritePixels(pix)
+	return img
+}
+
+// buildRadialGradientTexture creates a 2D texture for a CSS radial gradient.
+// Used by DrawGradientClipped for UV-mapped tessellated rendering with border-radius.
+func buildRadialGradientTexture(g *Gradient, w, h int) *ebiten.Image {
+	if w <= 0 || h <= 0 {
+		return nil
+	}
+
+	img := ebiten.NewImage(w, h)
+	pix := make([]byte, w*h*4)
+
+	cx, cy := float64(w)/2, float64(h)/2
+	rx, ry := cx, cy
+	if rx <= 0 {
+		rx = 1
+	}
+	if ry <= 0 {
+		ry = 1
+	}
+
+	for py := 0; py < h; py++ {
+		for px := 0; px < w; px++ {
+			dx := (float64(px) - cx) / rx
+			dy := (float64(py) - cy) / ry
+			t := math.Sqrt(dx*dx + dy*dy)
+			if t > 1 {
+				t = 1
+			}
+			c := interpolateGradient(g.ColorStops, t)
+			cr, cg, cb, ca := c.RGBA()
+			off := (py*w + px) * 4
+			pix[off+0] = uint8(cr >> 8)
+			pix[off+1] = uint8(cg >> 8)
+			pix[off+2] = uint8(cb >> 8)
+			pix[off+3] = uint8(ca >> 8)
+		}
+	}
+	img.WritePixels(pix)
+	return img
 }

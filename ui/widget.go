@@ -2,8 +2,12 @@ package ui
 
 import (
 	"image/color"
+	"math"
+	"strconv"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 // BaseWidget provides common functionality for all widgets
@@ -261,7 +265,14 @@ func (w *BaseWidget) getAnimationTransform() (translateX, translateY, scaleX, sc
 	return
 }
 
-// Draw renders the widget's background and border
+// Draw renders the widget's background, border, outline, and children.
+//
+// When opacity < 1, a CSS transform is set, or a CSS filter is active, the
+// entire widget (background + border + outline + children) is rendered to an
+// offscreen buffer first, then composited with the appropriate alpha / GeoM /
+// shader.  This prevents the double-attenuation artefact that occurs when
+// per-element opacity is applied to overlapping regions (e.g. background
+// bleeding through a semi-transparent border).
 func (w *BaseWidget) Draw(screen *ebiten.Image) {
 	if !w.visible {
 		return
@@ -300,69 +311,211 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		opacity *= animOpacity
 	}
 
-	// 1. Draw box shadow FIRST (behind everything)
+	// Determine if we need offscreen compositing
+	hasTransform := style.Transform != "" && style.Transform != "none"
+	hasFilter := style.parsedFilter != nil
+	needsOffscreen := opacity < 1 || hasTransform || hasFilter
+
+	if needsOffscreen {
+		w.drawWithCompositing(screen, r, style, opacity, hasTransform, hasFilter)
+	} else {
+		w.drawDirect(screen, r, style)
+	}
+}
+
+// drawDirect renders the widget directly to screen (no offscreen compositing needed).
+func (w *BaseWidget) drawDirect(screen *ebiten.Image, r Rect, style *Style) {
+	// 1. Box shadow (behind everything)
+	w.drawBoxShadow(screen, r, style)
+
+	// 2. Backdrop filter (behind background, glassmorphism)
+	w.drawBackdropFilter(screen, r, style)
+
+	// 3. Background (9-slice, gradient, or solid)
+	w.drawBackground(screen, r, style)
+
+	// 3. Border
+	if style.BorderColor != nil && style.BorderWidth > 0 {
+		drawRoundedRectStroke(screen, r, style.BorderRadius, style.BorderWidth, style.BorderColor)
+	}
+
+	// 4. Outline
+	w.drawOutline(screen, r, style)
+
+	// 5. Children
+	w.drawChildren(screen, r, style)
+}
+
+// drawWithCompositing renders to an offscreen buffer, applies transform/filter/opacity,
+// then composites onto the target screen.
+func (w *BaseWidget) drawWithCompositing(screen *ebiten.Image, r Rect, style *Style, opacity float64, hasTransform, hasFilter bool) {
+	bounds := screen.Bounds()
+	screenW, screenH := bounds.Dx(), bounds.Dy()
+	if screenW <= 0 || screenH <= 0 {
+		return
+	}
+
+	// Box shadow is drawn directly to screen — it is beneath the widget and
+	// should not be affected by the widget's own transform or opacity.
+	w.drawBoxShadow(screen, r, style)
+
+	offscreen := ebiten.NewImage(screenW, screenH)
+
+	// Draw widget content to offscreen at original coordinates
+	w.drawContentOnly(offscreen, r, style)
+
+	// Apply CSS filter if present
+	if hasFilter {
+		filtered := applyCSSFilter(offscreen, style.parsedFilter)
+		if filtered != offscreen {
+			offscreen.Deallocate()
+			offscreen = filtered
+		}
+	}
+
+	// Composite to screen with transform and opacity
+	op := &ebiten.DrawImageOptions{}
+
+	if hasTransform {
+		originX, originY := parseCSSTransformOrigin(style.TransformOrigin, r.W, r.H)
+		originX += r.X
+		originY += r.Y
+		geoM := parseCSSTransform(style.Transform, originX, originY)
+		op.GeoM = geoM
+	}
+
+	if opacity < 1 {
+		op.ColorScale.ScaleAlpha(float32(opacity))
+	}
+
+	screen.DrawImage(offscreen, op)
+	offscreen.Deallocate()
+}
+
+// drawContentOnly renders widget content (bg, border, outline, children) without
+// shadow or compositing.
+func (w *BaseWidget) drawContentOnly(screen *ebiten.Image, r Rect, style *Style) {
+	// Backdrop filter (behind background)
+	w.drawBackdropFilter(screen, r, style)
+
+	// Background
+	w.drawBackground(screen, r, style)
+
+	// Border
+	if style.BorderColor != nil && style.BorderWidth > 0 {
+		drawRoundedRectStroke(screen, r, style.BorderRadius, style.BorderWidth, style.BorderColor)
+	}
+
+	// Outline
+	w.drawOutline(screen, r, style)
+
+	// Children
+	w.drawChildren(screen, r, style)
+}
+
+// drawBoxShadow draws the box shadow effect, parsing on first use.
+func (w *BaseWidget) drawBoxShadow(screen *ebiten.Image, r Rect, style *Style) {
 	if style.parsedBoxShadow != nil {
 		DrawBoxShadow(screen, r, style.parsedBoxShadow, style.BorderRadius)
 	} else if style.BoxShadow != "" {
-		// Parse on first use
 		style.parsedBoxShadow = ParseBoxShadow(style.BoxShadow)
 		if style.parsedBoxShadow != nil {
 			DrawBoxShadow(screen, r, style.parsedBoxShadow, style.BorderRadius)
 		}
 	}
+}
 
-	// 2. Draw background (9-slice, gradient, or solid)
+// drawBackdropFilter applies the CSS backdrop-filter effect (glassmorphism).
+// Captures the screen region behind this widget and applies blur/brightness/saturate.
+// Must be called before drawBackground so the captured content is uncontaminated.
+func (w *BaseWidget) drawBackdropFilter(screen *ebiten.Image, r Rect, style *Style) {
+	if style.parsedBackdropFilter != nil {
+		ApplyBackdropFilter(screen, r, style.parsedBackdropFilter)
+	} else if style.BackdropFilter != "" {
+		style.parsedBackdropFilter = ParseBackdropFilter(style.BackdropFilter)
+		if style.parsedBackdropFilter != nil {
+			ApplyBackdropFilter(screen, r, style.parsedBackdropFilter)
+		}
+	}
+}
+
+// drawBackground draws the widget background (9-slice, gradient, or solid colour).
+func (w *BaseWidget) drawBackground(screen *ebiten.Image, r Rect, style *Style) {
 	if w.nineSlice != nil {
-		var colorScale *ebiten.ColorScale
-		if opacity < 1 {
-			cs := ebiten.ColorScale{}
-			cs.SetA(float32(opacity))
-			colorScale = &cs
-		}
-		w.nineSlice.Draw(screen, r.X, r.Y, r.W, r.H, colorScale)
+		w.nineSlice.Draw(screen, r.X, r.Y, r.W, r.H, nil)
 	} else if style.parsedGradient != nil {
-		// Draw gradient background
-		DrawGradient(screen, r, style.parsedGradient)
+		radTL, radTR, radBR, radBL := w.getCornerRadii(style)
+		if radTL > 0 || radTR > 0 || radBR > 0 || radBL > 0 {
+			drawGradientWithRadius(screen, r, style.parsedGradient, radTL, radTR, radBR, radBL)
+		} else if style.parsedGradient.Type == GradientRadial {
+			DrawRadialGradient(screen, r, style.parsedGradient)
+		} else {
+			DrawGradient(screen, r, style.parsedGradient)
+		}
 	} else if style.BackgroundColor != nil {
-		// Draw solid background
-		bgColor := style.BackgroundColor
-		if opacity < 1 {
-			bgColor = applyOpacity(bgColor, opacity)
-		}
-		DrawRoundedRectPath(screen, r, style.BorderRadius, bgColor)
+		DrawRoundedRectPath(screen, r, style.BorderRadius, style.BackgroundColor)
+	}
+}
+
+// drawGradientWithRadius draws a gradient clipped to rounded corners.
+// It renders the gradient to an offscreen buffer and masks it with the rounded
+// rect shape using destination-in blending.
+func drawGradientWithRadius(screen *ebiten.Image, r Rect, g *Gradient, radTL, radTR, radBR, radBL float64) {
+	iw := int(math.Ceil(r.W))
+	ih := int(math.Ceil(r.H))
+	if iw <= 0 || ih <= 0 {
+		return
 	}
 
-	// 3. Draw border
-	if style.BorderColor != nil && style.BorderWidth > 0 {
-		borderColor := style.BorderColor
-		if opacity < 1 {
-			borderColor = applyOpacity(borderColor, opacity)
-		}
-		drawRoundedRectStroke(screen, r, style.BorderRadius, style.BorderWidth, borderColor)
+	// Draw gradient into a local buffer at origin (0,0).
+	localRect := Rect{X: 0, Y: 0, W: r.W, H: r.H}
+	gradImg := ebiten.NewImage(iw, ih)
+	if g.Type == GradientRadial {
+		DrawRadialGradient(gradImg, localRect, g)
+	} else {
+		DrawGradient(gradImg, localRect, g)
 	}
 
-	// 4. Draw outline (outside the border)
+	// Build the rounded-rect mask.
+	mask := ebiten.NewImage(iw, ih)
+	DrawRoundedRectPathEx(mask, localRect, radTL, radTR, radBR, radBL, color.White)
+
+	// Destination-in: keep gradient pixels only where the mask has alpha > 0.
+	gradImg.DrawImage(mask, &ebiten.DrawImageOptions{
+		Blend: ebiten.BlendDestinationIn,
+	})
+
+	// Composite onto screen at the widget's actual position.
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(r.X, r.Y)
+	screen.DrawImage(gradImg, op)
+
+	gradImg.Deallocate()
+	mask.Deallocate()
+}
+
+// drawOutline draws the CSS outline, parsing on first use.
+func (w *BaseWidget) drawOutline(screen *ebiten.Image, r Rect, style *Style) {
 	if style.parsedOutline != nil {
 		style.parsedOutline.Offset = style.OutlineOffset
 		DrawOutline(screen, r, style.parsedOutline, style.BorderRadius)
 	} else if style.Outline != "" {
-		// Parse on first use
 		style.parsedOutline = ParseOutline(style.Outline)
 		if style.parsedOutline != nil {
 			style.parsedOutline.Offset = style.OutlineOffset
 			DrawOutline(screen, r, style.parsedOutline, style.BorderRadius)
 		}
 	}
+}
 
-	// 5. Draw children - with overflow clipping
+// drawChildren renders child widgets with overflow handling.
+func (w *BaseWidget) drawChildren(screen *ebiten.Image, r Rect, style *Style) {
 	if style.Overflow == "hidden" || style.Overflow == "scroll" || style.Overflow == "auto" {
 		clipW := int(r.W)
 		clipH := int(r.H)
 		if clipW > 0 && clipH > 0 {
 			tmpImg := ebiten.NewImage(clipW, clipH)
-			// Translate so parent's origin is at (0,0) in temp image
 			for _, child := range w.children {
-				// Save and adjust position
 				origRect := child.ComputedRect()
 				shifted := Rect{
 					X: origRect.X - r.X,
@@ -376,9 +529,6 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 			}
 			drawOp := &ebiten.DrawImageOptions{}
 			drawOp.GeoM.Translate(r.X, r.Y)
-			if opacity < 1 {
-				drawOp.ColorScale.SetA(float32(opacity))
-			}
 			screen.DrawImage(tmpImg, drawOp)
 			tmpImg.Deallocate()
 		}
@@ -387,6 +537,99 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 			child.Draw(screen)
 		}
 	}
+}
+
+// getCornerRadii returns per-corner radii, falling back to uniform BorderRadius.
+func (w *BaseWidget) getCornerRadii(style *Style) (tl, tr, br, bl float64) {
+	tl = style.BorderTopLeftRadius
+	tr = style.BorderTopRightRadius
+	br = style.BorderBottomRightRadius
+	bl = style.BorderBottomLeftRadius
+
+	if tl == 0 && tr == 0 && br == 0 && bl == 0 {
+		tl = style.BorderRadius
+		tr = style.BorderRadius
+		br = style.BorderRadius
+		bl = style.BorderRadius
+	}
+	return
+}
+
+// ============================================================================
+// CSS Filter Application
+// ============================================================================
+
+// applyCSSFilter applies CSS colour-matrix filter to an offscreen image.
+// Returns the filtered image; the caller must Deallocate() the returned image
+// when it differs from src.  The original src is NOT deallocated here.
+func applyCSSFilter(src *ebiten.Image, f *Filter) *ebiten.Image {
+	if f == nil {
+		return src
+	}
+
+	shader := getFilterShader()
+	bounds := src.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	if w <= 0 || h <= 0 {
+		return src
+	}
+
+	dst := ebiten.NewImage(w, h)
+	op := &ebiten.DrawRectShaderOptions{}
+	op.Images[0] = src
+	op.Uniforms = map[string]any{
+		"Brightness": float32(f.Brightness),
+		"Contrast":   float32(f.Contrast),
+		"Saturate":   float32(f.Saturate),
+		"Grayscale":  float32(f.Grayscale),
+		"Sepia":      float32(f.Sepia),
+		"HueRotate":  float32(f.HueRotate * math.Pi / 180),
+		"Invert":     float32(f.Invert),
+	}
+	dst.DrawRectShader(w, h, shader, op)
+
+	return dst
+}
+
+// ============================================================================
+// CSS Clip-Path Support
+// ============================================================================
+
+// drawWithClipPath renders a widget with clip-path clipping.
+// Uses offscreen compositing with destination-in blending (same as SVGClippedElement).
+func drawWithClipPath(screen *ebiten.Image, drawFunc func(*ebiten.Image), clipPath *vector.Path) {
+	if clipPath == nil {
+		drawFunc(screen)
+		return
+	}
+
+	bounds := screen.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	if w <= 0 || h <= 0 {
+		return
+	}
+
+	content := ebiten.NewImage(w, h)
+	drawFunc(content)
+
+	mask := ebiten.NewImage(w, h)
+	vs, is := clipPath.AppendVerticesAndIndicesForFilling(nil, nil)
+	for i := range vs {
+		vs[i].ColorR = 1
+		vs[i].ColorG = 1
+		vs[i].ColorB = 1
+		vs[i].ColorA = 1
+	}
+	mask.DrawTriangles(vs, is, whiteImage, &ebiten.DrawTrianglesOptions{AntiAlias: true})
+
+	content.DrawImage(mask, &ebiten.DrawImageOptions{
+		Blend: ebiten.BlendDestinationIn,
+	})
+
+	screen.DrawImage(content, &ebiten.DrawImageOptions{})
+
+	content.Deallocate()
+	mask.Deallocate()
 }
 
 // applyOpacity applies opacity to a color, returning a non-premultiplied
@@ -454,4 +697,164 @@ func (w *BaseWidget) ContentRect() Rect {
 		w.style.Padding.Bottom+bw,
 		w.style.Padding.Left+bw,
 	)
+}
+
+// ============================================================================
+// CSS Transform Parsing
+// ============================================================================
+
+// parseCSSTransform parses a CSS transform string and returns an ebiten.GeoM.
+// Supported functions: rotate(), scale(), translate(), skewX(), skewY().
+// The transform is applied around the given origin point (originX, originY)
+// in screen-space coordinates.
+func parseCSSTransform(transform string, originX, originY float64) ebiten.GeoM {
+	var geoM ebiten.GeoM
+
+	transform = strings.TrimSpace(transform)
+	if transform == "" || transform == "none" {
+		return geoM
+	}
+
+	// Translate origin to (0,0) so transforms are applied relative to the origin.
+	geoM.Translate(-originX, -originY)
+
+	// Parse and apply each transform function in order.
+	remaining := transform
+	for remaining != "" {
+		remaining = strings.TrimSpace(remaining)
+		if remaining == "" {
+			break
+		}
+
+		// Find function name and opening paren
+		parenIdx := strings.Index(remaining, "(")
+		if parenIdx < 0 {
+			break
+		}
+		funcName := strings.TrimSpace(remaining[:parenIdx])
+
+		// Find closing paren
+		closeIdx := strings.Index(remaining, ")")
+		if closeIdx < 0 {
+			break
+		}
+		args := remaining[parenIdx+1 : closeIdx]
+		remaining = remaining[closeIdx+1:]
+
+		switch strings.ToLower(funcName) {
+		case "rotate":
+			angle := parseCSSAngle(args)
+			geoM.Rotate(angle)
+		case "scale":
+			parts := strings.Split(args, ",")
+			sx := parseCSSScaleValue(strings.TrimSpace(parts[0]))
+			sy := sx
+			if len(parts) > 1 {
+				sy = parseCSSScaleValue(strings.TrimSpace(parts[1]))
+			}
+			geoM.Scale(sx, sy)
+		case "translate":
+			parts := strings.Split(args, ",")
+			tx := parseCSSPixels(strings.TrimSpace(parts[0]))
+			ty := 0.0
+			if len(parts) > 1 {
+				ty = parseCSSPixels(strings.TrimSpace(parts[1]))
+			}
+			geoM.Translate(tx, ty)
+		case "skewx":
+			angle := parseCSSAngle(args)
+			var skew ebiten.GeoM
+			skew.SetElement(0, 1, math.Tan(angle))
+			geoM.Concat(skew)
+		case "skewy":
+			angle := parseCSSAngle(args)
+			var skew ebiten.GeoM
+			skew.SetElement(1, 0, math.Tan(angle))
+			geoM.Concat(skew)
+		}
+	}
+
+	// Translate origin back.
+	geoM.Translate(originX, originY)
+
+	return geoM
+}
+
+// parseCSSAngle parses "45deg" or "0.785rad" to radians.
+func parseCSSAngle(s string) float64 {
+	s = strings.TrimSpace(s)
+	if strings.HasSuffix(s, "rad") {
+		s = strings.TrimSuffix(s, "rad")
+		f, _ := strconv.ParseFloat(s, 64)
+		return f
+	}
+	s = strings.TrimSuffix(s, "deg")
+	f, _ := strconv.ParseFloat(s, 64)
+	return f * math.Pi / 180
+}
+
+// parseCSSScaleValue parses a scale factor.  Returns 1.0 for empty strings.
+func parseCSSScaleValue(s string) float64 {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 1
+	}
+	f, _ := strconv.ParseFloat(s, 64)
+	return f
+}
+
+// parseCSSPixels parses "10px" or "10" to float64.
+func parseCSSPixels(s string) float64 {
+	s = strings.TrimSuffix(strings.TrimSpace(s), "px")
+	f, _ := strconv.ParseFloat(s, 64)
+	return f
+}
+
+// parseCSSTransformOrigin parses CSS transform-origin values like "center",
+// "top left", "50% 50%", or "10px 20px" into screen-space coordinates within
+// the given widget dimensions (w × h).
+func parseCSSTransformOrigin(origin string, w, h float64) (float64, float64) {
+	if origin == "" || origin == "center" {
+		return w / 2, h / 2
+	}
+
+	parts := strings.Fields(origin)
+	ox, oy := w/2, h/2
+
+	if len(parts) >= 1 {
+		switch parts[0] {
+		case "left":
+			ox = 0
+		case "center":
+			ox = w / 2
+		case "right":
+			ox = w
+		default:
+			if strings.HasSuffix(parts[0], "%") {
+				pct, _ := strconv.ParseFloat(strings.TrimSuffix(parts[0], "%"), 64)
+				ox = w * pct / 100
+			} else {
+				ox = parseCSSPixels(parts[0])
+			}
+		}
+	}
+	if len(parts) >= 2 {
+		switch parts[1] {
+		case "top":
+			oy = 0
+		case "center":
+			oy = h / 2
+		case "bottom":
+			oy = h
+		default:
+			if strings.HasSuffix(parts[1], "%") {
+				pct, _ := strconv.ParseFloat(strings.TrimSuffix(parts[1], "%"), 64)
+				oy = h * pct / 100
+			} else {
+				oy = parseCSSPixels(parts[1])
+			}
+		}
+	}
+
+	return ox, oy
 }

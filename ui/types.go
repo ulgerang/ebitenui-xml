@@ -194,6 +194,9 @@ type Style struct {
 	Transform       string `json:"transform"`       // rotate(), scale(), translate()
 	TransformOrigin string `json:"transformOrigin"` // center, top left, etc.
 
+	// Clip Path
+	ClipPath string `json:"clipPath"` // circle(), polygon(), inset(), path()
+
 	// 9-Slice Image
 	BackgroundImage    string `json:"backgroundImage"`    // image path
 	BorderImage        string `json:"borderImage"`        // image path for 9-slice
@@ -226,13 +229,15 @@ type Style struct {
 	FocusStyle    *Style `json:"focus"`
 
 	// Parsed values (internal)
-	parsedBoxShadow   *BoxShadow   `json:"-"`
-	parsedTextShadow  *TextShadow  `json:"-"`
-	parsedOutline     *Outline     `json:"-"`
-	parsedTransitions []Transition `json:"-"`
-	parsed9Slice      *NineSlice   `json:"-"`
-	parsedGradient    *Gradient    `json:"-"`
-	parsedFilter      *Filter      `json:"-"`
+	parsedBoxShadow      *BoxShadow      `json:"-"`
+	parsedTextShadow     *TextShadow     `json:"-"`
+	parsedOutline        *Outline        `json:"-"`
+	parsedTransitions    []Transition    `json:"-"`
+	parsed9Slice         *NineSlice      `json:"-"`
+	parsedGradient       *Gradient       `json:"-"`
+	parsedFilter         *Filter         `json:"-"`
+	parsedBackdropFilter *BackdropFilter `json:"-"`
+	parsedTransform      *Transform      `json:"-"`
 }
 
 // Clone creates a deep copy of the style
@@ -345,8 +350,32 @@ func (s *Style) Merge(other *Style) {
 		s.BorderWidth = other.BorderWidth
 		s.BorderWidthSet = true
 	}
+	if other.BorderTopWidth != 0 {
+		s.BorderTopWidth = other.BorderTopWidth
+	}
+	if other.BorderRightWidth != 0 {
+		s.BorderRightWidth = other.BorderRightWidth
+	}
+	if other.BorderBottomWidth != 0 {
+		s.BorderBottomWidth = other.BorderBottomWidth
+	}
+	if other.BorderLeftWidth != 0 {
+		s.BorderLeftWidth = other.BorderLeftWidth
+	}
 	if other.BorderRadius != 0 {
 		s.BorderRadius = other.BorderRadius
+	}
+	if other.BorderTopLeftRadius != 0 {
+		s.BorderTopLeftRadius = other.BorderTopLeftRadius
+	}
+	if other.BorderTopRightRadius != 0 {
+		s.BorderTopRightRadius = other.BorderTopRightRadius
+	}
+	if other.BorderBottomLeftRadius != 0 {
+		s.BorderBottomLeftRadius = other.BorderBottomLeftRadius
+	}
+	if other.BorderBottomRightRadius != 0 {
+		s.BorderBottomRightRadius = other.BorderBottomRightRadius
 	}
 
 	// Text
@@ -367,6 +396,15 @@ func (s *Style) Merge(other *Style) {
 	}
 	if other.TextOverflow != "" {
 		s.TextOverflow = other.TextOverflow
+	}
+	if other.FontWeight != "" {
+		s.FontWeight = other.FontWeight
+	}
+	if other.FontStyle != "" {
+		s.FontStyle = other.FontStyle
+	}
+	if other.LetterSpacing != 0 {
+		s.LetterSpacing = other.LetterSpacing
 	}
 
 	// Visual Effects
@@ -393,6 +431,30 @@ func (s *Style) Merge(other *Style) {
 		s.parsedTransitions = other.parsedTransitions
 	}
 
+	// Filter
+	if other.Filter != "" {
+		s.Filter = other.Filter
+		s.parsedFilter = other.parsedFilter
+	}
+	if other.BackdropFilter != "" {
+		s.BackdropFilter = other.BackdropFilter
+		s.parsedBackdropFilter = other.parsedBackdropFilter
+	}
+
+	// Transform
+	if other.Transform != "" {
+		s.Transform = other.Transform
+		s.parsedTransform = other.parsedTransform
+	}
+	if other.TransformOrigin != "" {
+		s.TransformOrigin = other.TransformOrigin
+	}
+
+	// Clip Path
+	if other.ClipPath != "" {
+		s.ClipPath = other.ClipPath
+	}
+
 	// 9-Slice
 	if other.BackgroundImage != "" {
 		s.BackgroundImage = other.BackgroundImage
@@ -402,6 +464,15 @@ func (s *Style) Merge(other *Style) {
 	}
 	if other.BorderImageSlice != "" {
 		s.BorderImageSlice = other.BorderImageSlice
+	}
+	if other.BackgroundSize != "" {
+		s.BackgroundSize = other.BackgroundSize
+	}
+	if other.BackgroundPosition != "" {
+		s.BackgroundPosition = other.BackgroundPosition
+	}
+	if other.BackgroundRepeat != "" {
+		s.BackgroundRepeat = other.BackgroundRepeat
 	}
 
 	// Overflow

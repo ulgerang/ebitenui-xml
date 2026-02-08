@@ -123,6 +123,8 @@ func (se *StyleEngine) parseStyleColors(style *Style) {
 		// Check if it's a gradient
 		if strings.HasPrefix(style.Background, "linear-gradient") {
 			style.parsedGradient = ParseGradient(style.Background)
+		} else if strings.HasPrefix(style.Background, "radial-gradient") {
+			style.parsedGradient = parseRadialGradientCSS(style.Background)
 		} else {
 			style.BackgroundColor = parseColor(style.Background)
 		}
@@ -142,6 +144,16 @@ func (se *StyleEngine) parseStyleColors(style *Style) {
 	// Parse transitions
 	if style.Transition != "" {
 		style.parsedTransitions = parseTransitions(style.Transition)
+	}
+
+	// Parse filter
+	if style.Filter != "" {
+		style.parsedFilter = ParseFilter(style.Filter)
+	}
+
+	// Parse backdrop-filter
+	if style.BackdropFilter != "" {
+		style.parsedBackdropFilter = ParseBackdropFilter(style.BackdropFilter)
 	}
 
 	// Parse state styles
@@ -674,4 +686,211 @@ func parseColorValue(s string) uint8 {
 		i = 0
 	}
 	return uint8(i)
+}
+
+// ============================================================================
+// Filter Parsing
+// ============================================================================
+
+// ParseFilter parses a CSS filter string.
+// Supported functions: blur(), brightness(), contrast(), grayscale(), sepia(),
+// saturate(), hue-rotate(), invert()
+// Example: "blur(5px) brightness(1.2) contrast(0.8)"
+func ParseFilter(s string) *Filter {
+	s = strings.TrimSpace(s)
+	if s == "" || s == "none" {
+		return nil
+	}
+
+	f := NewFilter()
+	remaining := s
+
+	for remaining != "" {
+		remaining = strings.TrimSpace(remaining)
+		if remaining == "" {
+			break
+		}
+
+		parenIdx := strings.Index(remaining, "(")
+		if parenIdx < 0 {
+			break
+		}
+		funcName := strings.TrimSpace(remaining[:parenIdx])
+
+		closeIdx := strings.Index(remaining, ")")
+		if closeIdx < 0 {
+			break
+		}
+		arg := strings.TrimSpace(remaining[parenIdx+1 : closeIdx])
+		remaining = remaining[closeIdx+1:]
+
+		switch strings.ToLower(funcName) {
+		case "blur":
+			f.Blur = parsePixelValue(arg)
+		case "brightness":
+			f.Brightness = parseFilterAmount(arg)
+		case "contrast":
+			f.Contrast = parseFilterAmount(arg)
+		case "grayscale":
+			f.Grayscale = parseFilterAmount(arg)
+		case "sepia":
+			f.Sepia = parseFilterAmount(arg)
+		case "saturate":
+			f.Saturate = parseFilterAmount(arg)
+		case "hue-rotate":
+			f.HueRotate = parseFilterAngle(arg)
+		case "invert":
+			f.Invert = parseFilterAmount(arg)
+		}
+	}
+
+	return f
+}
+
+// ParseBackdropFilter parses a CSS backdrop-filter string.
+// Currently supports: blur(Npx), brightness(), saturate()
+func ParseBackdropFilter(s string) *BackdropFilter {
+	s = strings.TrimSpace(s)
+	if s == "" || s == "none" {
+		return nil
+	}
+
+	bf := &BackdropFilter{Brightness: 1, Saturate: 1}
+	remaining := s
+
+	for remaining != "" {
+		remaining = strings.TrimSpace(remaining)
+		if remaining == "" {
+			break
+		}
+
+		parenIdx := strings.Index(remaining, "(")
+		if parenIdx < 0 {
+			break
+		}
+		funcName := strings.TrimSpace(remaining[:parenIdx])
+
+		closeIdx := strings.Index(remaining, ")")
+		if closeIdx < 0 {
+			break
+		}
+		arg := strings.TrimSpace(remaining[parenIdx+1 : closeIdx])
+		remaining = remaining[closeIdx+1:]
+
+		switch strings.ToLower(funcName) {
+		case "blur":
+			bf.Blur = parsePixelValue(arg)
+		case "brightness":
+			bf.Brightness = parseFilterAmount(arg)
+		case "saturate":
+			bf.Saturate = parseFilterAmount(arg)
+		}
+	}
+
+	return bf
+}
+
+// parseFilterAmount parses a filter function amount.
+// Accepts: "50%", "0.5", "1.2"
+func parseFilterAmount(s string) float64 {
+	s = strings.TrimSpace(s)
+	if strings.HasSuffix(s, "%") {
+		s = strings.TrimSuffix(s, "%")
+		f, _ := strconv.ParseFloat(s, 64)
+		return f / 100
+	}
+	f, _ := strconv.ParseFloat(s, 64)
+	return f
+}
+
+// parseFilterAngle parses a filter angle argument.
+// Accepts: "90deg", "1.57rad"
+func parseFilterAngle(s string) float64 {
+	s = strings.TrimSpace(s)
+	if strings.HasSuffix(s, "rad") {
+		s = strings.TrimSuffix(s, "rad")
+		f, _ := strconv.ParseFloat(s, 64)
+		return f
+	}
+	s = strings.TrimSuffix(s, "deg")
+	f, _ := strconv.ParseFloat(s, 64)
+	return f // degrees (will be converted to radians by the shader caller)
+}
+
+// ============================================================================
+// Radial Gradient CSS Parsing
+// ============================================================================
+
+// parseRadialGradientCSS parses a CSS radial-gradient string.
+// Example: "radial-gradient(circle, #ff0000, #0000ff)"
+// Example: "radial-gradient(ellipse, red 0%, blue 100%)"
+func parseRadialGradientCSS(s string) *Gradient {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "radial-gradient(")
+	s = strings.TrimSuffix(s, ")")
+
+	parts := strings.Split(s, ",")
+	if len(parts) < 2 {
+		return nil
+	}
+
+	g := &Gradient{
+		Type:       GradientRadial,
+		ColorStops: make([]ColorStop, 0),
+	}
+
+	startIdx := 0
+	first := strings.TrimSpace(parts[0])
+	firstLower := strings.ToLower(first)
+
+	// Check if first part is shape keyword (circle, ellipse, etc.)
+	if firstLower == "circle" || firstLower == "ellipse" ||
+		strings.HasPrefix(firstLower, "circle ") || strings.HasPrefix(firstLower, "ellipse ") ||
+		strings.Contains(firstLower, "at ") {
+		startIdx = 1
+	}
+
+	// Parse color stops
+	numColors := len(parts) - startIdx
+	if numColors < 2 {
+		return nil
+	}
+
+	for i := startIdx; i < len(parts); i++ {
+		colorStr := strings.TrimSpace(parts[i])
+		// Check for explicit position like "red 50%"
+		colorAndPos := strings.Fields(colorStr)
+		var clr color.Color
+		stopPos := float64(i-startIdx) / float64(numColors-1)
+
+		if len(colorAndPos) >= 2 {
+			// Last field might be a percentage
+			lastField := colorAndPos[len(colorAndPos)-1]
+			if strings.HasSuffix(lastField, "%") {
+				pct := strings.TrimSuffix(lastField, "%")
+				f, err := strconv.ParseFloat(pct, 64)
+				if err == nil {
+					stopPos = f / 100
+				}
+				clr = parseColor(strings.Join(colorAndPos[:len(colorAndPos)-1], " "))
+			} else {
+				clr = parseColor(colorStr)
+			}
+		} else {
+			clr = parseColor(colorStr)
+		}
+
+		if clr != nil {
+			g.ColorStops = append(g.ColorStops, ColorStop{
+				Color:    clr,
+				Position: stopPos,
+			})
+		}
+	}
+
+	if len(g.ColorStops) < 2 {
+		return nil
+	}
+
+	return g
 }
