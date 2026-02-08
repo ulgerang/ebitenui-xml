@@ -44,7 +44,7 @@ type SVGElement interface {
 
 // SVGGroup represents <g> element
 type SVGGroup struct {
-	Transform SVGTransform
+	Transform ebiten.GeoM
 	Elements  []SVGElement
 	Fill      color.Color
 	Stroke    color.Color
@@ -54,14 +54,17 @@ type SVGGroup struct {
 
 // SVGGroup Draw implementation
 func (g *SVGGroup) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY float64) {
-	needsOffscreen := !g.Transform.IsSimple() || g.Opacity < 1.0
+	// A GeoM is "simple" (translate + scale only) when the off-diagonal
+	// elements are zero — no rotation, skew, or arbitrary matrix.
+	isSimple := g.Transform.Element(0, 1) == 0 && g.Transform.Element(1, 0) == 0
+	needsOffscreen := !isSimple || g.Opacity < 1.0
 
 	if !needsOffscreen {
 		// Simple transform, full opacity: draw children directly to screen
-		newOffsetX := offsetX + g.Transform.TranslateX*scaleX
-		newOffsetY := offsetY + g.Transform.TranslateY*scaleY
-		newScaleX := scaleX * g.Transform.ScaleX
-		newScaleY := scaleY * g.Transform.ScaleY
+		newOffsetX := offsetX + g.Transform.Element(0, 2)*scaleX
+		newOffsetY := offsetY + g.Transform.Element(1, 2)*scaleY
+		newScaleX := scaleX * g.Transform.Element(0, 0)
+		newScaleY := scaleY * g.Transform.Element(1, 1)
 
 		for _, elem := range g.Elements {
 			elem.Draw(screen, newOffsetX, newOffsetY, newScaleX, newScaleY)
@@ -69,14 +72,14 @@ func (g *SVGGroup) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY f
 	} else {
 		// Need offscreen compositing for complex transform and/or group opacity.
 		bounds := screen.Bounds()
-		offscreen := ebiten.NewImage(bounds.Dx(), bounds.Dy())
+		offscreen := globalImagePool.Get(bounds.Dx(), bounds.Dy())
 
-		if g.Transform.IsSimple() {
+		if isSimple {
 			// Simple transform + opacity: draw children to offscreen, composite with alpha
-			newOffsetX := g.Transform.TranslateX * scaleX
-			newOffsetY := g.Transform.TranslateY * scaleY
-			newScaleX := scaleX * g.Transform.ScaleX
-			newScaleY := scaleY * g.Transform.ScaleY
+			newOffsetX := g.Transform.Element(0, 2) * scaleX
+			newOffsetY := g.Transform.Element(1, 2) * scaleY
+			newScaleX := scaleX * g.Transform.Element(0, 0)
+			newScaleY := scaleY * g.Transform.Element(1, 1)
 
 			for _, elem := range g.Elements {
 				elem.Draw(offscreen, newOffsetX, newOffsetY, newScaleX, newScaleY)
@@ -107,8 +110,7 @@ func (g *SVGGroup) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY f
 
 			op := &ebiten.DrawImageOptions{}
 			op.GeoM.Scale(1/scaleX, 1/scaleY)
-			svgGeoM := g.Transform.ToGeoM()
-			op.GeoM.Concat(svgGeoM)
+			op.GeoM.Concat(g.Transform)
 			op.GeoM.Scale(scaleX, scaleY)
 			op.GeoM.Translate(offsetX, offsetY)
 
@@ -117,86 +119,8 @@ func (g *SVGGroup) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY f
 			}
 			screen.DrawImage(offscreen, op)
 		}
-		offscreen.Deallocate()
+		globalImagePool.Put(offscreen)
 	}
-}
-
-// SVGTransform represents transform attribute
-type SVGTransform struct {
-	TranslateX float64
-	TranslateY float64
-	ScaleX     float64
-	ScaleY     float64
-	Rotate     float64
-	OriginX    float64 // Rotation origin X
-	OriginY    float64 // Rotation origin Y
-	SkewX      float64 // Skew angle X in radians
-	SkewY      float64 // Skew angle Y in radians
-	HasMatrix  bool
-	Matrix     [6]float64 // a, b, c, d, e, f
-}
-
-func NewSVGTransform() SVGTransform {
-	return SVGTransform{ScaleX: 1, ScaleY: 1}
-}
-
-// IsSimple returns true if the transform only contains translate and scale.
-func (t *SVGTransform) IsSimple() bool {
-	return t.Rotate == 0 && t.SkewX == 0 && t.SkewY == 0 && !t.HasMatrix
-}
-
-// ToGeoM converts the SVGTransform to an ebiten.GeoM.
-// This function returns the GeoM for the group's *own* transform,
-// without applying inherited scales or offsets.
-func (t *SVGTransform) ToGeoM() ebiten.GeoM {
-	var geoM ebiten.GeoM
-
-	// Apply matrix transform first if present
-	if t.HasMatrix {
-		// Matrix transform: [a c e]
-		//                   [b d f]
-		// Ebiten GeoM:     [E00 E01 E02]
-		//                  [E10 E11 E12]
-		// So, E00=a, E10=b, E01=c, E11=d, E02=e, E12=f
-		geoM.SetElement(0, 0, t.Matrix[0]) // a
-		geoM.SetElement(1, 0, t.Matrix[1]) // b
-		geoM.SetElement(0, 1, t.Matrix[2]) // c
-		geoM.SetElement(1, 1, t.Matrix[3]) // d
-		geoM.SetElement(0, 2, t.Matrix[4]) // e
-		geoM.SetElement(1, 2, t.Matrix[5]) // f
-	}
-
-	// Apply skewX
-	if t.SkewX != 0 {
-		skewXMatrix := ebiten.GeoM{}
-		skewXMatrix.SetElement(0, 1, math.Tan(t.SkewX)) // tan(angle)
-		geoM.Concat(skewXMatrix)
-	}
-
-	// Apply skewY
-	if t.SkewY != 0 {
-		skewYMatrix := ebiten.GeoM{}
-		skewYMatrix.SetElement(1, 0, math.Tan(t.SkewY)) // tan(angle)
-		geoM.Concat(skewYMatrix)
-	}
-
-	// Apply rotation around origin
-	if t.Rotate != 0 {
-		// Translate to origin
-		geoM.Translate(-t.OriginX, -t.OriginY)
-		// Rotate
-		geoM.Rotate(t.Rotate)
-		// Translate back
-		geoM.Translate(t.OriginX, t.OriginY)
-	}
-
-	// Apply scale
-	geoM.Scale(t.ScaleX, t.ScaleY)
-
-	// Apply translate
-	geoM.Translate(t.TranslateX, t.TranslateY)
-
-	return geoM
 }
 
 // ============================================================================
@@ -216,6 +140,17 @@ type SVGLinearGradient struct {
 	ID             string
 	X1, Y1, X2, Y2 float64
 	Stops          []SVGGradientStop
+	strip          *ebiten.Image // cached 1D gradient strip for GPU rendering
+}
+
+// ensureStrip lazily builds and caches the 1D gradient strip texture.
+// Thread-safety is not required — rendering runs on the single-threaded Ebiten game loop.
+func (g *SVGLinearGradient) ensureStrip() *ebiten.Image {
+	if g.strip == nil {
+		stops := svgStopsToColorStops(g.Stops)
+		g.strip = buildGradientStrip(stops, gradientStripWidth)
+	}
+	return g.strip
 }
 
 // SVGRadialGradient represents a <radialGradient> element.
@@ -225,6 +160,17 @@ type SVGRadialGradient struct {
 	CX, CY float64 // center, default 0.5
 	R      float64 // radius, default 0.5
 	Stops  []SVGGradientStop
+	strip  *ebiten.Image // cached 1D gradient strip for GPU rendering
+}
+
+// ensureStrip lazily builds and caches the 1D gradient strip texture.
+// Thread-safety is not required — rendering runs on the single-threaded Ebiten game loop.
+func (g *SVGRadialGradient) ensureStrip() *ebiten.Image {
+	if g.strip == nil {
+		stops := svgStopsToColorStops(g.Stops)
+		g.strip = buildGradientStrip(stops, gradientStripWidth)
+	}
+	return g.strip
 }
 
 // ============================================================================
@@ -254,27 +200,17 @@ func (c *SVGClippedElement) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX,
 	bounds := screen.Bounds()
 	w, h := bounds.Dx(), bounds.Dy()
 
-	// 1. Render the child element to an offscreen buffer
-	content := ebiten.NewImage(w, h)
-	c.Child.Draw(content, offsetX, offsetY, scaleX, scaleY)
-
-	// 2. Render the clip path shapes as a mask on a separate buffer.
-	//    Any non-transparent pixel in the mask acts as "keep" region.
-	mask := ebiten.NewImage(w, h)
-	for _, clipElem := range c.ClipPath.Elements {
-		clipElem.Draw(mask, offsetX, offsetY, scaleX, scaleY)
-	}
-
-	// 3. Destination-in blend: keep content pixels only where mask has alpha > 0
-	content.DrawImage(mask, &ebiten.DrawImageOptions{
-		Blend: ebiten.BlendDestinationIn,
-	})
-
-	// 4. Composite the clipped content onto the original screen
-	screen.DrawImage(content, &ebiten.DrawImageOptions{})
-
-	content.Deallocate()
-	mask.Deallocate()
+	clipComposite(screen, w, h,
+		func(content *ebiten.Image) {
+			c.Child.Draw(content, offsetX, offsetY, scaleX, scaleY)
+		},
+		func(mask *ebiten.Image) {
+			for _, clipElem := range c.ClipPath.Elements {
+				clipElem.Draw(mask, offsetX, offsetY, scaleX, scaleY)
+			}
+		},
+		nil,
+	)
 }
 
 // SVGRect represents <rect> element
@@ -289,6 +225,7 @@ type SVGRect struct {
 	StrokeOpacity       float64
 	FillGradientID      string      // "url(#id)" parsed to "id"
 	FillGradient        interface{} // resolved *SVGLinearGradient or *SVGRadialGradient
+	Filter              string      // "drop-shadow(offsetX offsetY blur color)"
 }
 
 func (r *SVGRect) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY float64) {
@@ -301,6 +238,9 @@ func (r *SVGRect) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY fl
 
 	// Use larger radius for drawing
 	radius := math.Max(rx, ry)
+
+	// Drop-shadow (rendered behind fill/stroke)
+	svgDrawDropShadow(screen, Rect{X: x, Y: y, W: w, H: h}, r.Filter, radius)
 
 	// Gradient fill
 	if r.FillGradient != nil {
@@ -348,7 +288,7 @@ func (r *SVGRect) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY fl
 			// SVG spec: stroke is painted as a single opaque layer, then composited
 			// with opacity. This prevents corner overlap double-blending artifacts.
 			bounds := screen.Bounds()
-			offscreen := ebiten.NewImage(bounds.Dx(), bounds.Dy())
+			offscreen := globalImagePool.Get(bounds.Dx(), bounds.Dy())
 			if radius > 0 {
 				svgDrawRoundedRectStroke(offscreen, x, y, w, h, radius, r.Stroke, sw)
 			} else {
@@ -357,7 +297,7 @@ func (r *SVGRect) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY fl
 			op := &ebiten.DrawImageOptions{}
 			op.ColorScale.ScaleAlpha(float32(strokeOpacity))
 			screen.DrawImage(offscreen, op)
-			offscreen.Deallocate()
+			globalImagePool.Put(offscreen)
 		} else {
 			strokeColor := applyOpacity(r.Stroke, strokeOpacity)
 			if radius > 0 {
@@ -380,12 +320,17 @@ type SVGCircle struct {
 	StrokeOpacity  float64
 	FillGradientID string
 	FillGradient   interface{}
+	Filter         string // "drop-shadow(offsetX offsetY blur color)"
 }
 
 func (c *SVGCircle) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY float64) {
 	cx := offsetX + c.CX*scaleX
 	cy := offsetY + c.CY*scaleY
 	r := c.R * math.Min(scaleX, scaleY)
+
+	// Drop-shadow (rendered behind fill/stroke)
+	// Circle bounding box: center ± radius. borderRadius = radius for circular shadow.
+	svgDrawDropShadow(screen, Rect{X: cx - r, Y: cy - r, W: 2 * r, H: 2 * r}, c.Filter, r)
 
 	// Gradient fill
 	if c.FillGradient != nil {
@@ -424,6 +369,7 @@ type SVGEllipse struct {
 	StrokeOpacity  float64
 	FillGradientID string
 	FillGradient   interface{}
+	Filter         string // "drop-shadow(offsetX offsetY blur color)"
 }
 
 func (e *SVGEllipse) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY float64) {
@@ -431,6 +377,10 @@ func (e *SVGEllipse) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY
 	cy := offsetY + e.CY*scaleY
 	rx := e.RX * scaleX
 	ry := e.RY * scaleY
+
+	// Drop-shadow (rendered behind fill/stroke)
+	// Ellipse bounding box: center ± radii. borderRadius = min(rx, ry) for best SDF approximation.
+	svgDrawDropShadow(screen, Rect{X: cx - rx, Y: cy - ry, W: 2 * rx, H: 2 * ry}, e.Filter, math.Min(rx, ry))
 
 	// Draw ellipse using path
 	var path vector.Path
@@ -527,6 +477,7 @@ type SVGPolyline struct {
 	StrokeOpacity  float64
 	FillGradientID string
 	FillGradient   interface{}
+	Filter         string // "drop-shadow(offsetX offsetY blur color)"
 }
 
 type Point struct {
@@ -536,6 +487,12 @@ type Point struct {
 func (p *SVGPolyline) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY float64) {
 	if len(p.Points) < 2 {
 		return
+	}
+
+	// Drop-shadow (rendered behind fill/stroke)
+	if p.Filter != "" {
+		bounds := svgPointsBounds(p.Points, offsetX, offsetY, scaleX, scaleY)
+		svgDrawDropShadow(screen, bounds, p.Filter, 0)
 	}
 
 	var path vector.Path
@@ -570,11 +527,18 @@ type SVGPolygon struct {
 	FillRule       string // "nonzero" or "evenodd"
 	FillGradientID string
 	FillGradient   interface{}
+	Filter         string // "drop-shadow(offsetX offsetY blur color)"
 }
 
 func (p *SVGPolygon) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY float64) {
 	if len(p.Points) < 3 {
 		return
+	}
+
+	// Drop-shadow (rendered behind fill/stroke)
+	if p.Filter != "" {
+		bounds := svgPointsBounds(p.Points, offsetX, offsetY, scaleX, scaleY)
+		svgDrawDropShadow(screen, bounds, p.Filter, 0)
 	}
 
 	var path vector.Path
@@ -626,9 +590,16 @@ type SVGPath struct {
 	FillRule       string // "nonzero" or "evenodd"
 	FillGradientID string
 	FillGradient   interface{}
+	Filter         string // "drop-shadow(offsetX offsetY blur color)"
 }
 
 func (p *SVGPath) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY float64) {
+	// Drop-shadow (rendered behind fill/stroke)
+	if p.Filter != "" {
+		bounds := svgPathBounds(p.D, offsetX, offsetY, scaleX, scaleY)
+		svgDrawDropShadow(screen, bounds, p.Filter, 0)
+	}
+
 	path := ParsePathDataScaled(p.D, offsetX, offsetY, scaleX, scaleY)
 	if path == nil {
 		return
@@ -800,6 +771,7 @@ func ParseSVG(r io.Reader) (*SVGDocument, error) {
 					FillOpacity:    parseFloat(attrs["fill-opacity"], 1),
 					StrokeOpacity:  parseFloat(attrs["stroke-opacity"], 1),
 					FillGradientID: gradID,
+					Filter:         parseSVGFilterAttr(attrs["filter"], attrs["style"]),
 				}
 				addShapeElement(doc, currentGroup, currentClipPath, attrs["clip-path"], elem, inDefs, attrs["id"])
 
@@ -816,6 +788,7 @@ func ParseSVG(r io.Reader) (*SVGDocument, error) {
 					FillOpacity:    parseFloat(attrs["fill-opacity"], 1),
 					StrokeOpacity:  parseFloat(attrs["stroke-opacity"], 1),
 					FillGradientID: gradID,
+					Filter:         parseSVGFilterAttr(attrs["filter"], attrs["style"]),
 				}
 				addShapeElement(doc, currentGroup, currentClipPath, attrs["clip-path"], elem, inDefs, attrs["id"])
 
@@ -833,6 +806,7 @@ func ParseSVG(r io.Reader) (*SVGDocument, error) {
 					FillOpacity:    parseFloat(attrs["fill-opacity"], 1),
 					StrokeOpacity:  parseFloat(attrs["stroke-opacity"], 1),
 					FillGradientID: gradID,
+					Filter:         parseSVGFilterAttr(attrs["filter"], attrs["style"]),
 				}
 				addShapeElement(doc, currentGroup, currentClipPath, attrs["clip-path"], elem, inDefs, attrs["id"])
 
@@ -861,6 +835,7 @@ func ParseSVG(r io.Reader) (*SVGDocument, error) {
 					FillOpacity:    parseFloat(attrs["fill-opacity"], 1),
 					StrokeOpacity:  parseFloat(attrs["stroke-opacity"], 1),
 					FillGradientID: gradID,
+					Filter:         parseSVGFilterAttr(attrs["filter"], attrs["style"]),
 				}
 				addShapeElement(doc, currentGroup, currentClipPath, attrs["clip-path"], elem, inDefs, attrs["id"])
 
@@ -876,6 +851,7 @@ func ParseSVG(r io.Reader) (*SVGDocument, error) {
 					StrokeOpacity:  parseFloat(attrs["stroke-opacity"], 1),
 					FillRule:       attrs["fill-rule"],
 					FillGradientID: gradID,
+					Filter:         parseSVGFilterAttr(attrs["filter"], attrs["style"]),
 				}
 				addShapeElement(doc, currentGroup, currentClipPath, attrs["clip-path"], elem, inDefs, attrs["id"])
 
@@ -891,6 +867,7 @@ func ParseSVG(r io.Reader) (*SVGDocument, error) {
 					StrokeOpacity:  parseFloat(attrs["stroke-opacity"], 1),
 					FillRule:       attrs["fill-rule"],
 					FillGradientID: gradID,
+					Filter:         parseSVGFilterAttr(attrs["filter"], attrs["style"]),
 				}
 				addShapeElement(doc, currentGroup, currentClipPath, attrs["clip-path"], elem, inDefs, attrs["id"])
 
@@ -1034,13 +1011,31 @@ func parseViewBox(s string) ViewBox {
 	}
 }
 
-func parseSVGTransform(s string) SVGTransform {
-	t := NewSVGTransform()
+// parseSVGTransform parses an SVG transform attribute string and returns an
+// ebiten.GeoM. Each transform function is applied left-to-right as required
+// by the SVG specification (§7.6): "translate(10,10) rotate(45)" means the
+// combined matrix is Translate × Rotate.
+//
+// Ebiten's GeoM methods pre-multiply (g.Op() ⇒ g = Op·g), so we build each
+// individual function as a fresh GeoM and post-multiply it onto the running
+// result via result.Concat(fn), which computes result = fn · result — the
+// opposite of what we want. Instead we accumulate in the correct order by
+// creating each function GeoM and concatenating: fn.Concat(result) would give
+// result_new = result_old · fn. But Concat modifies the receiver, so we use a
+// temporary: tmp = fn; tmp.Concat(result); result = tmp... Actually the
+// simplest correct approach: collect each function GeoM into a slice, then
+// multiply right-to-left at the end.
+//
+// Supported functions: translate, scale, rotate, skewX, skewY, matrix.
+func parseSVGTransform(s string) ebiten.GeoM {
+	var result ebiten.GeoM
 	if s == "" {
-		return t
+		return result
 	}
 
-	// Parse transform functions
+	// Collect individual transform GeoMs in specification order (left to right).
+	var funcs []ebiten.GeoM
+
 	for _, fn := range strings.Split(s, ")") {
 		fn = strings.TrimSpace(fn)
 		if fn == "" {
@@ -1055,49 +1050,77 @@ func parseSVGTransform(s string) SVGTransform {
 		name := strings.TrimSpace(parts[0])
 		args := parseTransformArgs(parts[1])
 
+		var m ebiten.GeoM
 		switch name {
 		case "translate":
+			tx := 0.0
+			ty := 0.0
 			if len(args) >= 1 {
-				t.TranslateX = args[0]
+				tx = args[0]
 			}
 			if len(args) >= 2 {
-				t.TranslateY = args[1]
+				ty = args[1]
 			}
+			m.Translate(tx, ty)
 		case "scale":
+			sx := 1.0
+			sy := 1.0
 			if len(args) >= 1 {
-				t.ScaleX = args[0]
-				t.ScaleY = args[0]
+				sx = args[0]
+				sy = args[0]
 			}
 			if len(args) >= 2 {
-				t.ScaleY = args[1]
+				sy = args[1]
 			}
+			m.Scale(sx, sy)
 		case "rotate":
 			if len(args) >= 1 {
-				t.Rotate = args[0] * math.Pi / 180
-			}
-			if len(args) >= 3 {
-				t.OriginX = args[1]
-				t.OriginY = args[2]
+				angle := args[0] * math.Pi / 180
+				if len(args) >= 3 {
+					cx, cy := args[1], args[2]
+					m.Translate(-cx, -cy)
+					m.Rotate(angle)
+					m.Translate(cx, cy)
+				} else {
+					m.Rotate(angle)
+				}
 			}
 		case "skewX":
 			if len(args) >= 1 {
-				t.SkewX = args[0] * math.Pi / 180
+				angle := args[0] * math.Pi / 180
+				m.SetElement(0, 1, math.Tan(angle))
 			}
 		case "skewY":
 			if len(args) >= 1 {
-				t.SkewY = args[0] * math.Pi / 180
+				angle := args[0] * math.Pi / 180
+				m.SetElement(1, 0, math.Tan(angle))
 			}
 		case "matrix":
 			if len(args) == 6 {
-				t.HasMatrix = true
-				for i := 0; i < 6; i++ {
-					t.Matrix[i] = args[i]
-				}
+				// SVG matrix(a,b,c,d,e,f):  [a c e]
+				//                            [b d f]
+				m.SetElement(0, 0, args[0]) // a
+				m.SetElement(1, 0, args[1]) // b
+				m.SetElement(0, 1, args[2]) // c
+				m.SetElement(1, 1, args[3]) // d
+				m.SetElement(0, 2, args[4]) // e
+				m.SetElement(1, 2, args[5]) // f
 			}
+		default:
+			continue
 		}
+		funcs = append(funcs, m)
 	}
 
-	return t
+	// Compose: result = F1 · F2 · ... · Fn  (SVG left-to-right order).
+	// Ebiten Concat: a.Concat(b) ⇒ a = b · a.
+	// So we iterate right-to-left: result starts as identity, then for each
+	// function from the end we do result.Concat(fn) ⇒ result = fn · result.
+	for i := len(funcs) - 1; i >= 0; i-- {
+		result.Concat(funcs[i])
+	}
+
+	return result
 }
 
 func parseTransformArgs(s string) []float64 {
@@ -1321,21 +1344,7 @@ func resolveClipPathElements(defs map[string]interface{}, elements []SVGElement)
 }
 
 // Note: applyOpacity is defined in widget.go
-
-func applyColorToVertices(vs []ebiten.Vertex, c color.Color) {
-	r, g, b, a := c.RGBA()
-	rf := float32(r) / 0xffff
-	gf := float32(g) / 0xffff
-	bf := float32(b) / 0xffff
-	af := float32(a) / 0xffff
-
-	for i := range vs {
-		vs[i].ColorR = rf
-		vs[i].ColorG = gf
-		vs[i].ColorB = bf
-		vs[i].ColorA = af
-	}
-}
+// Note: applyColorToVertices is defined in effects.go
 
 func drawRectStroke(screen *ebiten.Image, x, y, w, h float64, c color.Color, strokeWidth float32) {
 	var path vector.Path
@@ -1407,6 +1416,202 @@ func applyPathTransform(vs []ebiten.Vertex, offsetX, offsetY, scaleX, scaleY flo
 }
 
 // ============================================================================
+// SVG Drop Shadow (filter: drop-shadow)
+// ============================================================================
+
+// parseDropShadow parses an SVG filter="drop-shadow(offsetX offsetY blur color)"
+// string and returns a *BoxShadow suitable for DrawBoxShadow().
+// SVG drop-shadow has no spread parameter; Spread is always 0.
+//
+// Accepted formats:
+//
+//	"drop-shadow(2px 4px 6px rgba(0,0,0,0.5))"
+//	"drop-shadow(2 4 6 #333)"
+//	"drop-shadow(0 2 4 black)"
+func parseDropShadow(s string) *BoxShadow {
+	s = strings.TrimSpace(s)
+
+	// Extract the drop-shadow(...) function — may be inside a larger filter string.
+	idx := strings.Index(s, "drop-shadow(")
+	if idx < 0 {
+		return nil
+	}
+	inner := s[idx+len("drop-shadow("):]
+	// Find matching close paren, accounting for nested parens (e.g. rgba(...)).
+	depth := 1
+	end := -1
+	for i, ch := range inner {
+		switch ch {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				end = i
+			}
+		}
+		if end >= 0 {
+			break
+		}
+	}
+	if end < 0 {
+		return nil
+	}
+	inner = strings.TrimSpace(inner[:end])
+
+	// Tokenize: split on whitespace, but keep "rgb(...)" and "rgba(...)" together.
+	tokens := tokenizeDropShadowArgs(inner)
+	if len(tokens) < 3 {
+		return nil
+	}
+
+	bs := &BoxShadow{}
+	bs.OffsetX = parsePixelValue(tokens[0])
+	bs.OffsetY = parsePixelValue(tokens[1])
+	bs.Blur = parsePixelValue(tokens[2])
+	// SVG drop-shadow has no spread — always 0.
+	bs.Spread = 0
+	bs.Inset = false
+
+	if len(tokens) >= 4 {
+		colorStr := strings.Join(tokens[3:], " ")
+		bs.Color = parseColor(colorStr)
+	}
+	if bs.Color == nil {
+		bs.Color = color.RGBA{0, 0, 0, 128} // default semi-transparent black
+	}
+	return bs
+}
+
+// tokenizeDropShadowArgs splits "2px 4px 6px rgba(0,0,0,0.5)" into
+// ["2px", "4px", "6px", "rgba(0,0,0,0.5)"], keeping parenthesised
+// colour functions as single tokens.
+func tokenizeDropShadowArgs(s string) []string {
+	var tokens []string
+	var cur strings.Builder
+	depth := 0
+	for _, ch := range s {
+		switch {
+		case ch == '(':
+			depth++
+			cur.WriteRune(ch)
+		case ch == ')':
+			depth--
+			cur.WriteRune(ch)
+		case (ch == ' ' || ch == '\t') && depth == 0:
+			if cur.Len() > 0 {
+				tokens = append(tokens, cur.String())
+				cur.Reset()
+			}
+		default:
+			cur.WriteRune(ch)
+		}
+	}
+	if cur.Len() > 0 {
+		tokens = append(tokens, cur.String())
+	}
+	return tokens
+}
+
+// parseSVGFilterAttr extracts a filter value from either an SVG filter="..."
+// attribute or from a style="..." attribute containing "filter: ...".
+// Returns the raw filter function string (e.g. "drop-shadow(2 4 6 black)").
+func parseSVGFilterAttr(filterAttr, styleAttr string) string {
+	if filterAttr != "" {
+		return filterAttr
+	}
+	if styleAttr == "" {
+		return ""
+	}
+	// Parse inline style for "filter:" property.
+	for _, decl := range strings.Split(styleAttr, ";") {
+		decl = strings.TrimSpace(decl)
+		if strings.HasPrefix(decl, "filter:") || strings.HasPrefix(decl, "filter :") {
+			val := strings.TrimSpace(strings.SplitN(decl, ":", 2)[1])
+			return val
+		}
+	}
+	return ""
+}
+
+// svgDrawDropShadow draws a drop-shadow for a rectangular bounding area.
+// It reuses the CSS DrawBoxShadow() GPU SDF shader. If the filter string
+// does not contain a valid drop-shadow, this is a no-op.
+func svgDrawDropShadow(screen *ebiten.Image, r Rect, filter string, borderRadius float64) {
+	if filter == "" {
+		return
+	}
+	shadow := parseDropShadow(filter)
+	if shadow == nil {
+		return
+	}
+	DrawBoxShadow(screen, r, shadow, borderRadius)
+}
+
+// svgPointsBounds computes the axis-aligned bounding box for a slice of Points
+// after applying offset and scale.
+func svgPointsBounds(points []Point, offsetX, offsetY, scaleX, scaleY float64) Rect {
+	if len(points) == 0 {
+		return Rect{}
+	}
+	minX := offsetX + points[0].X*scaleX
+	minY := offsetY + points[0].Y*scaleY
+	maxX := minX
+	maxY := minY
+	for _, pt := range points[1:] {
+		px := offsetX + pt.X*scaleX
+		py := offsetY + pt.Y*scaleY
+		if px < minX {
+			minX = px
+		}
+		if py < minY {
+			minY = py
+		}
+		if px > maxX {
+			maxX = px
+		}
+		if py > maxY {
+			maxY = py
+		}
+	}
+	return Rect{X: minX, Y: minY, W: maxX - minX, H: maxY - minY}
+}
+
+// svgPathBounds computes the axis-aligned bounding box for SVG path data
+// after applying offset and scale by tessellating and scanning vertices.
+func svgPathBounds(d string, offsetX, offsetY, scaleX, scaleY float64) Rect {
+	path := ParsePathDataScaled(d, offsetX, offsetY, scaleX, scaleY)
+	if path == nil {
+		return Rect{}
+	}
+	vs, _ := path.AppendVerticesAndIndicesForFilling(nil, nil)
+	if len(vs) == 0 {
+		return Rect{}
+	}
+	minX := float64(vs[0].DstX)
+	minY := float64(vs[0].DstY)
+	maxX := minX
+	maxY := minY
+	for _, v := range vs[1:] {
+		px := float64(v.DstX)
+		py := float64(v.DstY)
+		if px < minX {
+			minX = px
+		}
+		if py < minY {
+			minY = py
+		}
+		if px > maxX {
+			maxX = px
+		}
+		if py > maxY {
+			maxY = py
+		}
+	}
+	return Rect{X: minX, Y: minY, W: maxX - minX, H: maxY - minY}
+}
+
+// ============================================================================
 // SVG Gradient Fill Rendering
 // ============================================================================
 
@@ -1424,15 +1629,19 @@ func svgStopsToColorStops(stops []SVGGradientStop) []ColorStop {
 	return result
 }
 
-// buildSVGLinearGradientTexture creates a 2D texture by sampling the linear
-// gradient defined in objectBoundingBox coordinates (x1,y1)→(x2,y2).
+// buildSVGLinearGradientTexture creates a 2D gradient texture using the GPU
+// linear gradient Kage shader instead of CPU per-pixel computation.
+//
+// The shader computes t = GradA*px + GradB*py + GradC for each pixel, where
+// the uniforms map pixel coordinates to the SVG objectBoundingBox gradient line
+// projection: t = ((px/scaleW - X1)*dx + (py/scaleH - Y1)*dy) / lenSq.
 func buildSVGLinearGradientTexture(grad *SVGLinearGradient, w, h int) *ebiten.Image {
 	if w <= 0 || h <= 0 {
 		return nil
 	}
-	stops := svgStopsToColorStops(grad.Stops)
-	img := ebiten.NewImage(w, h)
-	pix := make([]byte, w*h*4)
+
+	strip := grad.ensureStrip()
+	shader := getLinearGradientShader()
 
 	dx := grad.X2 - grad.X1
 	dy := grad.Y2 - grad.Y1
@@ -1441,118 +1650,89 @@ func buildSVGLinearGradientTexture(grad *SVGLinearGradient, w, h int) *ebiten.Im
 		lenSq = 1 // avoid division by zero — fallback to first stop
 	}
 
-	for py := 0; py < h; py++ {
-		for px := 0; px < w; px++ {
-			// Normalise pixel to objectBoundingBox [0,1]
-			var nx, ny float64
-			if w > 1 {
-				nx = float64(px) / float64(w-1)
-			}
-			if h > 1 {
-				ny = float64(py) / float64(h-1)
-			}
+	// Map pixel coords to objectBoundingBox then project onto gradient line.
+	// Original CPU: nx = px / max(w-1, 1), t = ((nx-X1)*dx + (ny-Y1)*dy) / lenSq
+	// Rearranged:   t = (dx/(scaleW*lenSq))*px + (dy/(scaleH*lenSq))*py + (-X1*dx-Y1*dy)/lenSq
+	// where scaleW = max(w-1, 1), scaleH = max(h-1, 1).
+	scaleW := math.Max(float64(w-1), 1)
+	scaleH := math.Max(float64(h-1), 1)
+	gradA := dx / (scaleW * lenSq)
+	gradB := dy / (scaleH * lenSq)
+	gradC := (-grad.X1*dx - grad.Y1*dy) / lenSq
 
-			// Project onto gradient line
-			t := ((nx-grad.X1)*dx + (ny-grad.Y1)*dy) / lenSq
-			if t < 0 {
-				t = 0
-			}
-			if t > 1 {
-				t = 1
-			}
-
-			c := interpolateGradient(stops, t)
-			r, g, b, a := c.RGBA()
-			off := (py*w + px) * 4
-			pix[off+0] = uint8(r >> 8)
-			pix[off+1] = uint8(g >> 8)
-			pix[off+2] = uint8(b >> 8)
-			pix[off+3] = uint8(a >> 8)
-		}
+	img := globalImagePool.Get(w, h)
+	op := &ebiten.DrawRectShaderOptions{}
+	op.Images[0] = strip
+	op.Uniforms = map[string]any{
+		"GradA": float32(gradA),
+		"GradB": float32(gradB),
+		"GradC": float32(gradC),
 	}
-	img.WritePixels(pix)
+	img.DrawRectShader(w, h, shader, op)
 	return img
 }
 
-// buildSVGRadialGradientTexture creates a 2D texture by sampling the radial
-// gradient defined in objectBoundingBox coordinates with centre (cx,cy) and radius r.
+// buildSVGRadialGradientTexture creates a 2D gradient texture using the GPU
+// radial gradient Kage shader instead of CPU per-pixel computation.
+//
+// The shader computes t = sqrt(dx² + dy²) where dx = (px - CenterX) / RadiusX
+// and dy = (py - CenterY) / RadiusY.  The uniforms are derived from the SVG
+// objectBoundingBox coordinates: CenterX = CX*scaleW, RadiusX = R*scaleW, etc.
 func buildSVGRadialGradientTexture(grad *SVGRadialGradient, w, h int) *ebiten.Image {
 	if w <= 0 || h <= 0 {
 		return nil
 	}
-	stops := svgStopsToColorStops(grad.Stops)
-	img := ebiten.NewImage(w, h)
-	pix := make([]byte, w*h*4)
+
+	strip := grad.ensureStrip()
+	shader := getRadialGradientShader()
 
 	radius := grad.R
 	if radius <= 0 {
 		radius = 0.5
 	}
 
-	for py := 0; py < h; py++ {
-		for px := 0; px < w; px++ {
-			var nx, ny float64
-			if w > 1 {
-				nx = float64(px) / float64(w-1)
-			}
-			if h > 1 {
-				ny = float64(py) / float64(h-1)
-			}
+	// Map pixel coords to objectBoundingBox for the radial distance calculation.
+	// Original CPU: nx = px / max(w-1,1), ddx = (nx - CX) / radius
+	// Shader form:  dx = (px - CenterX) / RadiusX  where CenterX = CX*scale, RadiusX = R*scale
+	// Proof: (px - CX*scale) / (R*scale) = px/(R*scale) - CX/R = nx/R - CX/R = (nx-CX)/R ✓
+	scaleW := math.Max(float64(w-1), 1)
+	scaleH := math.Max(float64(h-1), 1)
+	centerX := grad.CX * scaleW
+	centerY := grad.CY * scaleH
+	radiusX := radius * scaleW
+	radiusY := radius * scaleH
 
-			ddx := (nx - grad.CX) / radius
-			ddy := (ny - grad.CY) / radius
-			dist := math.Sqrt(ddx*ddx + ddy*ddy)
-			if dist > 1 {
-				dist = 1
-			}
-
-			c := interpolateGradient(stops, dist)
-			r, g, b, a := c.RGBA()
-			off := (py*w + px) * 4
-			pix[off+0] = uint8(r >> 8)
-			pix[off+1] = uint8(g >> 8)
-			pix[off+2] = uint8(b >> 8)
-			pix[off+3] = uint8(a >> 8)
-		}
+	img := globalImagePool.Get(w, h)
+	op := &ebiten.DrawRectShaderOptions{}
+	op.Images[0] = strip
+	op.Uniforms = map[string]any{
+		"CenterX": float32(centerX),
+		"CenterY": float32(centerY),
+		"RadiusX": float32(radiusX),
+		"RadiusY": float32(radiusY),
 	}
-	img.WritePixels(pix)
+	img.DrawRectShader(w, h, shader, op)
 	return img
 }
 
 // drawSVGGradientFill renders a gradient-filled shape using the tessellated
 // fill vertices. It maps vertex positions to gradient-texture UV coordinates
-// based on the vertex bounding box.
-func drawSVGGradientFill(screen *ebiten.Image, vs []ebiten.Vertex, is []uint16, gradTex *ebiten.Image, opacity float64) {
-	if len(vs) == 0 || gradTex == nil {
+// using the pre-computed bounding box (minX, minY, bw, bh) to avoid redundant
+// vertex iteration.  The caller must compute the bounding box once and pass it.
+//
+// The texture UV dimensions are derived from bw/bh (matching the texture build
+// formula) rather than from gradTex.Bounds(), because pooled images may be
+// larger than the original requested size (power-of-two bucketing).
+func drawSVGGradientFill(screen *ebiten.Image, vs []ebiten.Vertex, is []uint16, gradTex *ebiten.Image, opacity float64, minX, minY, bw, bh float32) {
+	if len(vs) == 0 || gradTex == nil || bw <= 0 || bh <= 0 {
 		return
 	}
 
-	// Find vertex bounding box
-	minX, minY := float32(math.MaxFloat32), float32(math.MaxFloat32)
-	maxX, maxY := float32(-math.MaxFloat32), float32(-math.MaxFloat32)
-	for _, v := range vs {
-		if v.DstX < minX {
-			minX = v.DstX
-		}
-		if v.DstY < minY {
-			minY = v.DstY
-		}
-		if v.DstX > maxX {
-			maxX = v.DstX
-		}
-		if v.DstY > maxY {
-			maxY = v.DstY
-		}
-	}
-
-	bw := maxX - minX
-	bh := maxY - minY
-	if bw <= 0 || bh <= 0 {
-		return
-	}
-
-	tw := float32(gradTex.Bounds().Dx())
-	th := float32(gradTex.Bounds().Dy())
+	// Derive texture dimensions from the bounding box, matching the formula
+	// used by svgGradientFillPath: tw = int(bw) + 1, th = int(bh) + 1.
+	// This is correct even when the underlying image is bucketed (larger).
+	tw := float32(int(bw) + 1)
+	th := float32(int(bh) + 1)
 	opf := float32(opacity)
 
 	// Map vertex positions to texture UV coordinates
@@ -1582,6 +1762,8 @@ func svgBuildGradientTex(fillGradient interface{}, w, h int) *ebiten.Image {
 
 // svgGradientFillPath tessellates the given path, builds a gradient texture
 // matching the vertex bounding box, and draws the textured fill.
+// The bounding box is computed once and reused by drawSVGGradientFill, avoiding
+// the duplicate bounding box traversal (F8).
 // Returns true if gradient was drawn, false if no gradient is set.
 func svgGradientFillPath(screen *ebiten.Image, path *vector.Path, fillGradient interface{}, opacity float64) bool {
 	if fillGradient == nil {
@@ -1592,7 +1774,7 @@ func svgGradientFillPath(screen *ebiten.Image, path *vector.Path, fillGradient i
 		return true // gradient set but nothing to draw
 	}
 
-	// Compute bounding box for texture dimensions
+	// Compute bounding box once — used for both texture dimensions and UV mapping.
 	minX, minY := float32(math.MaxFloat32), float32(math.MaxFloat32)
 	maxX, maxY := float32(-math.MaxFloat32), float32(-math.MaxFloat32)
 	for _, v := range vs {
@@ -1609,8 +1791,10 @@ func svgGradientFillPath(screen *ebiten.Image, path *vector.Path, fillGradient i
 			maxY = v.DstY
 		}
 	}
-	tw := int(maxX-minX) + 1
-	th := int(maxY-minY) + 1
+	bw := maxX - minX
+	bh := maxY - minY
+	tw := int(bw) + 1
+	th := int(bh) + 1
 	if tw < 1 {
 		tw = 1
 	}
@@ -1622,7 +1806,7 @@ func svgGradientFillPath(screen *ebiten.Image, path *vector.Path, fillGradient i
 	if gradTex == nil {
 		return true
 	}
-	drawSVGGradientFill(screen, vs, is, gradTex, opacity)
-	gradTex.Deallocate()
+	drawSVGGradientFill(screen, vs, is, gradTex, opacity, minX, minY, bw, bh)
+	globalImagePool.Put(gradTex)
 	return true
 }

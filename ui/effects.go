@@ -406,38 +406,33 @@ func DrawRoundedRectPathEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, ra
 	// Start after top-left curve
 	path.MoveTo(x+rTL, y)
 
-	// Top edge → top-right corner
+	// Top edge → top-right corner (ArcTo for spec-correct circular arc)
 	path.LineTo(x+w-rTR, y)
-	path.QuadTo(x+w, y, x+w, y+rTR)
+	path.ArcTo(x+w, y, x+w, y+rTR, rTR)
 
 	// Right edge → bottom-right corner
 	path.LineTo(x+w, y+h-rBR)
-	path.QuadTo(x+w, y+h, x+w-rBR, y+h)
+	path.ArcTo(x+w, y+h, x+w-rBR, y+h, rBR)
 
 	// Bottom edge → bottom-left corner
 	path.LineTo(x+rBL, y+h)
-	path.QuadTo(x, y+h, x, y+h-rBL)
+	path.ArcTo(x, y+h, x, y+h-rBL, rBL)
 
 	// Left edge → top-left corner
 	path.LineTo(x, y+rTL)
-	path.QuadTo(x, y, x+rTL, y)
+	path.ArcTo(x, y, x+rTL, y, rTL)
 
 	path.Close()
 
 	// Fill the path
 	vs, is := path.AppendVerticesAndIndicesForFilling(nil, nil)
 
-	cr, cg, cb, ca := clr.RGBA()
-	for i := range vs {
-		vs[i].ColorR = float32(cr) / 0xffff
-		vs[i].ColorG = float32(cg) / 0xffff
-		vs[i].ColorB = float32(cb) / 0xffff
-		vs[i].ColorA = float32(ca) / 0xffff
-	}
+	applyColorToVertices(vs, clr)
 
-	op := &ebiten.DrawTrianglesOptions{}
-	op.AntiAlias = true
-	screen.DrawTriangles(vs, is, whiteImage, op)
+	screen.DrawTriangles(vs, is, whiteImage, &ebiten.DrawTrianglesOptions{
+		AntiAlias: true,
+		FillRule:  ebiten.FillRuleNonZero,
+	})
 }
 
 // whiteImage is a 1x1 white image used for drawing colored shapes
@@ -446,6 +441,52 @@ var whiteImage = func() *ebiten.Image {
 	img.Fill(color.White)
 	return img
 }()
+
+// applyColorToVertices sets the vertex colour of every vertex in vs to c.
+// Used by both SVG and CSS rendering paths to avoid inlining the RGBA → float
+// conversion at every call site.
+func applyColorToVertices(vs []ebiten.Vertex, c color.Color) {
+	r, g, b, a := c.RGBA()
+	rf := float32(r) / 0xffff
+	gf := float32(g) / 0xffff
+	bf := float32(b) / 0xffff
+	af := float32(a) / 0xffff
+
+	for i := range vs {
+		vs[i].ColorR = rf
+		vs[i].ColorG = gf
+		vs[i].ColorB = bf
+		vs[i].ColorA = af
+	}
+}
+
+// clipComposite renders content masked by a shape using destination-in compositing.
+// contentFunc draws the content onto the provided offscreen image.
+// maskFunc draws the mask shape onto the provided offscreen image (any non-transparent pixel keeps).
+// The result is composited onto screen at the position determined by screenOp.
+// If screenOp is nil, it draws at (0,0).
+func clipComposite(screen *ebiten.Image, w, h int, contentFunc, maskFunc func(*ebiten.Image), screenOp *ebiten.DrawImageOptions) {
+	if w <= 0 || h <= 0 {
+		return
+	}
+	content := globalImagePool.Get(w, h)
+	contentFunc(content)
+
+	mask := globalImagePool.Get(w, h)
+	maskFunc(mask)
+
+	content.DrawImage(mask, &ebiten.DrawImageOptions{
+		Blend: ebiten.BlendDestinationIn,
+	})
+
+	if screenOp == nil {
+		screenOp = &ebiten.DrawImageOptions{}
+	}
+	screen.DrawImage(content, screenOp)
+
+	globalImagePool.Put(content)
+	globalImagePool.Put(mask)
+}
 
 // min returns the smaller of two float64 values
 func min(a, b float64) float64 {
@@ -616,11 +657,46 @@ func DrawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, 
 
 // drawRoundedRectStrokeEx is the internal implementation for stroked rounded rects
 // with independent per-corner radii.
+//
+// When the border colour has alpha < 255, the stroke is rendered to an offscreen
+// buffer at full opacity first and then composited with the correct alpha.
+// This prevents the double-blend artefact at rounded corners where stroke
+// segments overlap — the same technique used for SVG stroke-opacity (svg.go).
 func drawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, radBL float64, strokeWidth float64, clr color.Color) {
 	if strokeWidth <= 0 {
 		return
 	}
 
+	// Detect alpha from the colour to decide whether offscreen compositing is
+	// needed.  We convert to NRGBA (straight alpha) so that A reflects the
+	// user-specified alpha independently of the RGB channels.
+	_, _, _, ca := clr.RGBA() // premultiplied [0..0xffff]
+	if ca < 0xffff && ca > 0 {
+		// Semi-transparent border — use offscreen compositing.
+		// Build an opaque version of the colour for the intermediate render.
+		nrgba := color.NRGBAModel.Convert(clr).(color.NRGBA)
+		opaqueClr := color.NRGBA{R: nrgba.R, G: nrgba.G, B: nrgba.B, A: 255}
+		alpha := float32(nrgba.A) / 255.0
+
+		bounds := screen.Bounds()
+		offscreen := globalImagePool.Get(bounds.Dx(), bounds.Dy())
+		drawRoundedRectStrokeCore(offscreen, r, radTL, radTR, radBR, radBL, strokeWidth, opaqueClr)
+
+		op := &ebiten.DrawImageOptions{}
+		op.ColorScale.ScaleAlpha(alpha)
+		screen.DrawImage(offscreen, op)
+		globalImagePool.Put(offscreen)
+		return
+	}
+
+	// Fully opaque (or fully transparent) — render directly.
+	drawRoundedRectStrokeCore(screen, r, radTL, radTR, radBR, radBL, strokeWidth, clr)
+}
+
+// drawRoundedRectStrokeCore performs the actual path construction and stroke
+// rendering for a rounded rectangle.  It is called either directly (opaque
+// border) or via an offscreen buffer (semi-transparent border).
+func drawRoundedRectStrokeCore(screen *ebiten.Image, r Rect, radTL, radTR, radBR, radBL float64, strokeWidth float64, clr color.Color) {
 	// Clamp each radius
 	maxRadius := min(r.W, r.H) / 2
 	if radTL > maxRadius {
@@ -646,13 +722,13 @@ func drawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, 
 
 	path.MoveTo(x+rTL, y)
 	path.LineTo(x+w-rTR, y)
-	path.QuadTo(x+w, y, x+w, y+rTR)
+	path.ArcTo(x+w, y, x+w, y+rTR, rTR)
 	path.LineTo(x+w, y+h-rBR)
-	path.QuadTo(x+w, y+h, x+w-rBR, y+h)
+	path.ArcTo(x+w, y+h, x+w-rBR, y+h, rBR)
 	path.LineTo(x+rBL, y+h)
-	path.QuadTo(x, y+h, x, y+h-rBL)
+	path.ArcTo(x, y+h, x, y+h-rBL, rBL)
 	path.LineTo(x, y+rTL)
-	path.QuadTo(x, y, x+rTL, y)
+	path.ArcTo(x, y, x+rTL, y, rTL)
 	path.Close()
 
 	// Stroke the path
@@ -664,17 +740,12 @@ func drawRoundedRectStrokeEx(screen *ebiten.Image, r Rect, radTL, radTR, radBR, 
 
 	vs, is := path.AppendVerticesAndIndicesForStroke(nil, nil, opts)
 
-	cr, cg, cb, ca := clr.RGBA()
-	for i := range vs {
-		vs[i].ColorR = float32(cr) / 0xffff
-		vs[i].ColorG = float32(cg) / 0xffff
-		vs[i].ColorB = float32(cb) / 0xffff
-		vs[i].ColorA = float32(ca) / 0xffff
-	}
+	applyColorToVertices(vs, clr)
 
-	op := &ebiten.DrawTrianglesOptions{}
-	op.AntiAlias = true
-	screen.DrawTriangles(vs, is, whiteImage, op)
+	screen.DrawTriangles(vs, is, whiteImage, &ebiten.DrawTrianglesOptions{
+		AntiAlias: true,
+		FillRule:  ebiten.FillRuleNonZero,
+	})
 }
 
 // DrawRadialGradient draws a radial gradient in the given rectangle.
@@ -792,7 +863,7 @@ func ApplyBackdropFilter(screen *ebiten.Image, r Rect, bf *BackdropFilter) {
 	captured := screen.SubImage(image.Rect(x0, y0, x1, y1)).(*ebiten.Image)
 
 	// Copy captured region into an offscreen buffer (origin-shifted)
-	buf := ebiten.NewImage(w, h)
+	buf := globalImagePool.Get(w, h)
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(-x0), float64(-y0))
 	buf.DrawImage(captured, op)
@@ -801,7 +872,7 @@ func ApplyBackdropFilter(screen *ebiten.Image, r Rect, bf *BackdropFilter) {
 	if bf.Blur > 0 {
 		shader := getBackdropBlurShader()
 		if shader != nil {
-			tmp := ebiten.NewImage(w, h)
+			tmp := globalImagePool.Get(w, h)
 
 			// Horizontal pass: buf → tmp
 			sop := &ebiten.DrawRectShaderOptions{}
@@ -822,7 +893,7 @@ func ApplyBackdropFilter(screen *ebiten.Image, r Rect, bf *BackdropFilter) {
 			}
 			buf.DrawRectShader(w, h, shader, sop2)
 
-			tmp.Deallocate()
+			globalImagePool.Put(tmp)
 		}
 	}
 
@@ -839,7 +910,7 @@ func ApplyBackdropFilter(screen *ebiten.Image, r Rect, bf *BackdropFilter) {
 		}
 		filtered := applyCSSFilter(buf, f)
 		if filtered != buf {
-			buf.Deallocate()
+			globalImagePool.Put(buf)
 			buf = filtered
 		}
 	}
@@ -849,7 +920,7 @@ func ApplyBackdropFilter(screen *ebiten.Image, r Rect, bf *BackdropFilter) {
 	compOp.GeoM.Translate(float64(x0), float64(y0))
 	screen.DrawImage(buf, compOp)
 
-	buf.Deallocate()
+	globalImagePool.Put(buf)
 }
 
 // ParseBoxShadow parses a CSS-like box-shadow string

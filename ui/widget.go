@@ -359,7 +359,7 @@ func (w *BaseWidget) drawWithCompositing(screen *ebiten.Image, r Rect, style *St
 	// should not be affected by the widget's own transform or opacity.
 	w.drawBoxShadow(screen, r, style)
 
-	offscreen := ebiten.NewImage(screenW, screenH)
+	offscreen := globalImagePool.Get(screenW, screenH)
 
 	// Draw widget content to offscreen at original coordinates
 	w.drawContentOnly(offscreen, r, style)
@@ -368,7 +368,7 @@ func (w *BaseWidget) drawWithCompositing(screen *ebiten.Image, r Rect, style *St
 	if hasFilter {
 		filtered := applyCSSFilter(offscreen, style.parsedFilter)
 		if filtered != offscreen {
-			offscreen.Deallocate()
+			globalImagePool.Put(offscreen)
 			offscreen = filtered
 		}
 	}
@@ -389,7 +389,7 @@ func (w *BaseWidget) drawWithCompositing(screen *ebiten.Image, r Rect, style *St
 	}
 
 	screen.DrawImage(offscreen, op)
-	offscreen.Deallocate()
+	globalImagePool.Put(offscreen)
 }
 
 // drawContentOnly renders widget content (bg, border, outline, children) without
@@ -458,40 +458,28 @@ func (w *BaseWidget) drawBackground(screen *ebiten.Image, r Rect, style *Style) 
 }
 
 // drawGradientWithRadius draws a gradient clipped to rounded corners.
-// It renders the gradient to an offscreen buffer and masks it with the rounded
-// rect shape using destination-in blending.
+// Uses clipComposite to render the gradient masked by the rounded rect shape.
 func drawGradientWithRadius(screen *ebiten.Image, r Rect, g *Gradient, radTL, radTR, radBR, radBL float64) {
 	iw := int(math.Ceil(r.W))
 	ih := int(math.Ceil(r.H))
-	if iw <= 0 || ih <= 0 {
-		return
-	}
 
-	// Draw gradient into a local buffer at origin (0,0).
 	localRect := Rect{X: 0, Y: 0, W: r.W, H: r.H}
-	gradImg := ebiten.NewImage(iw, ih)
-	if g.Type == GradientRadial {
-		DrawRadialGradient(gradImg, localRect, g)
-	} else {
-		DrawGradient(gradImg, localRect, g)
-	}
-
-	// Build the rounded-rect mask.
-	mask := ebiten.NewImage(iw, ih)
-	DrawRoundedRectPathEx(mask, localRect, radTL, radTR, radBR, radBL, color.White)
-
-	// Destination-in: keep gradient pixels only where the mask has alpha > 0.
-	gradImg.DrawImage(mask, &ebiten.DrawImageOptions{
-		Blend: ebiten.BlendDestinationIn,
-	})
-
-	// Composite onto screen at the widget's actual position.
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(r.X, r.Y)
-	screen.DrawImage(gradImg, op)
 
-	gradImg.Deallocate()
-	mask.Deallocate()
+	clipComposite(screen, iw, ih,
+		func(content *ebiten.Image) {
+			if g.Type == GradientRadial {
+				DrawRadialGradient(content, localRect, g)
+			} else {
+				DrawGradient(content, localRect, g)
+			}
+		},
+		func(mask *ebiten.Image) {
+			DrawRoundedRectPathEx(mask, localRect, radTL, radTR, radBR, radBL, color.White)
+		},
+		op,
+	)
 }
 
 // drawOutline draws the CSS outline, parsing on first use.
@@ -514,7 +502,7 @@ func (w *BaseWidget) drawChildren(screen *ebiten.Image, r Rect, style *Style) {
 		clipW := int(r.W)
 		clipH := int(r.H)
 		if clipW > 0 && clipH > 0 {
-			tmpImg := ebiten.NewImage(clipW, clipH)
+			tmpImg := globalImagePool.Get(clipW, clipH)
 			for _, child := range w.children {
 				origRect := child.ComputedRect()
 				shifted := Rect{
@@ -530,7 +518,7 @@ func (w *BaseWidget) drawChildren(screen *ebiten.Image, r Rect, style *Style) {
 			drawOp := &ebiten.DrawImageOptions{}
 			drawOp.GeoM.Translate(r.X, r.Y)
 			screen.DrawImage(tmpImg, drawOp)
-			tmpImg.Deallocate()
+			globalImagePool.Put(tmpImg)
 		}
 	} else {
 		for _, child := range w.children {
@@ -560,8 +548,9 @@ func (w *BaseWidget) getCornerRadii(style *Style) (tl, tr, br, bl float64) {
 // ============================================================================
 
 // applyCSSFilter applies CSS colour-matrix filter to an offscreen image.
-// Returns the filtered image; the caller must Deallocate() the returned image
-// when it differs from src.  The original src is NOT deallocated here.
+// Returns the filtered image; the caller must Put() the returned image back
+// to globalImagePool when it differs from src.  The original src is NOT
+// released here.
 func applyCSSFilter(src *ebiten.Image, f *Filter) *ebiten.Image {
 	if f == nil {
 		return src
@@ -574,7 +563,7 @@ func applyCSSFilter(src *ebiten.Image, f *Filter) *ebiten.Image {
 		return src
 	}
 
-	dst := ebiten.NewImage(w, h)
+	dst := globalImagePool.Get(w, h)
 	op := &ebiten.DrawRectShaderOptions{}
 	op.Images[0] = src
 	op.Uniforms = map[string]any{
@@ -596,7 +585,7 @@ func applyCSSFilter(src *ebiten.Image, f *Filter) *ebiten.Image {
 // ============================================================================
 
 // drawWithClipPath renders a widget with clip-path clipping.
-// Uses offscreen compositing with destination-in blending (same as SVGClippedElement).
+// Uses clipComposite for offscreen compositing with destination-in blending.
 func drawWithClipPath(screen *ebiten.Image, drawFunc func(*ebiten.Image), clipPath *vector.Path) {
 	if clipPath == nil {
 		drawFunc(screen)
@@ -605,31 +594,19 @@ func drawWithClipPath(screen *ebiten.Image, drawFunc func(*ebiten.Image), clipPa
 
 	bounds := screen.Bounds()
 	w, h := bounds.Dx(), bounds.Dy()
-	if w <= 0 || h <= 0 {
-		return
-	}
 
-	content := ebiten.NewImage(w, h)
-	drawFunc(content)
-
-	mask := ebiten.NewImage(w, h)
-	vs, is := clipPath.AppendVerticesAndIndicesForFilling(nil, nil)
-	for i := range vs {
-		vs[i].ColorR = 1
-		vs[i].ColorG = 1
-		vs[i].ColorB = 1
-		vs[i].ColorA = 1
-	}
-	mask.DrawTriangles(vs, is, whiteImage, &ebiten.DrawTrianglesOptions{AntiAlias: true})
-
-	content.DrawImage(mask, &ebiten.DrawImageOptions{
-		Blend: ebiten.BlendDestinationIn,
-	})
-
-	screen.DrawImage(content, &ebiten.DrawImageOptions{})
-
-	content.Deallocate()
-	mask.Deallocate()
+	clipComposite(screen, w, h,
+		drawFunc,
+		func(mask *ebiten.Image) {
+			vs, is := clipPath.AppendVerticesAndIndicesForFilling(nil, nil)
+			applyColorToVertices(vs, color.White)
+			mask.DrawTriangles(vs, is, whiteImage, &ebiten.DrawTrianglesOptions{
+				AntiAlias: true,
+				FillRule:  ebiten.FillRuleNonZero,
+			})
+		},
+		nil,
+	)
 }
 
 // applyOpacity applies opacity to a color, returning a non-premultiplied
