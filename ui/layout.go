@@ -1,6 +1,10 @@
 package ui
 
-import "github.com/hajimehoshi/ebiten/v2"
+import (
+	"math"
+
+	"github.com/hajimehoshi/ebiten/v2"
+)
 
 // LayoutEngine handles the layout calculation for widgets
 type LayoutEngine struct{}
@@ -331,6 +335,10 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 			}
 		}
 
+		childRect.X = math.Round(childRect.X)
+		childRect.Y = math.Round(childRect.Y)
+		childRect.W = math.Round(childRect.W)
+		childRect.H = math.Round(childRect.H)
 		child.SetComputedRect(childRect)
 
 		// Apply min/max constraints
@@ -346,6 +354,8 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 		if childStyle.MaxHeight > 0 && childRect.H > childStyle.MaxHeight {
 			childRect.H = childStyle.MaxHeight
 		}
+		childRect.W = math.Round(childRect.W)
+		childRect.H = math.Round(childRect.H)
 		child.SetComputedRect(childRect)
 
 		// Recursively layout grandchildren

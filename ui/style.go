@@ -70,6 +70,21 @@ func (se *StyleEngine) LoadFromJSON(data []byte) error {
 			continue
 		}
 
+		// Handle shorthand padding/margin: {"all": N}
+		var rawFields map[string]interface{}
+		if err := json.Unmarshal(rawStyle, &rawFields); err == nil {
+			if p, ok := rawFields["padding"].(map[string]interface{}); ok {
+				if all, ok := p["all"].(float64); ok {
+					style.Padding = PaddingAll(all)
+				}
+			}
+			if m, ok := rawFields["margin"].(map[string]interface{}); ok {
+				if all, ok := m["all"].(float64); ok {
+					style.Margin = MarginAll(all)
+				}
+			}
+		}
+
 		// Detect explicitly-set fields from raw JSON
 		se.detectExplicitFields(&style, rawStyle)
 
@@ -131,6 +146,18 @@ func (se *StyleEngine) parseStyleColors(style *Style) {
 	}
 	if style.Border != "" {
 		style.BorderColor = parseColor(style.Border)
+	}
+	if style.BorderTop != "" {
+		style.BorderTopColor = parseColor(style.BorderTop)
+	}
+	if style.BorderRight != "" {
+		style.BorderRightColor = parseColor(style.BorderRight)
+	}
+	if style.BorderBottom != "" {
+		style.BorderBottomColor = parseColor(style.BorderBottom)
+	}
+	if style.BorderLeft != "" {
+		style.BorderLeftColor = parseColor(style.BorderLeft)
 	}
 	if style.Color != "" {
 		style.TextColor = parseColor(style.Color)
@@ -369,7 +396,7 @@ func parseColor(s string) color.Color {
 
 // getNamedColor returns a color by CSS name
 func getNamedColor(name string) color.Color {
-	colors := map[string]color.RGBA{
+	colors := map[string]color.NRGBA{
 		// Basic colors
 		"black":       {0, 0, 0, 255},
 		"white":       {255, 255, 255, 255},
@@ -549,7 +576,7 @@ func parseHexColor(s string) color.Color {
 		a = parseHexByte(s[6:8])
 	}
 
-	return color.RGBA{r, g, b, a}
+	return color.NRGBA{r, g, b, a}
 }
 
 // parseHexByte parses a hex string to uint8
@@ -584,7 +611,7 @@ func parseRGBColor(s string) color.Color {
 		}
 	}
 
-	return color.RGBA{r, g, b, a}
+	return color.NRGBA{r, g, b, a}
 }
 
 // parseHSLColor parses hsl() or hsla() color strings
@@ -613,7 +640,7 @@ func parseHSLColor(s string) color.Color {
 	}
 
 	r, g, b := hslToRGB(h, sat, l)
-	return color.RGBA{r, g, b, uint8(a * 255)}
+	return color.NRGBA{r, g, b, uint8(a * 255)}
 }
 
 // parseHueValue parses a hue value (0-360 degrees)

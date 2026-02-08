@@ -534,12 +534,14 @@ func DrawBoxShadow(screen *ebiten.Image, r Rect, shadow *BoxShadow, borderRadius
 	}
 
 	shader := getBoxShadowShader()
-	sigma := shadow.Blur / 2
+	// Standard CSS blur sigma is around 0.5 * Blur.
+	// We use 0.55 here for a slightly softer feel matching modern browser rendering.
+	sigma := shadow.Blur * 0.55
 	if sigma < 0.001 {
 		sigma = 0.001
 	}
 
-	expand := shadow.Blur*3 + math.Abs(shadow.Spread)
+	expand := shadow.Blur*4 + math.Abs(shadow.Spread)
 
 	// Shadow shape dimensions (element + spread)
 	shapeHalfW := r.W/2 + shadow.Spread

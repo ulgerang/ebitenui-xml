@@ -25,10 +25,10 @@ func (g *Game) Update() error {
 func (g *Game) Draw(screen *ebiten.Image) {
 	g.engine.Draw(screen)
 	if !g.done {
-		f, _ := os.Create("ebiten_showcase.png")
+		f, _ := os.Create("cmd/showcase/ebiten_showcase.png")
 		png.Encode(f, screen)
 		f.Close()
-		log.Println("Saved ebiten_showcase.png")
+		log.Println("Saved cmd/showcase/ebiten_showcase.png")
 		g.done = true
 		go func() {
 			time.Sleep(500 * time.Millisecond)
@@ -98,7 +98,7 @@ func main() {
 	"#header": {
 		"height": 60,
 		"background": "linear-gradient(90deg, #1e293b, #334155)",
-		"padding": {"left": 20},
+		"padding": {"left": 20, "right": 20},
 		"justify": "center",
 		"borderBottomWidth": 2,
 		"borderBottom": "#38bdf8",
@@ -122,11 +122,12 @@ func main() {
 		"borderRight": "#334155"
 	},
 	".nav-item": {
-		"height": 40,
-		"padding": {"left": 15},
+		"height": 44,
+		"padding": {"left": 20, "right": 20},
 		"justify": "center",
-		"borderRadius": 6,
+		"borderRadius": 8,
 		"color": "#94a3b8",
+		"fontSize": 14,
 		"verticalAlign": "center"
 	},
 	".nav-item.active": {
@@ -141,20 +142,20 @@ func main() {
 		"align": "center"
 	},
 	"#card": {
-		"width": 450,
-		"height": 320,
+		"width": 480,
+		"height": 380,
 		"background": "#1e293b",
-		"borderRadius": 12,
+		"borderRadius": 16,
 		"borderWidth": 1,
 		"border": "#334155",
-		"padding": {"all": 20},
+		"padding": {"all": 28},
 		"direction": "column",
-		"gap": 20,
-		"boxShadow": "0 10 25 0 rgba(0,0,0,0.5)"
+		"gap": 24,
+		"boxShadow": "0 12 35 0 rgba(0,0,0,0.4)"
 	},
 	"#card-header": {
 		"color": "#f8fafc",
-		"fontSize": 18,
+		"fontSize": 20,
 		"fontWeight": "bold"
 	},
 	"#stats": {
@@ -165,53 +166,56 @@ func main() {
 	".stat-box": {
 		"flexGrow": 1,
 		"background": "#0f172a",
-		"borderRadius": 8,
-		"padding": {"all": 12},
+		"borderRadius": 10,
+		"padding": {"all": 16},
 		"direction": "column",
 		"align": "center",
 		"justify": "center",
-		"gap": 5
+		"gap": 8
 	},
-	".stat-label": { "color": "#64748b", "fontSize": 12, "textAlign": "center" },
-	".stat-val": { "color": "#38bdf8", "fontSize": 18, "fontWeight": "bold", "textAlign": "center" },
+	".stat-label": { "color": "#64748b", "fontSize": 14, "textAlign": "center" },
+	".stat-val": { "color": "#38bdf8", "fontSize": 22, "fontWeight": "bold", "textAlign": "center" },
 	"#progress-container": {
-		"height": 10,
+		"height": 12,
 		"background": "#0f172a",
-		"borderRadius": 5,
-		"overflow": "hidden"
+		"borderRadius": 6,
+		"overflow": "hidden",
+		"align": "stretch"
 	},
 	"#progress-bar": {
-		"width": 280,
-		"height": 10,
+		"width": 266,
+		"height": 12,
 		"background": "linear-gradient(90deg, #38bdf8, #818cf8)"
 	},
 	"#footer-actions": {
+		"height": 40,
 		"direction": "row",
 		"justify": "end",
+		"align": "center",
 		"gap": 10
 	},
 	".btn-primary": {
-		"width": 100,
-		"height": 36,
+		"width": 120,
+		"height": 40,
 		"background": "#38bdf8",
-		"borderRadius": 6,
+		"borderRadius": 8,
 		"justify": "center",
 		"align": "center",
 		"color": "#ffffff",
-		"fontSize": 13,
+		"fontSize": 14,
 		"fontWeight": "bold",
 		"verticalAlign": "center"
 	},
 	".btn-secondary": {
-		"width": 100,
-		"height": 36,
+		"width": 120,
+		"height": 40,
 		"borderWidth": 1,
 		"border": "#64748b",
-		"borderRadius": 6,
+		"borderRadius": 8,
 		"justify": "center",
 		"align": "center",
 		"color": "#94a3b8",
-		"fontSize": 13,
+		"fontSize": 14,
 		"verticalAlign": "center"
 	}
 }
@@ -220,7 +224,10 @@ func main() {
 	engine := ui.New(800, 600)
 
 	// Load a real TTF font from Windows
-	fontData, err := os.ReadFile("C:/Windows/Fonts/arial.ttf")
+	fontData, err := os.ReadFile("C:/Windows/Fonts/segoeui.ttf")
+	if err != nil {
+		fontData, err = os.ReadFile("C:/Windows/Fonts/arial.ttf")
+	}
 	if err != nil {
 		fontData, _ = os.ReadFile("C:/Windows/Fonts/malgun.ttf")
 	}
@@ -231,7 +238,10 @@ func main() {
 	}
 
 	// Load bold font for fontWeight: "bold"
-	boldFontData, err := os.ReadFile("C:/Windows/Fonts/arialbd.ttf")
+	boldFontData, err := os.ReadFile("C:/Windows/Fonts/segoeuib.ttf")
+	if err != nil {
+		boldFontData, err = os.ReadFile("C:/Windows/Fonts/arialbd.ttf")
+	}
 	if err != nil {
 		boldFontData, _ = os.ReadFile("C:/Windows/Fonts/malgunbd.ttf")
 	}

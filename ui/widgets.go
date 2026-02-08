@@ -66,7 +66,6 @@ func (b *Button) Draw(screen *ebiten.Image) {
 	// Draw label text
 	if b.Label != "" && b.FontFace != nil {
 		style := b.getActiveStyle()
-		r := b.computedRect
 
 		textColor := style.TextColor
 		if textColor == nil {
@@ -81,11 +80,15 @@ func (b *Button) Draw(screen *ebiten.Image) {
 		// Measure text for centering
 		textW, _ := text.Measure(b.Label, b.FontFace, 0)
 		metrics := b.FontFace.Metrics()
+		// Use cap-height for more visually balanced vertical centering if available,
+		// otherwise fall back to em-height.
 		ascent := metrics.HAscent
-		emHeight := ascent + metrics.HDescent
-		// In Ebitengine v2 text/v2, the origin is the top-left of the glyph's em-box.
-		x := r.X + (r.W-textW)/2
-		y := r.Y + (r.H-emHeight)/2
+		descent := metrics.HDescent
+		emHeight := ascent + descent
+
+		rContent := b.ContentRect()
+		x := rContent.X + (rContent.W-textW)/2
+		y := rContent.Y + (rContent.H-emHeight)/2
 
 		// Draw text shadow for button label
 		shadow := style.parsedTextShadow

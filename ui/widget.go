@@ -422,6 +422,7 @@ func (w *BaseWidget) drawDirect(screen *ebiten.Image, r Rect, style *Style) {
 	if style.BorderColor != nil && style.BorderWidth > 0 {
 		drawRoundedRectStroke(screen, r, style.BorderRadius, style.BorderWidth, style.BorderColor)
 	}
+	w.drawIndividualBorders(screen, r, style)
 
 	// 4. Outline
 	w.drawOutline(screen, r, style)
@@ -492,6 +493,7 @@ func (w *BaseWidget) drawContentOnly(screen *ebiten.Image, r Rect, style *Style)
 	if style.BorderColor != nil && style.BorderWidth > 0 {
 		drawRoundedRectStroke(screen, r, style.BorderRadius, style.BorderWidth, style.BorderColor)
 	}
+	w.drawIndividualBorders(screen, r, style)
 
 	// Outline
 	w.drawOutline(screen, r, style)
@@ -925,4 +927,48 @@ func parseCSSTransformOrigin(origin string, w, h float64) (float64, float64) {
 	}
 
 	return ox, oy
+}
+
+// drawIndividualBorders draws borders for each side separately.
+func (w *BaseWidget) drawIndividualBorders(screen *ebiten.Image, r Rect, style *Style) {
+	// Top
+	if style.BorderTopWidth > 0 {
+		c := style.BorderTopColor
+		if c == nil {
+			c = style.BorderColor
+		}
+		if c != nil {
+			vector.DrawFilledRect(screen, float32(r.X), float32(r.Y), float32(r.W), float32(style.BorderTopWidth), c, false)
+		}
+	}
+	// Bottom
+	if style.BorderBottomWidth > 0 {
+		c := style.BorderBottomColor
+		if c == nil {
+			c = style.BorderColor
+		}
+		if c != nil {
+			vector.DrawFilledRect(screen, float32(r.X), float32(r.Y+r.H-style.BorderBottomWidth), float32(r.W), float32(style.BorderBottomWidth), c, false)
+		}
+	}
+	// Left
+	if style.BorderLeftWidth > 0 {
+		c := style.BorderLeftColor
+		if c == nil {
+			c = style.BorderColor
+		}
+		if c != nil {
+			vector.DrawFilledRect(screen, float32(r.X), float32(r.Y), float32(style.BorderLeftWidth), float32(r.H), c, false)
+		}
+	}
+	// Right
+	if style.BorderRightWidth > 0 {
+		c := style.BorderRightColor
+		if c == nil {
+			c = style.BorderColor
+		}
+		if c != nil {
+			vector.DrawFilledRect(screen, float32(r.X+r.W-style.BorderRightWidth), float32(r.Y), float32(style.BorderRightWidth), float32(r.H), c, false)
+		}
+	}
 }

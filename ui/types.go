@@ -152,17 +152,25 @@ type Style struct {
 	Color      string `json:"color"`
 
 	// Border (expanded CSS-like properties)
-	BorderWidth             float64 `json:"borderWidth"`
-	BorderRadius            float64 `json:"borderRadius"`
-	BorderWidthSet          bool    `json:"-"` // true if borderWidth was explicitly set
-	BorderTopWidth          float64 `json:"borderTopWidth"`
-	BorderRightWidth        float64 `json:"borderRightWidth"`
-	BorderBottomWidth       float64 `json:"borderBottomWidth"`
-	BorderLeftWidth         float64 `json:"borderLeftWidth"`
-	BorderTopLeftRadius     float64 `json:"borderTopLeftRadius"`
-	BorderTopRightRadius    float64 `json:"borderTopRightRadius"`
-	BorderBottomLeftRadius  float64 `json:"borderBottomLeftRadius"`
-	BorderBottomRightRadius float64 `json:"borderBottomRightRadius"`
+	BorderWidth             float64     `json:"borderWidth"`
+	BorderRadius            float64     `json:"borderRadius"`
+	BorderWidthSet          bool        `json:"-"` // true if borderWidth was explicitly set
+	BorderTopWidth          float64     `json:"borderTopWidth"`
+	BorderRightWidth        float64     `json:"borderRightWidth"`
+	BorderBottomWidth       float64     `json:"borderBottomWidth"`
+	BorderLeftWidth         float64     `json:"borderLeftWidth"`
+	BorderTop               string      `json:"borderTop"`
+	BorderRight             string      `json:"borderRight"`
+	BorderBottom            string      `json:"borderBottom"`
+	BorderLeft              string      `json:"borderLeft"`
+	BorderTopColor          color.Color `json:"-"`
+	BorderRightColor        color.Color `json:"-"`
+	BorderBottomColor       color.Color `json:"-"`
+	BorderLeftColor         color.Color `json:"-"`
+	BorderTopLeftRadius     float64     `json:"borderTopLeftRadius"`
+	BorderTopRightRadius    float64     `json:"borderTopRightRadius"`
+	BorderBottomLeftRadius  float64     `json:"borderBottomLeftRadius"`
+	BorderBottomRightRadius float64     `json:"borderBottomRightRadius"`
 
 	// Text
 	FontSize      float64 `json:"fontSize"`
@@ -341,6 +349,18 @@ func (s *Style) Merge(other *Style) {
 	}
 	if other.Border != "" {
 		s.Border = other.Border
+	}
+	if other.BorderTop != "" {
+		s.BorderTop = other.BorderTop
+	}
+	if other.BorderRight != "" {
+		s.BorderRight = other.BorderRight
+	}
+	if other.BorderBottom != "" {
+		s.BorderBottom = other.BorderBottom
+	}
+	if other.BorderLeft != "" {
+		s.BorderLeft = other.BorderLeft
 	}
 	if other.Color != "" {
 		s.Color = other.Color

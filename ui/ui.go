@@ -49,19 +49,20 @@ type UI struct {
 func New(width, height float64) *UI {
 	styleEngine := NewStyleEngine()
 	return &UI{
-		styleEngine:    styleEngine,
-		layoutEngine:   NewLayoutEngine(),
-		factory:        NewWidgetFactory(styleEngine),
-		width:          width,
-		height:         height,
-		widgetByID:     make(map[string]Widget),
-		variables:      NewCSSVariables(),
-		bindings:       NewBindingContext(),
-		viewportWidth:  width,
-		viewportHeight: height,
-		rootFontSize:   16,
+		styleEngine:  styleEngine,
+		layoutEngine: NewLayoutEngine(),
+		factory:      NewWidgetFactory(styleEngine),
+		width:        width,
+		height:       height,
+		widgetByID:   make(map[string]Widget),
+		variables:    NewCSSVariables(),
+		bindings:     NewBindingContext(),
+		rootFontSize: 16, // Default browser root font size
 	}
 }
+
+// Root returns the root widget
+func (ui *UI) Root() Widget { return ui.root }
 
 // LoadLayout loads a UI layout from XML
 func (ui *UI) LoadLayout(xmlContent string) error {
