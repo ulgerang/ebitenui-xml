@@ -350,17 +350,29 @@ func (s *Style) Merge(other *Style) {
 	if other.Border != "" {
 		s.Border = other.Border
 	}
+	if other.BorderBottom != "" {
+		s.BorderBottom = other.BorderBottom
+	}
+	if other.BorderBottomColor != nil {
+		s.BorderBottomColor = other.BorderBottomColor
+	}
+	if other.BorderLeft != "" {
+		s.BorderLeft = other.BorderLeft
+	}
+	if other.BorderLeftColor != nil {
+		s.BorderLeftColor = other.BorderLeftColor
+	}
 	if other.BorderTop != "" {
 		s.BorderTop = other.BorderTop
+	}
+	if other.BorderTopColor != nil {
+		s.BorderTopColor = other.BorderTopColor
 	}
 	if other.BorderRight != "" {
 		s.BorderRight = other.BorderRight
 	}
-	if other.BorderBottom != "" {
-		s.BorderBottom = other.BorderBottom
-	}
-	if other.BorderLeft != "" {
-		s.BorderLeft = other.BorderLeft
+	if other.BorderRightColor != nil {
+		s.BorderRightColor = other.BorderRightColor
 	}
 	if other.Color != "" {
 		s.Color = other.Color
