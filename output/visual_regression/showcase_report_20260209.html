@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Showcase Compare Report</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1118;color:#d3dfeb;font-family:'Segoe UI',system-ui,sans-serif}
+.wrap{max-width:1160px;margin:24px auto;padding:0 16px}
+.cards{display:flex;gap:12px;margin:14px 0 20px}.card{flex:1;background:#121b26;border:1px solid #22313f;border-radius:10px;padding:12px}
+.val{font-size:28px;font-weight:700}.lbl{font-size:12px;color:#8fa3b7}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.panel{background:#121b26;border:1px solid #22313f;border-radius:10px;padding:10px}
+.panel h3{margin:0 0 8px;font-size:13px;color:#9ec7df}
+img{width:100%;display:block;border-radius:6px;background:#070c12}
+.rule{margin:0 0 10px;color:#8fa3b7;font-size:12px}
+</style></head><body>
+<div class="wrap">
+  <h1 style="margin:0 0 8px">Showcase Compare Report</h1>
+  <p class="rule">Rule: PASS if Diff&lt;5% OR AvgDelta&lt;10. WARN if AvgDelta&lt;14. Otherwise FAIL.</p>
+  <div class="cards">
+    <div class="card"><div class="val">27.28%</div><div class="lbl">Diff Pixels</div></div>
+    <div class="card"><div class="val">7.59</div><div class="lbl">Average Delta</div></div>
+    <div class="card"><div class="val">PASS</div><div class="lbl">Visual Verdict</div></div>
+  </div>
+  <div class="grid">
+    <div class="panel"><h3>Browser Reference</h3><img src="browser_showcase.png" /></div>
+    <div class="panel"><h3>Ebiten Render</h3><img src="ebiten_showcase.png" /></div>
+    <div class="panel" style="grid-column:1 / span 2"><h3>Diff</h3><img src="diff_showcase.png" /></div>
+  </div>
+</div>
+</body></html>

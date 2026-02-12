@@ -1,41 +1,54 @@
 <panel id="main">
-	<panel id="header">
-		<text id="title">ANTIGRAVITY OS</text>
-	</panel>
-	
-	<panel id="content">
-		<panel id="sidebar">
-			<panel class="nav-item active"><text>Dashboard</text></panel>
-			<panel class="nav-item"><text>Analytics</text></panel>
-			<panel class="nav-item"><text>Security</text></panel>
-			<panel class="nav-item"><text>Settings</text></panel>
+	<panel id="topbar">
+		<text id="brand">POLARIS CONTROL</text>
+		<panel id="status-pill">
+			<text id="status-text">LIVE SYSTEM</text>
 		</panel>
-		
-		<panel id="viewport">
-			<panel id="card">
-				<panel id="card-header">
-					<text>System Performance</text>
+	</panel>
+
+	<panel id="body">
+		<panel id="rail">
+			<panel class="nav-item active"><text class="nav-text">Overview</text></panel>
+			<panel class="nav-item"><text class="nav-text">Telemetry</text></panel>
+			<panel class="nav-item"><text class="nav-text">Transfers</text></panel>
+			<panel class="nav-item"><text class="nav-text">Incidents</text></panel>
+			<panel class="nav-item"><text class="nav-text">Settings</text></panel>
+		</panel>
+
+		<panel id="workspace">
+			<panel id="hero">
+				<text id="hero-title">Orbital Fleet Monitor</text>
+				<text id="hero-sub">Sectors synced · 18 nodes active</text>
+				<panel id="hero-track">
+					<panel id="hero-fill"></panel>
 				</panel>
-				<panel id="stats">
-					<panel class="stat-box">
-						<text class="stat-label">CPU</text>
-						<text class="stat-val">12%</text>
-					</panel>
-					<panel class="stat-box">
-						<text class="stat-label">GPU</text>
-						<text class="stat-val">45%</text>
-					</panel>
-					<panel class="stat-box">
-						<text class="stat-label">RAM</text>
-						<text class="stat-val">2.4GB</text>
-					</panel>
+			</panel>
+
+			<panel id="metrics-row">
+				<panel class="metric-card">
+					<text class="metric-label">Uplink</text>
+					<text class="metric-value">99.2%</text>
 				</panel>
-				<panel id="progress-container">
-					<panel id="progress-bar"></panel>
+				<panel class="metric-card">
+					<text class="metric-label">Latency</text>
+					<text class="metric-value">24ms</text>
 				</panel>
-				<panel id="footer-actions">
-					<panel class="btn-primary"><text>OPTIMIZE</text></panel>
-					<panel class="btn-secondary"><text>REBOOT</text></panel>
+				<panel class="metric-card">
+					<text class="metric-label">Power Draw</text>
+					<text class="metric-value">4.8MW</text>
+				</panel>
+			</panel>
+
+			<panel id="timeline-card">
+				<text id="timeline-title">Transfer Timeline</text>
+				<panel id="timeline-bars">
+					<panel class="tl-bar tl1"></panel>
+					<panel class="tl-bar tl2"></panel>
+					<panel class="tl-bar tl3"></panel>
+					<panel class="tl-bar tl4"></panel>
+					<panel class="tl-bar tl5"></panel>
+					<panel class="tl-bar tl6"></panel>
+					<panel class="tl-bar tl7"></panel>
 				</panel>
 			</panel>
 		</panel>

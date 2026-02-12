@@ -59,12 +59,14 @@ func CellRegion(i, totalW int) image.Rectangle {
 // ── Ebiten Rendering ──
 
 type Game struct {
-	ui       []*ui.UI
-	cases    []CSSTestCase
-	font     text.Face
-	w, h     int
-	frames   int
-	captured bool
+	ui             []*ui.UI
+	buffers        []*ebiten.Image
+	cases          []CSSTestCase
+	font           text.Face
+	w, h           int
+	frames         int
+	captured       bool
+	capturePending bool
 }
 
 func NewGame(cases []CSSTestCase) *Game {
@@ -91,16 +93,17 @@ func NewGame(cases []CSSTestCase) *Game {
 			continue
 		}
 		g.ui = append(g.ui, u)
+		g.buffers = append(g.buffers, ebiten.NewImage(CellW, CellH))
 	}
 	return g
 }
 
 func (g *Game) Update() error {
 	g.frames++
-	// Wait 10 frames for rendering to stabilize, then capture
-	if g.frames == 10 && !g.captured {
-		g.captured = true
-		g.captureScreenshot()
+	if g.frames >= 10 && !g.capturePending && !g.captured {
+		g.capturePending = true
+	}
+	if g.captured {
 		return ebiten.Termination
 	}
 	return nil
@@ -115,15 +118,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 		region := CellRegion(i, g.w)
 
-		// Render test case into a temp image
-		tmp := ebiten.NewImage(CellW, CellH)
+		// Render test case into a persistent per-cell buffer.
+		tmp := g.buffers[i]
 		tmp.Fill(color.RGBA{18, 18, 30, 255})
 		u.Draw(tmp)
 
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(float64(region.Min.X), float64(region.Min.Y))
 		screen.DrawImage(tmp, op)
-		tmp.Deallocate()
 
 		// Draw label above cell
 		labelOp := &text.DrawOptions{}
@@ -131,21 +133,23 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		labelOp.ColorScale.ScaleWithColor(color.RGBA{180, 180, 200, 255})
 		text.Draw(screen, g.cases[i].ID, g.font, labelOp)
 	}
+
+	if g.capturePending && !g.captured {
+		g.captureFromScreen(screen)
+		g.capturePending = false
+		g.captured = true
+	}
 }
 
 func (g *Game) Layout(_, _ int) (int, int) { return g.w, g.h }
 
-func (g *Game) captureScreenshot() {
-	img := ebiten.NewImage(g.w, g.h)
-	img.Fill(color.RGBA{18, 18, 30, 255})
-	g.Draw(img)
-
+func (g *Game) captureFromScreen(screen *ebiten.Image) {
 	// Convert to standard image
 	bounds := image.Rect(0, 0, g.w, g.h)
 	rgba := image.NewRGBA(bounds)
 	for y := 0; y < g.h; y++ {
 		for x := 0; x < g.w; x++ {
-			rgba.Set(x, y, img.At(x, y))
+			rgba.Set(x, y, screen.At(x, y))
 		}
 	}
 
@@ -156,7 +160,6 @@ func (g *Game) captureScreenshot() {
 	defer f.Close()
 	png.Encode(f, rgba)
 	log.Printf("Saved ebiten screenshot: %s (%dx%d)", *outPath, g.w, g.h)
-	img.Deallocate()
 }
 
 func main() {

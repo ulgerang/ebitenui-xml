@@ -275,8 +275,8 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func main() {
-	xmlData := %%q
-	styleData := %%q
+	xmlData := %q
+	styleData := %q
 	
 	engine := ui.New(800, 600)
 	if err := engine.LoadLayout(xmlData); err != nil { log.Fatal(err) }

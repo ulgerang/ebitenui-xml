@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>SVG TestLoop Report</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:'Segoe UI',system-ui,sans-serif;padding:24px}
+h1{color:#58a6ff;margin-bottom:16px}
+.summary{display:flex;gap:16px;margin-bottom:24px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px 24px;text-align:center;flex:1}
+.card .val{font-size:28px;font-weight:bold}
+.card .lbl{font-size:12px;color:#8b949e;margin-top:4px}
+table{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden}
+th{text-align:left;padding:10px 14px;background:#1c2128;color:#8b949e;font-size:12px;border-bottom:1px solid #30363d}
+td{padding:8px 14px;border-bottom:1px solid #21262d;font-size:13px;font-family:monospace}
+tr.pass td:last-child{color:#3fb950}
+tr.fail td:last-child{color:#f85149;font-weight:bold}
+tr:hover{background:#1c2128}
+</style></head><body>
+<h1>SVG TestLoop Comparison Report</h1>
+<div class="summary">
+  <div class="card"><div class="val">53</div><div class="lbl">Total Tests</div></div>
+  <div class="card"><div class="val" style="color:#3fb950">53</div><div class="lbl">Passed (<5% diff)</div></div>
+  <div class="card"><div class="val" style="color:#f85149">0</div><div class="lbl">Failed (>=5% diff)</div></div>
+</div>
+<table>
+<thead><tr><th>Test ID</th><th>Category</th><th>Label</th><th>Diff %</th><th>Avg Delta</th><th>Status</th></tr></thead>
+<tbody>
+<tr class="pass"><td>rect-basic</td><td>shape</td><td>Basic rect</td><td>0.0%</td><td>0.0</td><td>PASS</td></tr>
+<tr class="pass"><td>rect-rounded</td><td>shape</td><td>Rounded rect</td><td>0.2%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>rect-stroke</td><td>shape</td><td>Rect with stroke</td><td>0.1%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>circle-basic</td><td>shape</td><td>Basic circle</td><td>0.6%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>circle-stroke</td><td>shape</td><td>Circle with stroke</td><td>1.2%</td><td>0.3</td><td>PASS</td></tr>
+<tr class="pass"><td>ellipse-basic</td><td>shape</td><td>Ellipse</td><td>0.6%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>line-basic</td><td>shape</td><td>Lines</td><td>1.1%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>polygon-triangle</td><td>shape</td><td>Polygon triangle</td><td>0.0%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>polygon-star</td><td>shape</td><td>Polygon star</td><td>0.5%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>polyline-zigzag</td><td>shape</td><td>Polyline zigzag</td><td>0.9%</td><td>0.4</td><td>PASS</td></tr>
+<tr class="pass"><td>path-lines</td><td>path</td><td>Path M/L/Z</td><td>0.0%</td><td>0.0</td><td>PASS</td></tr>
+<tr class="pass"><td>path-hv</td><td>path</td><td>Path H/V</td><td>0.0%</td><td>0.0</td><td>PASS</td></tr>
+<tr class="pass"><td>path-cubic</td><td>path</td><td>Path Cubic Bezier</td><td>0.8%</td><td>0.3</td><td>PASS</td></tr>
+<tr class="pass"><td>path-quad</td><td>path</td><td>Path Quad Bezier</td><td>0.7%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>path-arc</td><td>path</td><td>Path Arc</td><td>0.5%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>path-smooth-cubic</td><td>path</td><td>Path Smooth S</td><td>1.0%</td><td>0.3</td><td>PASS</td></tr>
+<tr class="pass"><td>path-relative</td><td>path</td><td>Relative cmds</td><td>0.2%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>style-opacity</td><td>style</td><td>Opacity</td><td>0.0%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>style-fill-none</td><td>style</td><td>Fill none (stroke only)</td><td>1.0%</td><td>0.3</td><td>PASS</td></tr>
+<tr class="pass"><td>style-multi-shapes</td><td>style</td><td>Multiple shapes</td><td>0.8%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>group-translate</td><td>transform</td><td>Group translate</td><td>0.0%</td><td>0.0</td><td>PASS</td></tr>
+<tr class="pass"><td>group-scale</td><td>transform</td><td>Group scale</td><td>0.0%</td><td>0.0</td><td>PASS</td></tr>
+<tr class="pass"><td>group-nested</td><td>transform</td><td>Nested groups</td><td>0.2%</td><td>0.0</td><td>PASS</td></tr>
+<tr class="pass"><td>group-inherit</td><td>transform</td><td>Inherited styles</td><td>1.5%</td><td>0.3</td><td>PASS</td></tr>
+<tr class="pass"><td>icon-heart</td><td>icon</td><td>Heart icon</td><td>1.2%</td><td>0.4</td><td>PASS</td></tr>
+<tr class="pass"><td>icon-star</td><td>icon</td><td>Star icon</td><td>2.5%</td><td>1.5</td><td>PASS</td></tr>
+<tr class="pass"><td>icon-check</td><td>icon</td><td>Check icon</td><td>1.4%</td><td>0.9</td><td>PASS</td></tr>
+<tr class="pass"><td>icon-search</td><td>icon</td><td>Search icon</td><td>1.8%</td><td>0.7</td><td>PASS</td></tr>
+<tr class="pass"><td>icon-home</td><td>icon</td><td>Home icon</td><td>2.2%</td><td>1.2</td><td>PASS</td></tr>
+<tr class="pass"><td>viewbox-scale-up</td><td>viewbox</td><td>ViewBox scale up</td><td>0.4%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>viewbox-offset</td><td>viewbox</td><td>ViewBox offset</td><td>0.2%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>complex-face</td><td>complex</td><td>Simple face</td><td>1.4%</td><td>0.4</td><td>PASS</td></tr>
+<tr class="pass"><td>complex-badge</td><td>complex</td><td>Badge shape</td><td>1.6%</td><td>0.4</td><td>PASS</td></tr>
+<tr class="pass"><td>group-deep-nested</td><td>transform</td><td>Deep nested groups</td><td>0.2%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>transform-rotate</td><td>transform</td><td>Rotate 45°</td><td>0.7%</td><td>0.3</td><td>PASS</td></tr>
+<tr class="pass"><td>transform-rotate-origin</td><td>transform</td><td>Rotate with origin</td><td>0.5%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>fill-rule-evenodd</td><td>style</td><td>fill-rule evenodd</td><td>0.2%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>style-linecap</td><td>style</td><td>Stroke linecap</td><td>1.8%</td><td>1.9</td><td>PASS</td></tr>
+<tr class="pass"><td>style-stroke-opacity</td><td>style</td><td>Stroke opacity</td><td>0.3%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>style-fill-opacity</td><td>style</td><td>Fill opacity</td><td>0.0%</td><td>0.3</td><td>PASS</td></tr>
+<tr class="pass"><td>style-linejoin</td><td>style</td><td>Stroke linejoin</td><td>3.2%</td><td>1.3</td><td>PASS</td></tr>
+<tr class="pass"><td>style-dasharray</td><td>style</td><td>Stroke dasharray</td><td>2.7%</td><td>2.9</td><td>PASS</td></tr>
+<tr class="pass"><td>transform-skew</td><td>transform</td><td>SkewX/SkewY</td><td>0.4%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>transform-matrix</td><td>transform</td><td>Matrix transform</td><td>0.5%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>text-basic</td><td>text</td><td>Basic text</td><td>4.0%</td><td>3.4</td><td>PASS</td></tr>
+<tr class="pass"><td>text-anchor</td><td>text</td><td>Text anchor</td><td>3.3%</td><td>2.7</td><td>PASS</td></tr>
+<tr class="pass"><td>gradient-linear</td><td>gradient</td><td>Linear gradient</td><td>0.2%</td><td>0.4</td><td>PASS</td></tr>
+<tr class="pass"><td>gradient-radial</td><td>gradient</td><td>Radial gradient</td><td>0.5%</td><td>0.5</td><td>PASS</td></tr>
+<tr class="pass"><td>use-basic</td><td>element</td><td>Use element</td><td>0.2%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>clip-basic</td><td>element</td><td>ClipPath</td><td>0.2%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>path-smooth-quad</td><td>path</td><td>Smooth quad T/t</td><td>0.6%</td><td>0.2</td><td>PASS</td></tr>
+<tr class="pass"><td>path-multi-subpath</td><td>path</td><td>Multi subpath</td><td>0.3%</td><td>0.1</td><td>PASS</td></tr>
+<tr class="pass"><td>edge-degenerate</td><td>path</td><td>Degenerate cases</td><td>0.0%</td><td>0.0</td><td>PASS</td></tr>
+
+</tbody></table>
+</body></html>

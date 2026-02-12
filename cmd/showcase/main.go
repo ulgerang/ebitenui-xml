@@ -2,265 +2,124 @@ package main
 
 import (
 	"bytes"
+	"image"
+	"image/png"
 	"log"
 	"os"
-	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/ulgerang/ebitenui-xml/ui"
-	"image/png"
 )
 
-type Game struct {
-	engine *ui.UI
-	done   bool
+const (
+	showcaseWidth  = 960
+	showcaseHeight = 640
+	outputPNG      = "cmd/showcase/ebiten_showcase.png"
+	layoutPath     = "cmd/showcase/layout.xml"
+	stylePath      = "cmd/showcase/styles.json"
+)
+
+type game struct {
+	engine         *ui.UI
+	frames         int
+	captured       bool
+	capturePending bool
 }
 
-func (g *Game) Update() error {
+func (g *game) Update() error {
 	g.engine.Update()
+	g.frames++
+	if g.frames >= 10 && !g.capturePending && !g.captured {
+		g.capturePending = true
+	}
+	if g.captured {
+		return ebiten.Termination
+	}
 	return nil
 }
 
-func (g *Game) Draw(screen *ebiten.Image) {
+func (g *game) Draw(screen *ebiten.Image) {
 	g.engine.Draw(screen)
-	if !g.done {
-		f, _ := os.Create("cmd/showcase/ebiten_showcase.png")
-		png.Encode(f, screen)
-		f.Close()
-		log.Println("Saved cmd/showcase/ebiten_showcase.png")
-		g.done = true
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-			os.Exit(0)
-		}()
+
+	if g.capturePending && !g.captured {
+		if err := saveImage(screen, outputPNG, showcaseWidth, showcaseHeight); err != nil {
+			log.Printf("capture error: %v", err)
+		} else {
+			log.Printf("Saved %s", outputPNG)
+		}
+		g.captured = true
+		g.capturePending = false
 	}
 }
 
-func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 800, 600
+func (g *game) Layout(_, _ int) (int, int) {
+	return showcaseWidth, showcaseHeight
+}
+
+func saveImage(src *ebiten.Image, path string, w, h int) error {
+	rgba := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			rgba.Set(x, y, src.At(x, y))
+		}
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return png.Encode(f, rgba)
+}
+
+func loadFace(paths []string) *text.GoTextFaceSource {
+	for _, p := range paths {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		src, err := text.NewGoTextFaceSource(bytes.NewReader(data))
+		if err == nil {
+			return src
+		}
+	}
+	return nil
 }
 
 func main() {
-	xmlData := `
-<panel id="main">
-	<panel id="header">
-		<text id="title">ANTIGRAVITY OS</text>
-	</panel>
-	
-	<panel id="content">
-		<panel id="sidebar">
-			<panel class="nav-item active"><text>Dashboard</text></panel>
-			<panel class="nav-item"><text>Analytics</text></panel>
-			<panel class="nav-item"><text>Security</text></panel>
-			<panel class="nav-item"><text>Settings</text></panel>
-		</panel>
-		
-		<panel id="viewport">
-			<panel id="card">
-				<panel id="card-header">
-					<text>System Performance</text>
-				</panel>
-				<panel id="stats">
-					<panel class="stat-box">
-						<text class="stat-label">CPU</text>
-						<text class="stat-val">12%</text>
-					</panel>
-					<panel class="stat-box">
-						<text class="stat-label">GPU</text>
-						<text class="stat-val">45%</text>
-					</panel>
-					<panel class="stat-box">
-						<text class="stat-label">RAM</text>
-						<text class="stat-val">2.4GB</text>
-					</panel>
-				</panel>
-				<panel id="progress-container">
-					<panel id="progress-bar"></panel>
-				</panel>
-				<panel id="footer-actions">
-					<panel class="btn-primary"><text>OPTIMIZE</text></panel>
-					<panel class="btn-secondary"><text>REBOOT</text></panel>
-				</panel>
-			</panel>
-		</panel>
-	</panel>
-</panel>`
-
-	styleData := `
-{
-	"#main": {
-		"width": 800,
-		"height": 600,
-		"background": "#0f172a",
-		"direction": "column"
-	},
-	"#header": {
-		"height": 60,
-		"background": "linear-gradient(90deg, #1e293b, #334155)",
-		"padding": {"left": 20, "right": 20},
-		"justify": "center",
-		"borderBottomWidth": 2,
-		"borderBottom": "#38bdf8",
-		"verticalAlign": "center"
-	},
-	"#title": {
-		"color": "#f8fafc",
-		"fontSize": 20,
-		"fontWeight": "bold"
-	},
-	"#content": {
-		"flexGrow": 1,
-		"direction": "row"
-	},
-	"#sidebar": {
-		"width": 200,
-		"background": "#1e293b",
-		"padding": {"all": 10},
-		"gap": 8,
-		"borderRightWidth": 1,
-		"borderRight": "#334155"
-	},
-	".nav-item": {
-		"height": 44,
-		"padding": {"left": 20, "right": 20},
-		"justify": "center",
-		"borderRadius": 8,
-		"color": "#94a3b8",
-		"fontSize": 14,
-		"verticalAlign": "center"
-	},
-	".nav-item.active": {
-		"background": "#38bdf8",
-		"color": "#ffffff"
-	},
-	"#viewport": {
-		"flexGrow": 1,
-		"background": "#0f172a",
-		"padding": {"all": 30},
-		"justify": "center",
-		"align": "center"
-	},
-	"#card": {
-		"width": 480,
-		"height": 380,
-		"background": "#1e293b",
-		"borderRadius": 16,
-		"borderWidth": 1,
-		"border": "#334155",
-		"padding": {"all": 28},
-		"direction": "column",
-		"gap": 24,
-		"boxShadow": "0 12 35 0 rgba(0,0,0,0.4)"
-	},
-	"#card-header": {
-		"color": "#f8fafc",
-		"fontSize": 20,
-		"fontWeight": "bold"
-	},
-	"#stats": {
-		"direction": "row",
-		"align": "stretch",
-		"gap": 15
-	},
-	".stat-box": {
-		"flexGrow": 1,
-		"background": "#0f172a",
-		"borderRadius": 10,
-		"padding": {"all": 16},
-		"direction": "column",
-		"align": "center",
-		"justify": "center",
-		"gap": 8
-	},
-	".stat-label": { "color": "#64748b", "fontSize": 14, "textAlign": "center" },
-	".stat-val": { "color": "#38bdf8", "fontSize": 22, "fontWeight": "bold", "textAlign": "center" },
-	"#progress-container": {
-		"height": 12,
-		"background": "#0f172a",
-		"borderRadius": 6,
-		"overflow": "hidden",
-		"align": "stretch"
-	},
-	"#progress-bar": {
-		"width": 266,
-		"height": 12,
-		"background": "linear-gradient(90deg, #38bdf8, #818cf8)"
-	},
-	"#footer-actions": {
-		"height": 40,
-		"direction": "row",
-		"justify": "end",
-		"align": "center",
-		"gap": 10
-	},
-	".btn-primary": {
-		"width": 120,
-		"height": 40,
-		"background": "#38bdf8",
-		"borderRadius": 8,
-		"justify": "center",
-		"align": "center",
-		"color": "#ffffff",
-		"fontSize": 14,
-		"fontWeight": "bold",
-		"verticalAlign": "center"
-	},
-	".btn-secondary": {
-		"width": 120,
-		"height": 40,
-		"borderWidth": 1,
-		"border": "#64748b",
-		"borderRadius": 8,
-		"justify": "center",
-		"align": "center",
-		"color": "#94a3b8",
-		"fontSize": 14,
-		"verticalAlign": "center"
-	}
-}
-`
-
-	engine := ui.New(800, 600)
-
-	// Load a real TTF font from Windows
-	fontData, err := os.ReadFile("C:/Windows/Fonts/segoeui.ttf")
+	layoutXML, err := os.ReadFile(layoutPath)
 	if err != nil {
-		fontData, err = os.ReadFile("C:/Windows/Fonts/arial.ttf")
+		log.Fatalf("read layout: %v", err)
 	}
+	styleJSON, err := os.ReadFile(stylePath)
 	if err != nil {
-		fontData, _ = os.ReadFile("C:/Windows/Fonts/malgun.ttf")
+		log.Fatalf("read styles: %v", err)
 	}
 
-	if fontData != nil {
-		source, _ := text.NewGoTextFaceSource(bytes.NewReader(fontData))
-		engine.DefaultFont = source
+	engine := ui.New(showcaseWidth, showcaseHeight)
+	engine.DefaultFont = loadFace([]string{
+		"C:/Windows/Fonts/segoeui.ttf",
+		"C:/Windows/Fonts/arial.ttf",
+		"C:/Windows/Fonts/malgun.ttf",
+	})
+	engine.DefaultBoldFont = loadFace([]string{
+		"C:/Windows/Fonts/segoeuib.ttf",
+		"C:/Windows/Fonts/arialbd.ttf",
+		"C:/Windows/Fonts/malgunbd.ttf",
+	})
+
+	if err := engine.LoadLayout(string(layoutXML)); err != nil {
+		log.Fatalf("load layout: %v", err)
+	}
+	if err := engine.LoadStyles(string(styleJSON)); err != nil {
+		log.Fatalf("load styles: %v", err)
 	}
 
-	// Load bold font for fontWeight: "bold"
-	boldFontData, err := os.ReadFile("C:/Windows/Fonts/segoeuib.ttf")
-	if err != nil {
-		boldFontData, err = os.ReadFile("C:/Windows/Fonts/arialbd.ttf")
-	}
-	if err != nil {
-		boldFontData, _ = os.ReadFile("C:/Windows/Fonts/malgunbd.ttf")
-	}
-	if boldFontData != nil {
-		boldSource, _ := text.NewGoTextFaceSource(bytes.NewReader(boldFontData))
-		engine.DefaultBoldFont = boldSource
-	}
-
-	if err := engine.LoadLayout(xmlData); err != nil {
-		log.Fatal(err)
-	}
-	if err := engine.LoadStyles(styleData); err != nil {
-		log.Fatal(err)
-	}
-
-	game := &Game{engine: engine}
-
-	ebiten.SetWindowSize(800, 600)
-	if err := ebiten.RunGame(game); err != nil {
+	ebiten.SetWindowSize(showcaseWidth, showcaseHeight)
+	ebiten.SetWindowTitle("Showcase Renderer")
+	if err := ebiten.RunGame(&game{engine: engine}); err != nil && err != ebiten.Termination {
 		log.Fatal(err)
 	}
 }

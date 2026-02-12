@@ -11,10 +11,10 @@ const browser = await puppeteer.launch({
   args: ['--no-sandbox', '--disable-setuid-sandbox'],
 });
 const page = await browser.newPage();
-await page.setViewport({ width: 800, height: 600, deviceScaleFactor: 1 });
+await page.setViewport({ width: 960, height: 640, deviceScaleFactor: 1 });
 await page.goto(`file:///${htmlPath.replace(/\\/g, '/')}`, { waitUntil: 'networkidle0' });
 
-// Screenshot just the #main div at exact 800x600
+// Screenshot just the #main div at exact 960x640
 const el = await page.$('#main');
 await el.screenshot({ path: outPath });
 

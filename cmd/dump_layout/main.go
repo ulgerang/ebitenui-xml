@@ -3,9 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
+
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/ulgerang/ebitenui-xml/ui"
-	"os"
 )
 
 func main() {

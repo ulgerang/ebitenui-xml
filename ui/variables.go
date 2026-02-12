@@ -140,13 +140,13 @@ func ParseSizeValue(s string) SizeValue {
 		val, _ := strconv.ParseFloat(strings.TrimSuffix(s, "vh"), 64)
 		return SizeValue{Value: val, Unit: UnitVh}
 	}
-	if strings.HasSuffix(s, "em") {
-		val, _ := strconv.ParseFloat(strings.TrimSuffix(s, "em"), 64)
-		return SizeValue{Value: val, Unit: UnitEm}
-	}
 	if strings.HasSuffix(s, "rem") {
 		val, _ := strconv.ParseFloat(strings.TrimSuffix(s, "rem"), 64)
 		return SizeValue{Value: val, Unit: UnitRem}
+	}
+	if strings.HasSuffix(s, "em") {
+		val, _ := strconv.ParseFloat(strings.TrimSuffix(s, "em"), 64)
+		return SizeValue{Value: val, Unit: UnitEm}
 	}
 	if strings.HasSuffix(s, "px") {
 		val, _ := strconv.ParseFloat(strings.TrimSuffix(s, "px"), 64)

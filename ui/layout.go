@@ -39,13 +39,28 @@ func DrawWidget(screen *ebiten.Image, widget Widget) {
 
 // Layout calculates positions and sizes for a widget tree
 func (le *LayoutEngine) Layout(root Widget, containerWidth, containerHeight float64) {
-	// Set root size
-	rootRect := Rect{X: 0, Y: 0, W: containerWidth, H: containerHeight}
-	if root.Style().Width > 0 {
-		rootRect.W = root.Style().Width
+	// Set root size/position. Root margin should offset the root box in the
+	// viewport, matching CSS block flow behavior for top-level test widgets.
+	style := root.Style()
+	rootRect := Rect{
+		X: style.Margin.Left,
+		Y: style.Margin.Top,
 	}
-	if root.Style().Height > 0 {
-		rootRect.H = root.Style().Height
+	if style.Width > 0 {
+		rootRect.W = style.Width
+	} else {
+		rootRect.W = containerWidth - style.Margin.Left - style.Margin.Right
+	}
+	if style.Height > 0 {
+		rootRect.H = style.Height
+	} else {
+		rootRect.H = containerHeight - style.Margin.Top - style.Margin.Bottom
+	}
+	if rootRect.W < 0 {
+		rootRect.W = 0
+	}
+	if rootRect.H < 0 {
+		rootRect.H = 0
 	}
 	root.SetComputedRect(rootRect)
 

@@ -386,7 +386,7 @@ func (p *ProgressBar) Draw(screen *ebiten.Image) {
 // Slider is an interactive slider widget
 type Slider struct {
 	*BaseWidget
-	Value      float64 // 0.0 - 1.0
+	Value      float64 // Current value in [Min, Max]
 	Min, Max   float64
 	TrackColor color.Color
 	ThumbColor color.Color
@@ -414,6 +414,7 @@ func (s *Slider) Draw(screen *ebiten.Image) {
 	}
 
 	r := s.computedRect
+	norm := s.normalizedValue()
 
 	// Draw track
 	trackHeight := 4.0
@@ -422,7 +423,7 @@ func (s *Slider) Draw(screen *ebiten.Image) {
 	DrawRoundedRectPath(screen, trackRect, 2, s.TrackColor)
 
 	// Draw filled portion
-	fillW := r.W * s.Value
+	fillW := r.W * norm
 	fillRect := Rect{X: r.X, Y: trackY, W: fillW, H: trackHeight}
 	DrawRoundedRectPath(screen, fillRect, 2, s.ThumbColor)
 
@@ -432,6 +433,53 @@ func (s *Slider) Draw(screen *ebiten.Image) {
 	thumbY := r.Y + (r.H-thumbSize)/2
 	thumbRect := Rect{X: thumbX, Y: thumbY, W: thumbSize, H: thumbSize}
 	DrawRoundedRectPath(screen, thumbRect, thumbSize/2, s.ThumbColor)
+}
+
+func (s *Slider) normalizedValue() float64 {
+	valueRange := s.Max - s.Min
+	if valueRange <= 0 {
+		return 0
+	}
+	return clamp((s.Value-s.Min)/valueRange, 0, 1)
+}
+
+// SetValue sets the slider value while clamping to [Min, Max].
+func (s *Slider) SetValue(value float64) {
+	if s.Max < s.Min {
+		s.Min, s.Max = s.Max, s.Min
+	}
+	value = clamp(value, s.Min, s.Max)
+	if s.Value == value {
+		return
+	}
+	s.Value = value
+	if s.OnChange != nil {
+		s.OnChange(value)
+	}
+}
+
+func (s *Slider) setValueFromCursor(mouseX float64) {
+	if !s.enabled {
+		return
+	}
+	r := s.computedRect
+	if r.W <= 0 {
+		return
+	}
+	ratio := clamp((mouseX-r.X)/r.W, 0, 1)
+	s.SetValue(s.Min + ratio*(s.Max-s.Min))
+}
+
+// HandleClick updates slider value based on cursor position.
+func (s *Slider) HandleClick() {
+	if !s.enabled {
+		return
+	}
+	mx, _ := ebiten.CursorPosition()
+	s.setValueFromCursor(float64(mx))
+	if s.onClickHandler != nil {
+		s.onClickHandler()
+	}
 }
 
 // Checkbox is a toggle widget

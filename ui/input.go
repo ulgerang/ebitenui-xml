@@ -70,8 +70,28 @@ func (ti *TextInput) SetText(s string) {
 		s = string([]rune(s)[:ti.MaxLength])
 	}
 	ti.Text = s
-	if ti.CursorPos > len(s) {
-		ti.CursorPos = len(s)
+	ti.clampIndices()
+}
+
+func (ti *TextInput) clampIndices() {
+	runeLen := utf8.RuneCountInString(ti.Text)
+
+	if ti.CursorPos < 0 {
+		ti.CursorPos = 0
+	} else if ti.CursorPos > runeLen {
+		ti.CursorPos = runeLen
+	}
+
+	if ti.SelectStart < 0 {
+		ti.SelectStart = 0
+	} else if ti.SelectStart > runeLen {
+		ti.SelectStart = runeLen
+	}
+
+	if ti.SelectEnd < 0 {
+		ti.SelectEnd = 0
+	} else if ti.SelectEnd > runeLen {
+		ti.SelectEnd = runeLen
 	}
 }
 
@@ -124,7 +144,7 @@ func (ti *TextInput) HandleInput() {
 		ti.CursorPos = 0
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnd) {
-		ti.CursorPos = len(ti.Text)
+		ti.CursorPos = utf8.RuneCountInString(ti.Text)
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter) {
 		if ti.OnSubmit != nil {
@@ -135,8 +155,8 @@ func (ti *TextInput) HandleInput() {
 	// Ctrl+A: Select all
 	if ebiten.IsKeyPressed(ebiten.KeyControl) && inpututil.IsKeyJustPressed(ebiten.KeyA) {
 		ti.SelectStart = 0
-		ti.SelectEnd = len(ti.Text)
-		ti.CursorPos = len(ti.Text)
+		ti.SelectEnd = utf8.RuneCountInString(ti.Text)
+		ti.CursorPos = ti.SelectEnd
 	}
 
 	// Ctrl+C: Copy (placeholder - clipboard requires platform-specific code)
@@ -155,6 +175,8 @@ func (ti *TextInput) insertChar(char rune) {
 	if ti.MaxLength > 0 && utf8.RuneCountInString(ti.Text) >= ti.MaxLength {
 		return
 	}
+
+	ti.clampIndices()
 
 	// Delete selection if any
 	if ti.SelectStart != ti.SelectEnd {
@@ -175,6 +197,8 @@ func (ti *TextInput) insertChar(char rune) {
 }
 
 func (ti *TextInput) handleBackspace() {
+	ti.clampIndices()
+
 	if ti.SelectStart != ti.SelectEnd {
 		ti.deleteSelection()
 		return
@@ -192,6 +216,8 @@ func (ti *TextInput) handleBackspace() {
 }
 
 func (ti *TextInput) handleDelete() {
+	ti.clampIndices()
+
 	if ti.SelectStart != ti.SelectEnd {
 		ti.deleteSelection()
 		return
@@ -208,6 +234,8 @@ func (ti *TextInput) handleDelete() {
 }
 
 func (ti *TextInput) deleteSelection() {
+	ti.clampIndices()
+
 	if ti.SelectStart == ti.SelectEnd {
 		return
 	}
@@ -218,6 +246,15 @@ func (ti *TextInput) deleteSelection() {
 	}
 
 	runes := []rune(ti.Text)
+	if start > len(runes) {
+		start = len(runes)
+	}
+	if end > len(runes) {
+		end = len(runes)
+	}
+	if start == end {
+		return
+	}
 	ti.Text = string(append(runes[:start], runes[end:]...))
 	ti.CursorPos = start
 	ti.SelectStart = 0
@@ -229,6 +266,8 @@ func (ti *TextInput) deleteSelection() {
 }
 
 func (ti *TextInput) moveCursor(delta int, selecting bool) {
+	ti.clampIndices()
+
 	newPos := ti.CursorPos + delta
 	if newPos < 0 {
 		newPos = 0
@@ -274,6 +313,8 @@ func (ti *TextInput) Draw(screen *ebiten.Image) {
 	if ti.Password {
 		displayText = strings.Repeat("●", utf8.RuneCountInString(ti.Text))
 	}
+	displayRunes := []rune(displayText)
+	ti.clampIndices()
 
 	// Draw Placeholder if empty
 	if displayText == "" && ti.Placeholder != "" && !ti.Focused {
@@ -293,9 +334,15 @@ func (ti *TextInput) Draw(screen *ebiten.Image) {
 		if start > end {
 			start, end = end, start
 		}
+		if start > len(displayRunes) {
+			start = len(displayRunes)
+		}
+		if end > len(displayRunes) {
+			end = len(displayRunes)
+		}
 
-		startX := ti.measureTextWidth(displayText[:start])
-		endX := ti.measureTextWidth(displayText[:end])
+		startX := ti.measureTextWidth(string(displayRunes[:start]))
+		endX := ti.measureTextWidth(string(displayRunes[:end]))
 
 		selRect := Rect{
 			X: r.X + startX - ti.scrollOffset,
@@ -323,7 +370,11 @@ func (ti *TextInput) Draw(screen *ebiten.Image) {
 
 	// Draw cursor
 	if ti.Focused && ti.cursorVisible {
-		cursorX := r.X + ti.measureTextWidth(displayText[:ti.CursorPos]) - ti.scrollOffset
+		cursorPos := ti.CursorPos
+		if cursorPos > len(displayRunes) {
+			cursorPos = len(displayRunes)
+		}
+		cursorX := r.X + ti.measureTextWidth(string(displayRunes[:cursorPos])) - ti.scrollOffset
 
 		DrawRoundedRectPath(screen, Rect{
 			X: cursorX,
@@ -393,8 +444,22 @@ func NewTextArea(id string) *TextArea {
 
 // SetText sets the text content
 func (ta *TextArea) SetText(s string) {
+	if ta.MaxLength > 0 && utf8.RuneCountInString(s) > ta.MaxLength {
+		s = string([]rune(s)[:ta.MaxLength])
+	}
 	ta.Text = s
+	ta.clampCursorPos()
 	ta.updateLines()
+	ta.updateCursorLineCol()
+}
+
+func (ta *TextArea) clampCursorPos() {
+	runeLen := utf8.RuneCountInString(ta.Text)
+	if ta.CursorPos < 0 {
+		ta.CursorPos = 0
+	} else if ta.CursorPos > runeLen {
+		ta.CursorPos = runeLen
+	}
 }
 
 func (ta *TextArea) updateLines() {
@@ -482,6 +547,8 @@ func (ta *TextArea) insertChar(char rune) {
 		return
 	}
 
+	ta.clampCursorPos()
+
 	runes := []rune(ta.Text)
 	newRunes := make([]rune, 0, len(runes)+1)
 	newRunes = append(newRunes, runes[:ta.CursorPos]...)
@@ -498,6 +565,8 @@ func (ta *TextArea) insertChar(char rune) {
 }
 
 func (ta *TextArea) handleBackspace() {
+	ta.clampCursorPos()
+
 	if ta.CursorPos > 0 {
 		runes := []rune(ta.Text)
 		ta.Text = string(append(runes[:ta.CursorPos-1], runes[ta.CursorPos:]...))
@@ -512,10 +581,13 @@ func (ta *TextArea) handleBackspace() {
 }
 
 func (ta *TextArea) handleDelete() {
+	ta.clampCursorPos()
+
 	runes := []rune(ta.Text)
 	if ta.CursorPos < len(runes) {
 		ta.Text = string(append(runes[:ta.CursorPos], runes[ta.CursorPos+1:]...))
 		ta.updateLines()
+		ta.updateCursorLineCol()
 
 		if ta.OnChange != nil {
 			ta.OnChange(ta.Text)
@@ -524,6 +596,8 @@ func (ta *TextArea) handleDelete() {
 }
 
 func (ta *TextArea) moveCursorHorizontal(delta int) {
+	ta.clampCursorPos()
+
 	newPos := ta.CursorPos + delta
 	if newPos < 0 {
 		newPos = 0
@@ -548,8 +622,9 @@ func (ta *TextArea) moveCursorVertical(delta int) {
 	}
 
 	ta.CursorLine = newLine
-	if ta.CursorCol > len(ta.lines[newLine]) {
-		ta.CursorCol = len(ta.lines[newLine])
+	lineRuneLen := utf8.RuneCountInString(ta.lines[newLine])
+	if ta.CursorCol > lineRuneLen {
+		ta.CursorCol = lineRuneLen
 	}
 
 	ta.updateCursorPosFromLineCol()
@@ -558,6 +633,8 @@ func (ta *TextArea) moveCursorVertical(delta int) {
 }
 
 func (ta *TextArea) updateCursorLineCol() {
+	ta.clampCursorPos()
+
 	pos := 0
 	for i, line := range ta.lines {
 		lineLen := len([]rune(line))
@@ -577,8 +654,15 @@ func (ta *TextArea) updateCursorPosFromLineCol() {
 	for i := 0; i < ta.CursorLine && i < len(ta.lines); i++ {
 		pos += len([]rune(ta.lines[i])) + 1
 	}
+	if ta.CursorLine >= 0 && ta.CursorLine < len(ta.lines) {
+		maxCol := len([]rune(ta.lines[ta.CursorLine]))
+		if ta.CursorCol > maxCol {
+			ta.CursorCol = maxCol
+		}
+	}
 	pos += ta.CursorCol
 	ta.CursorPos = pos
+	ta.clampCursorPos()
 }
 
 // Draw renders the text area

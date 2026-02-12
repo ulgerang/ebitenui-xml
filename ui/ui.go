@@ -73,6 +73,7 @@ func (ui *UI) LoadLayout(xmlContent string) error {
 	}
 
 	ui.root = ui.factory.CreateFromXML(node)
+	ui.widgetByID = make(map[string]Widget)
 	ui.buildWidgetCache(ui.root)
 
 	// Pipeline: styles → inherit → fonts → layout
@@ -95,6 +96,7 @@ func (ui *UI) LoadLayoutFile(filename string) error {
 	}
 
 	ui.root = ui.factory.CreateFromXML(node)
+	ui.widgetByID = make(map[string]Widget)
 	ui.buildWidgetCache(ui.root)
 
 	// Pipeline: styles → inherit → fonts → layout
@@ -171,13 +173,19 @@ func (ui *UI) Update() {
 	if hoveredWidget != ui.hoveredWidget {
 		// Leave previous
 		if ui.hoveredWidget != nil {
-			ui.hoveredWidget.SetState(StateNormal)
+			if ui.hoveredWidget == ui.focusedWidget {
+				ui.hoveredWidget.SetState(StateFocused)
+			} else {
+				ui.hoveredWidget.SetState(StateNormal)
+			}
 		}
 		// Enter new
 		if hoveredWidget != nil {
-			hoveredWidget.SetState(StateHover)
-			if bw, ok := hoveredWidget.(*Button); ok {
-				bw.HandleHover()
+			if hoveredWidget != ui.focusedWidget {
+				hoveredWidget.SetState(StateHover)
+				if bw, ok := hoveredWidget.(*Button); ok {
+					bw.HandleHover()
+				}
 			}
 		}
 		ui.hoveredWidget = hoveredWidget
@@ -186,8 +194,25 @@ func (ui *UI) Update() {
 	// Handle clicks
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		if hoveredWidget != nil {
+			switch hoveredWidget.(type) {
+			case *TextInput, *TextArea:
+				ui.setFocusedWidget(hoveredWidget)
+			default:
+				if ui.focusedWidget != nil && ui.focusedWidget != hoveredWidget {
+					ui.Blur()
+				}
+			}
 			hoveredWidget.SetState(StateActive)
 			ui.activeWidget = hoveredWidget
+		} else {
+			ui.Blur()
+		}
+	}
+
+	if ui.activeWidget != nil && ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		if slider, ok := ui.activeWidget.(*Slider); ok {
+			mx, _ := ebiten.CursorPosition()
+			slider.setValueFromCursor(float64(mx))
 		}
 	}
 
@@ -212,9 +237,17 @@ func (ui *UI) Update() {
 					w.HandleClick()
 				}
 			}
-			ui.activeWidget.SetState(StateNormal)
+			if ui.activeWidget == ui.focusedWidget {
+				ui.activeWidget.SetState(StateFocused)
+			} else {
+				ui.activeWidget.SetState(StateNormal)
+			}
 			if hoveredWidget != nil {
-				hoveredWidget.SetState(StateHover)
+				if hoveredWidget == ui.focusedWidget {
+					hoveredWidget.SetState(StateFocused)
+				} else {
+					hoveredWidget.SetState(StateHover)
+				}
 			}
 			ui.activeWidget = nil
 		}
@@ -378,46 +411,51 @@ func (ui *UI) Focus(id string) {
 	if w == nil {
 		return
 	}
-
-	// Blur previous
-	if ui.focusedWidget != nil {
-		ui.focusedWidget.SetState(StateNormal)
-		if ti, ok := ui.focusedWidget.(*TextInput); ok {
-			ti.Blur()
-		}
-		if ta, ok := ui.focusedWidget.(*TextArea); ok {
-			ta.Blur()
-		}
-	}
-
-	// Focus new
-	ui.focusedWidget = w
-	w.SetState(StateFocused)
-	if ti, ok := w.(*TextInput); ok {
-		ti.Focus()
-	}
-	if ta, ok := w.(*TextArea); ok {
-		ta.Focus()
-	}
+	ui.setFocusedWidget(w)
 }
 
 // Blur removes focus from the current focused widget
 func (ui *UI) Blur() {
-	if ui.focusedWidget != nil {
-		ui.focusedWidget.SetState(StateNormal)
-		if ti, ok := ui.focusedWidget.(*TextInput); ok {
-			ti.Blur()
-		}
-		if ta, ok := ui.focusedWidget.(*TextArea); ok {
-			ta.Blur()
-		}
-		ui.focusedWidget = nil
-	}
+	ui.setFocusedWidget(nil)
 }
 
 // FocusedWidget returns the currently focused widget
 func (ui *UI) FocusedWidget() Widget {
 	return ui.focusedWidget
+}
+
+func (ui *UI) setFocusedWidget(w Widget) {
+	if ui.focusedWidget == w {
+		return
+	}
+
+	if ui.focusedWidget != nil {
+		if ti, ok := ui.focusedWidget.(*TextInput); ok {
+			ti.Blur()
+		}
+		if ta, ok := ui.focusedWidget.(*TextArea); ok {
+			ta.Blur()
+		}
+		if ui.focusedWidget == ui.hoveredWidget {
+			ui.focusedWidget.SetState(StateHover)
+		} else {
+			ui.focusedWidget.SetState(StateNormal)
+		}
+	}
+
+	ui.focusedWidget = w
+	if w == nil {
+		return
+	}
+
+	switch fw := w.(type) {
+	case *TextInput:
+		fw.Focus()
+	case *TextArea:
+		fw.Focus()
+	default:
+		w.SetState(StateFocused)
+	}
 }
 
 // buildWidgetCache builds a map of widgets by ID

@@ -191,62 +191,83 @@ func (s *Scrollable) calculateContentSize() {
 }
 
 func (s *Scrollable) handleVerticalDrag(mouseY float64) {
-	r := s.ContentRect()
-	trackHeight := r.H - s.ScrollbarWidth*2
+	trackRect := s.getVerticalTrackRect()
+	if trackRect.H <= 0 {
+		return
+	}
 	thumbHeight := s.getVerticalThumbHeight()
-	maxThumbY := trackHeight - thumbHeight
+	maxThumbY := trackRect.H - thumbHeight
+	if maxThumbY <= 0 {
+		return
+	}
 
+	maxScroll := s.MaxScrollY()
+	if maxScroll <= 0 {
+		s.ScrollY = 0
+		return
+	}
 	deltaY := mouseY - s.dragStartY
 	scrollRatio := deltaY / maxThumbY
-	s.ScrollY = s.dragStartScrollY + scrollRatio*s.MaxScrollY()
+	s.ScrollY = s.dragStartScrollY + scrollRatio*maxScroll
 	s.ScrollY = clamp(s.ScrollY, 0, s.MaxScrollY())
 }
 
 func (s *Scrollable) handleHorizontalDrag(mouseX float64) {
-	r := s.ContentRect()
-	trackWidth := r.W - s.ScrollbarWidth*2
+	trackRect := s.getHorizontalTrackRect()
+	if trackRect.W <= 0 {
+		return
+	}
 	thumbWidth := s.getHorizontalThumbWidth()
-	maxThumbX := trackWidth - thumbWidth
+	maxThumbX := trackRect.W - thumbWidth
+	if maxThumbX <= 0 {
+		return
+	}
 
+	maxScroll := s.MaxScrollX()
+	if maxScroll <= 0 {
+		s.ScrollX = 0
+		return
+	}
 	deltaX := mouseX - s.dragStartX
 	scrollRatio := deltaX / maxThumbX
-	s.ScrollX = s.dragStartScrollX + scrollRatio*s.MaxScrollX()
+	s.ScrollX = s.dragStartScrollX + scrollRatio*maxScroll
 	s.ScrollX = clamp(s.ScrollX, 0, s.MaxScrollX())
 }
 
 func (s *Scrollable) getVerticalThumbHeight() float64 {
-	r := s.ContentRect()
+	trackRect := s.getVerticalTrackRect()
+	if trackRect.H <= 0 {
+		return 0
+	}
 	if s.ContentHeight <= 0 {
 		return 0
 	}
-	ratio := r.H / s.ContentHeight
+	ratio := trackRect.H / s.ContentHeight
 	if ratio >= 1 {
 		return 0
 	}
-	return max(20, r.H*ratio)
+	return max(20, trackRect.H*ratio)
 }
 
 func (s *Scrollable) getHorizontalThumbWidth() float64 {
-	r := s.ContentRect()
+	trackRect := s.getHorizontalTrackRect()
+	if trackRect.W <= 0 {
+		return 0
+	}
 	if s.ContentWidth <= 0 {
 		return 0
 	}
-	ratio := r.W / s.ContentWidth
+	ratio := trackRect.W / s.ContentWidth
 	if ratio >= 1 {
 		return 0
 	}
-	return max(20, r.W*ratio)
+	return max(20, trackRect.W*ratio)
 }
 
 func (s *Scrollable) getVerticalThumbRect() Rect {
-	r := s.ContentRect()
-	if s.ContentHeight <= r.H {
+	trackRect := s.getVerticalTrackRect()
+	if trackRect.H <= 0 {
 		return Rect{}
-	}
-
-	trackHeight := r.H - s.ScrollbarWidth
-	if s.ShowHorizontal && s.ContentWidth > r.W {
-		trackHeight -= s.ScrollbarWidth
 	}
 
 	thumbHeight := s.getVerticalThumbHeight()
@@ -256,27 +277,25 @@ func (s *Scrollable) getVerticalThumbRect() Rect {
 		scrollRatio = s.ScrollY / maxScroll
 	}
 
-	thumbY := r.Y + scrollRatio*(trackHeight-thumbHeight)
+	maxThumbY := trackRect.H - thumbHeight
+	if maxThumbY < 0 {
+		maxThumbY = 0
+	}
+	thumbY := trackRect.Y + scrollRatio*maxThumbY
 
 	return Rect{
-		X: r.X + r.W - s.ScrollbarWidth,
+		X: trackRect.X,
 		Y: thumbY,
-		W: s.ScrollbarWidth,
+		W: trackRect.W,
 		H: thumbHeight,
 	}
 }
 
 func (s *Scrollable) getHorizontalThumbRect() Rect {
-	r := s.ContentRect()
-	if s.ContentWidth <= r.W {
+	trackRect := s.getHorizontalTrackRect()
+	if trackRect.W <= 0 {
 		return Rect{}
 	}
-
-	trackWidth := r.W - s.ScrollbarWidth
-	if s.ShowVertical && s.ContentHeight > r.H {
-		trackWidth -= s.ScrollbarWidth
-	}
-
 	thumbWidth := s.getHorizontalThumbWidth()
 	maxScroll := s.MaxScrollX()
 	scrollRatio := float64(0)
@@ -284,12 +303,60 @@ func (s *Scrollable) getHorizontalThumbRect() Rect {
 		scrollRatio = s.ScrollX / maxScroll
 	}
 
-	thumbX := r.X + scrollRatio*(trackWidth-thumbWidth)
+	maxThumbX := trackRect.W - thumbWidth
+	if maxThumbX < 0 {
+		maxThumbX = 0
+	}
+	thumbX := trackRect.X + scrollRatio*maxThumbX
 
 	return Rect{
 		X: thumbX,
-		Y: r.Y + r.H - s.ScrollbarWidth,
+		Y: trackRect.Y,
 		W: thumbWidth,
+		H: trackRect.H,
+	}
+}
+
+func (s *Scrollable) getVerticalTrackRect() Rect {
+	r := s.ContentRect()
+	if !s.ShowVertical || s.ContentHeight <= r.H {
+		return Rect{}
+	}
+
+	trackHeight := r.H
+	if s.ShowHorizontal && s.ContentWidth > r.W {
+		trackHeight -= s.ScrollbarWidth
+	}
+	if trackHeight <= 0 {
+		return Rect{}
+	}
+
+	return Rect{
+		X: r.X + r.W - s.ScrollbarWidth,
+		Y: r.Y,
+		W: s.ScrollbarWidth,
+		H: trackHeight,
+	}
+}
+
+func (s *Scrollable) getHorizontalTrackRect() Rect {
+	r := s.ContentRect()
+	if !s.ShowHorizontal || s.ContentWidth <= r.W {
+		return Rect{}
+	}
+
+	trackWidth := r.W
+	if s.ShowVertical && s.ContentHeight > r.H {
+		trackWidth -= s.ScrollbarWidth
+	}
+	if trackWidth <= 0 {
+		return Rect{}
+	}
+
+	return Rect{
+		X: r.X,
+		Y: r.Y + r.H - s.ScrollbarWidth,
+		W: trackWidth,
 		H: s.ScrollbarWidth,
 	}
 }
@@ -300,8 +367,11 @@ func (s *Scrollable) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	// Draw base
+	// Draw only base visuals; children are rendered once below with scroll offset.
+	children := s.children
+	s.children = nil
 	s.BaseWidget.Draw(screen)
+	s.children = children
 
 	r := s.ContentRect()
 
@@ -341,17 +411,9 @@ func (s *Scrollable) Draw(screen *ebiten.Image) {
 }
 
 func (s *Scrollable) drawScrollbars(screen *ebiten.Image) {
-	r := s.ContentRect()
-
 	// Vertical scrollbar
-	if s.ShowVertical && s.ContentHeight > r.H {
+	if trackRect := s.getVerticalTrackRect(); trackRect.H > 0 {
 		// Track
-		trackRect := Rect{
-			X: r.X + r.W - s.ScrollbarWidth,
-			Y: r.Y,
-			W: s.ScrollbarWidth,
-			H: r.H,
-		}
 		trackColor := applyOpacity(s.ScrollbarTrackColor, s.scrollbarOpacity)
 		DrawRoundedRectPath(screen, trackRect, s.ScrollbarRadius, trackColor)
 
@@ -366,14 +428,8 @@ func (s *Scrollable) drawScrollbars(screen *ebiten.Image) {
 	}
 
 	// Horizontal scrollbar
-	if s.ShowHorizontal && s.ContentWidth > r.W {
+	if trackRect := s.getHorizontalTrackRect(); trackRect.W > 0 {
 		// Track
-		trackRect := Rect{
-			X: r.X,
-			Y: r.Y + r.H - s.ScrollbarWidth,
-			W: r.W,
-			H: s.ScrollbarWidth,
-		}
 		trackColor := applyOpacity(s.ScrollbarTrackColor, s.scrollbarOpacity)
 		DrawRoundedRectPath(screen, trackRect, s.ScrollbarRadius, trackColor)
 
