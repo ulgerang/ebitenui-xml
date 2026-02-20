@@ -1,3 +1,9 @@
+// Package ui - Data Binding System
+//
+// Provides reactive data binding between application state and UI widgets.
+// Supports one-way and two-way bindings, observable values, computed properties,
+// and list bindings for dynamic collections. Changes to bound data automatically
+// propagate to connected widgets, enabling declarative UI programming patterns.
 package ui
 
 import (

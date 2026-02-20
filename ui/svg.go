@@ -16,12 +16,61 @@ import (
 
 // SVGDocument represents a parsed SVG document
 type SVGDocument struct {
-	Width    float64
-	Height   float64
-	ViewBox  ViewBox
-	Elements []SVGElement
-	Font     text.Face              // optional font for <text> rendering
-	Defs     map[string]interface{} // id -> *SVGLinearGradient or *SVGRadialGradient
+	Width         float64
+	Height        float64
+	ViewBox       ViewBox
+	Elements      []SVGElement
+	Font          text.Face                          // optional font for <text> rendering
+	Defs          map[string]interface{}             // id -> *SVGLinearGradient or *SVGRadialGradient
+	gradientCache map[gradientCacheKey]*ebiten.Image // cached gradient textures
+}
+
+// gradientCacheKey is used to cache gradient textures by ID and size
+type gradientCacheKey struct {
+	id string
+	w  int
+	h  int
+}
+
+// getGradientTex retrieves or builds a cached gradient texture
+func (doc *SVGDocument) getGradientTex(grad interface{}, w, h int) *ebiten.Image {
+	if doc.gradientCache == nil {
+		doc.gradientCache = make(map[gradientCacheKey]*ebiten.Image)
+	}
+
+	// Get gradient ID
+	var gradID string
+	switch g := grad.(type) {
+	case *SVGLinearGradient:
+		gradID = g.ID
+	case *SVGRadialGradient:
+		gradID = g.ID
+	}
+	if gradID == "" {
+		return nil
+	}
+
+	// Check cache
+	key := gradientCacheKey{id: gradID, w: w, h: h}
+	if tex, ok := doc.gradientCache[key]; ok {
+		return tex
+	}
+
+	// Build and cache
+	tex := svgBuildGradientTex(grad, w, h)
+	if tex != nil {
+		doc.gradientCache[key] = tex
+	}
+	return tex
+}
+
+// FreeGradientCache releases all cached gradient textures.
+// Call this when the SVGDocument is no longer needed.
+func (doc *SVGDocument) FreeGradientCache() {
+	for _, tex := range doc.gradientCache {
+		tex.Deallocate()
+	}
+	doc.gradientCache = nil
 }
 
 // SetFont sets the font face used for SVG <text> element rendering.
@@ -50,10 +99,38 @@ type SVGGroup struct {
 	Stroke    color.Color
 	StrokeW   float64
 	Opacity   float64
+	Class     string   // class attribute for CSS styling
+	Style     SVGStyle // display, visibility
+}
+
+// groupStackEntry holds inherited state for nested groups
+type groupStackEntry struct {
+	group              *SVGGroup
+	inheritedFill      color.Color
+	inheritedStroke    color.Color
+	inheritedStrokeW   float64
+	inheritedOpacity   float64
+	inheritedTransform ebiten.GeoM
+}
+
+// SVGStyle holds display and visibility properties
+type SVGStyle struct {
+	Display    string // "inline", "block", "none", etc.
+	Visibility string // "visible", "hidden"
 }
 
 // SVGGroup Draw implementation
 func (g *SVGGroup) Draw(screen *ebiten.Image, offsetX, offsetY, scaleX, scaleY float64) {
+	// display: none — skip rendering entirely
+	if g.Style.Display == "none" {
+		return
+	}
+
+	// visibility: hidden — render children but with 0 opacity
+	if g.Style.Visibility == "hidden" {
+		return
+	}
+
 	// A GeoM is "simple" (translate + scale only) when the off-diagonal
 	// elements are zero — no rotation, skew, or arbitrary matrix.
 	isSimple := g.Transform.Element(0, 1) == 0 && g.Transform.Element(1, 0) == 0
@@ -669,9 +746,11 @@ func ParseSVG(r io.Reader) (*SVGDocument, error) {
 	}
 
 	var currentGroup *SVGGroup
-	var groupStack []*SVGGroup
+	var groupStack []*groupStackEntry
 	var inheritedFill, inheritedStroke color.Color
 	var inheritedStrokeWidth float64 = 1
+	var inheritedOpacity float64 = 1
+	var inheritedTransform ebiten.GeoM
 
 	// Gradient parsing state
 	var inDefs bool
@@ -740,20 +819,53 @@ func ParseSVG(r io.Reader) (*SVGDocument, error) {
 				}
 
 			case "g":
+				// Parse group attributes with inheritance
+				localOpacity := parseFloat(attrs["opacity"], inheritedOpacity)
+				localTransform := parseSVGTransform(attrs["transform"])
+				// Concatenate with parent transform (SVG spec: transforms accumulate)
+				if inheritedTransform.Element(0, 0) != 0 || inheritedTransform.Element(1, 2) != 0 {
+					localTransform.Concat(inheritedTransform)
+				}
+
+				// Parse style attribute for display/visibility
+				style := parseSVGStyleAttr(attrs["style"])
+				display := attrs["display"]
+				if display == "" {
+					display = style.Display
+				}
+				visibility := attrs["visibility"]
+				if visibility == "" {
+					visibility = style.Visibility
+				}
+
 				newGroup := &SVGGroup{
-					Transform: parseSVGTransform(attrs["transform"]),
+					Transform: localTransform,
 					Fill:      parseSVGColor(attrs["fill"], inheritedFill),
 					Stroke:    parseSVGColor(attrs["stroke"], inheritedStroke),
 					StrokeW:   parseFloat(attrs["stroke-width"], inheritedStrokeWidth),
-					Opacity:   parseFloat(attrs["opacity"], 1),
+					Opacity:   localOpacity,
+					Class:     attrs["class"],
+					Style: SVGStyle{
+						Display:    display,
+						Visibility: visibility,
+					},
 				}
 				if currentGroup != nil {
-					groupStack = append(groupStack, currentGroup)
+					groupStack = append(groupStack, &groupStackEntry{
+						group:              currentGroup,
+						inheritedFill:      inheritedFill,
+						inheritedStroke:    inheritedStroke,
+						inheritedStrokeW:   inheritedStrokeWidth,
+						inheritedOpacity:   inheritedOpacity,
+						inheritedTransform: inheritedTransform,
+					})
 				}
 				currentGroup = newGroup
 				inheritedFill = newGroup.Fill
 				inheritedStroke = newGroup.Stroke
 				inheritedStrokeWidth = newGroup.StrokeW
+				inheritedOpacity = newGroup.Opacity
+				inheritedTransform = newGroup.Transform
 
 			case "rect":
 				fillColor, gradID := parseSVGFill(attrs["fill"], inheritedFill)
@@ -892,16 +1004,21 @@ func ParseSVG(r io.Reader) (*SVGDocument, error) {
 				if currentGroup != nil {
 					addElement(doc, nil, currentGroup)
 					if len(groupStack) > 0 {
-						currentGroup = groupStack[len(groupStack)-1]
+						entry := groupStack[len(groupStack)-1]
 						groupStack = groupStack[:len(groupStack)-1]
-						inheritedFill = currentGroup.Fill
-						inheritedStroke = currentGroup.Stroke
-						inheritedStrokeWidth = currentGroup.StrokeW
+						currentGroup = entry.group
+						inheritedFill = entry.inheritedFill
+						inheritedStroke = entry.inheritedStroke
+						inheritedStrokeWidth = entry.inheritedStrokeW
+						inheritedOpacity = entry.inheritedOpacity
+						inheritedTransform = entry.inheritedTransform
 					} else {
 						currentGroup = nil
 						inheritedFill = nil
 						inheritedStroke = nil
 						inheritedStrokeWidth = 1
+						inheritedOpacity = 1
+						inheritedTransform = ebiten.GeoM{}
 					}
 				}
 
@@ -967,11 +1084,51 @@ func (doc *SVGDocument) Draw(screen *ebiten.Image, x, y, width, height float64) 
 	offsetY := y - doc.ViewBox.MinY*scaleY
 
 	for _, elem := range doc.Elements {
+		// Skip groups with display:none
+		if g, ok := elem.(*SVGGroup); ok && g.Style.Display == "none" {
+			continue
+		}
 		elem.Draw(screen, offsetX, offsetY, scaleX, scaleY)
 	}
 }
 
 // Helper functions
+
+// parseSVGStyleAttr parses an inline style="..." attribute and extracts
+// display and visibility properties.
+func parseSVGStyleAttr(s string) SVGStyle {
+	style := SVGStyle{}
+	for _, decl := range strings.Split(s, ";") {
+		decl = strings.TrimSpace(decl)
+		if decl == "" {
+			continue
+		}
+		parts := strings.SplitN(decl, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		prop := strings.TrimSpace(parts[0])
+		val := strings.TrimSpace(parts[1])
+		switch prop {
+		case "display":
+			style.Display = val
+		case "visibility":
+			style.Visibility = val
+		}
+	}
+	return style
+}
+
+// shouldSkipRender checks if an element should be skipped based on display/visibility
+func shouldSkipRender(display, visibility string) bool {
+	// display: none — element is not rendered at all
+	if display == "none" {
+		return true
+	}
+	// visibility: hidden — element is rendered but invisible
+	// (handled by Draw methods, not skipped)
+	return false
+}
 
 func attrMap(attrs []xml.Attr) map[string]string {
 	m := make(map[string]string)
@@ -1401,8 +1558,10 @@ func svgDrawRoundedRectStroke(screen *ebiten.Image, x, y, w, h, radius float64, 
 	screen.DrawTriangles(vs, is, whiteImage, &ebiten.DrawTrianglesOptions{AntiAlias: true, FillRule: ebiten.FillRuleNonZero})
 }
 
-// transformPath is deprecated - transforms are now applied at the vertex level in applyPathTransform
-// This function is kept for backward compatibility but just returns the original path
+// transformPath is deprecated.
+//
+// Deprecated: Transforms are now applied at the vertex level in applyPathTransform.
+// This function is kept for backward compatibility and will be removed in v0.3.0.
 func transformPath(path *vector.Path, offsetX, offsetY, scaleX, scaleY float64) *vector.Path {
 	return path
 }
@@ -1788,6 +1947,9 @@ func svgBuildGradientTex(fillGradient interface{}, w, h int) *ebiten.Image {
 // svgGradientFillPath tessellates the given path, builds a gradient texture
 // matching the vertex bounding box, and draws the textured fill.
 // Returns true if gradient was drawn, false if no gradient is set.
+//
+// This version does NOT use caching - it builds and deallocates the texture immediately.
+// Use svgGradientFillPathCached for better performance with repeated gradients.
 func svgGradientFillPath(screen *ebiten.Image, path *vector.Path, fillGradient interface{}, opacity float64) bool {
 	if fillGradient == nil {
 		return false
@@ -1829,5 +1991,51 @@ func svgGradientFillPath(screen *ebiten.Image, path *vector.Path, fillGradient i
 	}
 	drawSVGGradientFill(screen, vs, is, gradTex, opacity)
 	gradTex.Deallocate()
+	return true
+}
+
+// svgGradientFillPathCached is like svgGradientFillPath but uses the document's
+// gradient texture cache to avoid rebuilding textures for repeated gradients.
+// The cached textures must be freed by calling doc.FreeGradientCache().
+func svgGradientFillPathCached(doc *SVGDocument, screen *ebiten.Image, path *vector.Path, fillGradient interface{}, opacity float64) bool {
+	if fillGradient == nil {
+		return false
+	}
+	vs, is := path.AppendVerticesAndIndicesForFilling(nil, nil)
+	if len(vs) == 0 {
+		return true
+	}
+
+	// Compute bounding box for texture dimensions
+	minX, minY := float32(math.MaxFloat32), float32(math.MaxFloat32)
+	maxX, maxY := float32(-math.MaxFloat32), float32(-math.MaxFloat32)
+	for _, v := range vs {
+		if v.DstX < minX {
+			minX = v.DstX
+		}
+		if v.DstY < minY {
+			minY = v.DstY
+		}
+		if v.DstX > maxX {
+			maxX = v.DstX
+		}
+		if v.DstY > maxY {
+			maxY = v.DstY
+		}
+	}
+	tw := int(maxX-minX) + 1
+	th := int(maxY-minY) + 1
+	if tw < 1 {
+		tw = 1
+	}
+	if th < 1 {
+		th = 1
+	}
+
+	gradTex := doc.getGradientTex(fillGradient, tw, th)
+	if gradTex == nil {
+		return true
+	}
+	drawSVGGradientFill(screen, vs, is, gradTex, opacity)
 	return true
 }

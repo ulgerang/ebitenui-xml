@@ -1,3 +1,9 @@
+// Package ui - Visual Effects Rendering
+//
+// This package handles visual effects including shadows (box-shadow, text-shadow),
+// gradients (linear, radial), outlines, filters, and backdrop effects (glassmorphism).
+// Effects are rendered using GPU shaders where possible for optimal performance,
+// with CPU fallbacks for complex effects like inset shadows.
 package ui
 
 import (

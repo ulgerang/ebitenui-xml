@@ -32,8 +32,8 @@ func (tw *TextWrapper) WrapText(s string, maxWidth float64) []string {
 			continue
 		}
 
-		words := tw.splitWords(para)
-		if len(words) == 0 {
+		tokens := tw.splitTokens(para)
+		if len(tokens) == 0 {
 			lines = append(lines, "")
 			continue
 		}
@@ -41,65 +41,88 @@ func (tw *TextWrapper) WrapText(s string, maxWidth float64) []string {
 		var currentLine strings.Builder
 		var currentWidth float64
 
-		for i, word := range words {
-			wordWidth, _ := text.Measure(word, tw.face, 0)
-			spaceWidth, _ := text.Measure(" ", tw.face, 0)
-
-			if currentWidth == 0 {
-				// First word on line
-				currentLine.WriteString(word)
-				currentWidth = wordWidth
-			} else if currentWidth+spaceWidth+wordWidth <= maxWidth {
-				// Word fits on current line
-				currentLine.WriteString(" ")
-				currentLine.WriteString(word)
-				currentWidth += spaceWidth + wordWidth
-			} else {
-				// Word doesn't fit, start new line
-				lines = append(lines, currentLine.String())
-				currentLine.Reset()
-				currentLine.WriteString(word)
-				currentWidth = wordWidth
+		for _, tok := range tokens {
+			if tok == "" {
+				continue
+			}
+			// Skip leading spaces on a new line.
+			if currentWidth == 0 && tok == " " {
+				continue
 			}
 
-			// If this is the last word, add the line
-			if i == len(words)-1 {
-				lines = append(lines, currentLine.String())
+			tokWidth, _ := text.Measure(tok, tw.face, 0)
+			if currentWidth+tokWidth <= maxWidth || currentWidth == 0 {
+				currentLine.WriteString(tok)
+				currentWidth += tokWidth
+				continue
 			}
+
+			// Token doesn't fit, start new line.
+			line := strings.TrimRight(currentLine.String(), " ")
+			lines = append(lines, line)
+			currentLine.Reset()
+			currentWidth = 0
+
+			// Don't start a new line with a space.
+			if tok == " " {
+				continue
+			}
+			currentLine.WriteString(tok)
+			currentWidth = tokWidth
 		}
+
+		// Flush last line for this paragraph.
+		lines = append(lines, strings.TrimRight(currentLine.String(), " "))
 	}
 
 	return lines
 }
 
-// splitWords splits text into words, preserving spaces for CJK characters
-func (tw *TextWrapper) splitWords(s string) []string {
-	var words []string
+// splitTokens splits text into tokens suitable for wrapping.
+//
+// - Collapses any whitespace run into a single " " token.
+// - Emits each CJK rune as its own token so wrapping can occur anywhere.
+// - Emits non-CJK sequences (e.g., Latin words) as a token.
+//
+// This avoids inserting extra spaces between CJK glyphs during wrapping.
+func (tw *TextWrapper) splitTokens(s string) []string {
+	var tokens []string
 	var current strings.Builder
+
+	flushCurrent := func() {
+		if current.Len() == 0 {
+			return
+		}
+		tokens = append(tokens, current.String())
+		current.Reset()
+	}
+
+	appendSpace := func() {
+		if len(tokens) == 0 {
+			return
+		}
+		if tokens[len(tokens)-1] == " " {
+			return
+		}
+		tokens = append(tokens, " ")
+	}
 
 	for _, r := range s {
 		if unicode.IsSpace(r) {
-			if current.Len() > 0 {
-				words = append(words, current.String())
-				current.Reset()
-			}
-		} else if isCJK(r) {
-			// CJK characters can be broken anywhere
-			if current.Len() > 0 {
-				words = append(words, current.String())
-				current.Reset()
-			}
-			words = append(words, string(r))
-		} else {
-			current.WriteRune(r)
+			flushCurrent()
+			appendSpace()
+			continue
 		}
+		if isCJK(r) {
+			flushCurrent()
+			tokens = append(tokens, string(r))
+			continue
+		}
+		current.WriteRune(r)
 	}
 
-	if current.Len() > 0 {
-		words = append(words, current.String())
-	}
-
-	return words
+	flushCurrent()
+	return tokens
 }
 
 // isCJK checks if a rune is a CJK character

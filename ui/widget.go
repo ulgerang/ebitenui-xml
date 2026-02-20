@@ -721,6 +721,10 @@ func applyOpacity(c color.Color, opacity float64) color.Color {
 	}
 }
 
+func snapToPixel(v float64) float64 {
+	return math.Round(v)
+}
+
 // getActiveStyle returns the style based on current state
 func (w *BaseWidget) getActiveStyle() *Style {
 	switch w.state {

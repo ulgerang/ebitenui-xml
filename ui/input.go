@@ -8,7 +8,19 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.design/x/clipboard"
 )
+
+// clipboardAvailable indicates whether clipboard operations are available
+var clipboardAvailable bool
+
+func init() {
+	if err := clipboard.Init(); err != nil {
+		clipboardAvailable = false
+	} else {
+		clipboardAvailable = true
+	}
+}
 
 // ============================================================================
 // TextInput Widget - Single-line text input
@@ -95,6 +107,91 @@ func (ti *TextInput) clampIndices() {
 	}
 }
 
+// ============================================================================
+// TextInput Clipboard Operations
+// ============================================================================
+
+// copySelection copies selected text to clipboard
+func (ti *TextInput) copySelection() {
+	if !clipboardAvailable {
+		return
+	}
+
+	if ti.SelectStart == ti.SelectEnd {
+		return // No selection
+	}
+
+	start, end := ti.SelectStart, ti.SelectEnd
+	if start > end {
+		start, end = end, start
+	}
+
+	runes := []rune(ti.Text)
+	if start >= len(runes) || end > len(runes) {
+		return
+	}
+
+	selected := string(runes[start:end])
+	clipboard.Write(clipboard.FmtText, []byte(selected))
+}
+
+// pasteFromClipboard pastes text from clipboard at cursor position
+func (ti *TextInput) pasteFromClipboard() {
+	if !clipboardAvailable {
+		return
+	}
+
+	data := clipboard.Read(clipboard.FmtText)
+	if len(data) == 0 {
+		return
+	}
+
+	text := string(data)
+	// Delete selection if any
+	if ti.SelectStart != ti.SelectEnd {
+		ti.deleteSelection()
+	}
+
+	// Insert at cursor
+	ti.insertString(text)
+}
+
+// insertString inserts a string at the cursor position
+func (ti *TextInput) insertString(s string) {
+	ti.clampIndices()
+
+	runes := []rune(s)
+
+	// Enforce MaxLength
+	if ti.MaxLength > 0 {
+		currentLen := utf8.RuneCountInString(ti.Text)
+		available := ti.MaxLength - currentLen
+		if available <= 0 {
+			return
+		}
+		if len(runes) > available {
+			runes = runes[:available]
+		}
+	}
+
+	// Delete selection if any
+	if ti.SelectStart != ti.SelectEnd {
+		ti.deleteSelection()
+	}
+
+	textRunes := []rune(ti.Text)
+	newRunes := make([]rune, 0, len(textRunes)+len(runes))
+	newRunes = append(newRunes, textRunes[:ti.CursorPos]...)
+	newRunes = append(newRunes, runes...)
+	newRunes = append(newRunes, textRunes[ti.CursorPos:]...)
+	ti.Text = string(newRunes)
+	ti.CursorPos += len(runes)
+
+	if ti.OnChange != nil {
+		ti.OnChange(ti.Text)
+	}
+}
+
 // Focus gives focus to this input
 func (ti *TextInput) Focus() {
 	ti.Focused = true
@@ -157,11 +254,27 @@ func (ti *TextInput) HandleInput() {
 		ti.SelectStart = 0
 		ti.SelectEnd = utf8.RuneCountInString(ti.Text)
 		ti.CursorPos = ti.SelectEnd
+		return // Prevent further processing
 	}
 
-	// Ctrl+C: Copy (placeholder - clipboard requires platform-specific code)
-	// Ctrl+V: Paste (placeholder)
-	// Ctrl+X: Cut (placeholder)
+	// Ctrl+C: Copy
+	if ebiten.IsKeyPressed(ebiten.KeyControl) && inpututil.IsKeyJustPressed(ebiten.KeyC) {
+		ti.copySelection()
+		return
+	}
+
+	// Ctrl+X: Cut
+	if ebiten.IsKeyPressed(ebiten.KeyControl) && inpututil.IsKeyJustPressed(ebiten.KeyX) {
+		ti.copySelection()
+		ti.deleteSelection()
+		return
+	}
+
+	// Ctrl+V: Paste
+	if ebiten.IsKeyPressed(ebiten.KeyControl) && inpututil.IsKeyJustPressed(ebiten.KeyV) {
+		ti.pasteFromClipboard()
+		return
+	}
 
 	// Update cursor blink
 	ti.cursorBlink += 1.0 / 60.0
@@ -405,15 +518,18 @@ type TextArea struct {
 	Placeholder string
 
 	// State
-	Focused    bool
-	CursorPos  int
-	CursorLine int
-	CursorCol  int
+	Focused     bool
+	CursorPos   int
+	CursorLine  int
+	CursorCol   int
+	SelectStart int
+	SelectEnd   int
 
 	// Visual
 	FontFace         text.Face
 	PlaceholderColor color.Color
 	CursorColor      color.Color
+	SelectionColor   color.Color
 
 	// Behavior
 	MaxLength int
@@ -497,6 +613,129 @@ func (ta *TextArea) Focus() {
 func (ta *TextArea) Blur() {
 	ta.Focused = false
 	ta.state = StateNormal
+	ta.SelectStart = 0
+	ta.SelectEnd = 0
+}
+
+// ============================================================================
+// TextArea Clipboard Operations
+// ============================================================================
+
+// copySelection copies selected text to clipboard
+func (ta *TextArea) copySelection() {
+	if !clipboardAvailable {
+		return
+	}
+
+	if ta.SelectStart == ta.SelectEnd {
+		return // No selection
+	}
+
+	start, end := ta.SelectStart, ta.SelectEnd
+	if start > end {
+		start, end = end, start
+	}
+
+	runes := []rune(ta.Text)
+	if start >= len(runes) || end > len(runes) {
+		return
+	}
+
+	selected := string(runes[start:end])
+	clipboard.Write(clipboard.FmtText, []byte(selected))
+}
+
+// pasteFromClipboard pastes text from clipboard at cursor position
+func (ta *TextArea) pasteFromClipboard() {
+	if !clipboardAvailable {
+		return
+	}
+
+	data := clipboard.Read(clipboard.FmtText)
+	if len(data) == 0 {
+		return
+	}
+
+	text := string(data)
+	// Delete selection if any
+	if ta.SelectStart != ta.SelectEnd {
+		ta.deleteSelection()
+	}
+
+	// Insert at cursor
+	ta.insertString(text)
+}
+
+// insertString inserts a string at the cursor position
+func (ta *TextArea) insertString(s string) {
+	ta.clampCursorPos()
+
+	runes := []rune(s)
+
+	// Enforce MaxLength
+	if ta.MaxLength > 0 {
+		currentLen := utf8.RuneCountInString(ta.Text)
+		available := ta.MaxLength - currentLen
+		if available <= 0 {
+			return
+		}
+		if len(runes) > available {
+			runes = runes[:available]
+		}
+	}
+
+	// Delete selection if any
+	if ta.SelectStart != ta.SelectEnd {
+		ta.deleteSelection()
+	}
+
+	textRunes := []rune(ta.Text)
+	newRunes := make([]rune, 0, len(textRunes)+len(runes))
+	newRunes = append(newRunes, textRunes[:ta.CursorPos]...)
+	newRunes = append(newRunes, runes...)
+	newRunes = append(newRunes, textRunes[ta.CursorPos:]...)
+	ta.Text = string(newRunes)
+	ta.CursorPos += len(runes)
+	ta.updateLines()
+	ta.updateCursorLineCol()
+
+	if ta.OnChange != nil {
+		ta.OnChange(ta.Text)
+	}
+}
+
+// deleteSelection deletes selected text
+func (ta *TextArea) deleteSelection() {
+	if ta.SelectStart == ta.SelectEnd {
+		return
+	}
+
+	start, end := ta.SelectStart, ta.SelectEnd
+	if start > end {
+		start, end = end, start
+	}
+
+	runes := []rune(ta.Text)
+	if start >= len(runes) {
+		return
+	}
+	if end > len(runes) {
+		end = len(runes)
+	}
+	if start == end {
+		return
+	}
+
+	ta.Text = string(append(runes[:start], runes[end:]...))
+	ta.CursorPos = start
+	ta.SelectStart = 0
+	ta.SelectEnd = 0
+	ta.updateLines()
+	ta.updateCursorLineCol()
+
+	if ta.OnChange != nil {
+		ta.OnChange(ta.Text)
+	}
 }
 
 // HandleInput processes keyboard input
@@ -534,6 +773,33 @@ func (ta *TextArea) HandleInput() {
 		ta.moveCursorVertical(1)
 	}
 
+	// Ctrl+A: Select all
+	if ebiten.IsKeyPressed(ebiten.KeyControl) && inpututil.IsKeyJustPressed(ebiten.KeyA) {
+		ta.SelectStart = 0
+		ta.SelectEnd = utf8.RuneCountInString(ta.Text)
+		ta.CursorPos = ta.SelectEnd
+		return // Prevent further processing
+	}
+
+	// Ctrl+C: Copy
+	if ebiten.IsKeyPressed(ebiten.KeyControl) && inpututil.IsKeyJustPressed(ebiten.KeyC) {
+		ta.copySelection()
+		return
+	}
+
+	// Ctrl+X: Cut
+	if ebiten.IsKeyPressed(ebiten.KeyControl) && inpututil.IsKeyJustPressed(ebiten.KeyX) {
+		ta.copySelection()
+		ta.deleteSelection()
+		return
+	}
+
+	// Ctrl+V: Paste
+	if ebiten.IsKeyPressed(ebiten.KeyControl) && inpututil.IsKeyJustPressed(ebiten.KeyV) {
+		ta.pasteFromClipboard()
+		return
+	}
+
 	// Update cursor blink
 	ta.cursorBlink += 1.0 / 60.0
 	if ta.cursorBlink >= 0.5 {
@@ -548,6 +814,11 @@ func (ta *TextArea) insertChar(char rune) {
 	}
 
 	ta.clampCursorPos()
+
+	// Delete selection if any
+	if ta.SelectStart != ta.SelectEnd {
+		ta.deleteSelection()
+	}
 
 	runes := []rune(ta.Text)
 	newRunes := make([]rune, 0, len(runes)+1)
@@ -567,6 +838,12 @@ func (ta *TextArea) insertChar(char rune) {
 func (ta *TextArea) handleBackspace() {
 	ta.clampCursorPos()
 
+	// Delete selection if any
+	if ta.SelectStart != ta.SelectEnd {
+		ta.deleteSelection()
+		return
+	}
+
 	if ta.CursorPos > 0 {
 		runes := []rune(ta.Text)
 		ta.Text = string(append(runes[:ta.CursorPos-1], runes[ta.CursorPos:]...))
@@ -582,6 +859,12 @@ func (ta *TextArea) handleBackspace() {
 
 func (ta *TextArea) handleDelete() {
 	ta.clampCursorPos()
+
+	// Delete selection if any
+	if ta.SelectStart != ta.SelectEnd {
+		ta.deleteSelection()
+		return
+	}
 
 	runes := []rune(ta.Text)
 	if ta.CursorPos < len(runes) {
@@ -729,4 +1012,11 @@ func (ta *TextArea) Draw(screen *ebiten.Image) {
 			H: lineHeight * 0.8,
 		}, 1, ta.CursorColor)
 	}
+}
+
+// resetInputForFrame resets input state for the current frame
+// This is called at the start of each UI update frame
+func resetInputForFrame() {
+	// Reset frame-specific input state
+	// This allows consumeFrameInput() to properly track input per frame
 }

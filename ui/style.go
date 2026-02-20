@@ -112,6 +112,102 @@ func (se *StyleEngine) detectExplicitFields(style *Style, rawJSON json.RawMessag
 		style.BorderWidthSet = true
 	}
 
+	// Sizing properties
+	if _, ok := rawFields["width"]; ok {
+		style.WidthSet = true
+	}
+	if _, ok := rawFields["height"]; ok {
+		style.HeightSet = true
+	}
+	if _, ok := rawFields["minWidth"]; ok {
+		style.MinWidthSet = true
+	}
+	if _, ok := rawFields["minHeight"]; ok {
+		style.MinHeightSet = true
+	}
+	if _, ok := rawFields["maxWidth"]; ok {
+		style.MaxWidthSet = true
+	}
+	if _, ok := rawFields["maxHeight"]; ok {
+		style.MaxHeightSet = true
+	}
+	if _, ok := rawFields["flexGrow"]; ok {
+		style.FlexGrowSet = true
+	}
+	if _, ok := rawFields["flexShrink"]; ok {
+		style.FlexShrinkSet = true
+	}
+
+	// Layout properties
+	if _, ok := rawFields["gap"]; ok {
+		style.GapSet = true
+	}
+
+	// Border radius properties
+	if _, ok := rawFields["borderRadius"]; ok {
+		style.BorderRadiusSet = true
+	}
+	if _, ok := rawFields["borderTopWidth"]; ok {
+		style.BorderTopWidthSet = true
+	}
+	if _, ok := rawFields["borderRightWidth"]; ok {
+		style.BorderRightWidthSet = true
+	}
+	if _, ok := rawFields["borderBottomWidth"]; ok {
+		style.BorderBottomWidthSet = true
+	}
+	if _, ok := rawFields["borderLeftWidth"]; ok {
+		style.BorderLeftWidthSet = true
+	}
+	if _, ok := rawFields["borderTopLeftRadius"]; ok {
+		style.BorderTopLeftRadiusSet = true
+	}
+	if _, ok := rawFields["borderTopRightRadius"]; ok {
+		style.BorderTopRightRadiusSet = true
+	}
+	if _, ok := rawFields["borderBottomLeftRadius"]; ok {
+		style.BorderBottomLeftRadiusSet = true
+	}
+	if _, ok := rawFields["borderBottomRightRadius"]; ok {
+		style.BorderBottomRightRadiusSet = true
+	}
+
+	// Text properties
+	if _, ok := rawFields["fontSize"]; ok {
+		style.FontSizeSet = true
+	}
+	if _, ok := rawFields["lineHeight"]; ok {
+		style.LineHeightSet = true
+	}
+	if _, ok := rawFields["letterSpacing"]; ok {
+		style.LetterSpacingSet = true
+	}
+
+	// Visual effects
+	if _, ok := rawFields["opacity"]; ok {
+		style.OpacitySet = true
+	}
+	if _, ok := rawFields["outlineOffset"]; ok {
+		style.OutlineOffsetSet = true
+	}
+
+	// Position properties
+	if _, ok := rawFields["top"]; ok {
+		style.TopSet = true
+	}
+	if _, ok := rawFields["right"]; ok {
+		style.RightSet = true
+	}
+	if _, ok := rawFields["bottom"]; ok {
+		style.BottomSet = true
+	}
+	if _, ok := rawFields["left"]; ok {
+		style.LeftSet = true
+	}
+	if _, ok := rawFields["zIndex"]; ok {
+		style.ZIndexSet = true
+	}
+
 	// Recursively handle state styles
 	if hoverRaw, ok := rawFields["hover"]; ok && style.HoverStyle != nil {
 		se.detectExplicitFields(style.HoverStyle, hoverRaw)

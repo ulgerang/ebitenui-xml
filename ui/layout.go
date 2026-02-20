@@ -6,6 +6,12 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// Default intrinsic dimensions for widgets without explicit size
+const (
+	defaultIntrinsicWidth  = 50.0
+	defaultIntrinsicHeight = 30.0
+)
+
 // LayoutEngine handles the layout calculation for widgets
 type LayoutEngine struct{}
 
@@ -127,7 +133,7 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 				// Use intrinsic width if available
 				iw := child.IntrinsicWidth()
 				if iw <= 0 {
-					iw = 50 // Default fallback
+					iw = defaultIntrinsicWidth
 				}
 				totalFixed += iw + childStyle.Margin.Left + childStyle.Margin.Right
 			}
@@ -140,7 +146,7 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 				// Use intrinsic height if available
 				ih := child.IntrinsicHeight()
 				if ih <= 0 {
-					ih = 30 // Default fallback
+					ih = defaultIntrinsicHeight
 				}
 				totalFixed += ih + childStyle.Margin.Top + childStyle.Margin.Bottom
 			}
@@ -254,7 +260,7 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 			} else {
 				iw := child.IntrinsicWidth()
 				if iw <= 0 {
-					iw = 50
+					iw = defaultIntrinsicWidth
 				}
 				childRect.W = iw * shrinkFactor
 			}
@@ -327,7 +333,7 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 			} else {
 				ih := child.IntrinsicHeight()
 				if ih <= 0 {
-					ih = 30
+					ih = defaultIntrinsicHeight
 				}
 				childRect.H = ih * shrinkFactor
 			}

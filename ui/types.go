@@ -123,17 +123,26 @@ type Style struct {
 	Align     Alignment       `json:"align"`
 	Justify   Justify         `json:"justify"`
 	Gap       float64         `json:"gap"`
+	GapSet    bool            `json:"-"` // true if gap was explicitly set (allows zero override)
 	FlexWrap  FlexWrap        `json:"flexWrap"`
 
 	// Sizing
-	Width      float64 `json:"width"`
-	Height     float64 `json:"height"`
-	MinWidth   float64 `json:"minWidth"`
-	MinHeight  float64 `json:"minHeight"`
-	MaxWidth   float64 `json:"maxWidth"`
-	MaxHeight  float64 `json:"maxHeight"`
-	FlexGrow   float64 `json:"flexGrow"`
-	FlexShrink float64 `json:"flexShrink"`
+	Width         float64 `json:"width"`
+	WidthSet      bool    `json:"-"` // true if width was explicitly set (allows zero override)
+	Height        float64 `json:"height"`
+	HeightSet     bool    `json:"-"` // true if height was explicitly set (allows zero override)
+	MinWidth      float64 `json:"minWidth"`
+	MinWidthSet   bool    `json:"-"` // true if minWidth was explicitly set (allows zero override)
+	MinHeight     float64 `json:"minHeight"`
+	MinHeightSet  bool    `json:"-"` // true if minHeight was explicitly set (allows zero override)
+	MaxWidth      float64 `json:"maxWidth"`
+	MaxWidthSet   bool    `json:"-"` // true if maxWidth was explicitly set (allows zero override)
+	MaxHeight     float64 `json:"maxHeight"`
+	MaxHeightSet  bool    `json:"-"` // true if maxHeight was explicitly set (allows zero override)
+	FlexGrow      float64 `json:"flexGrow"`
+	FlexGrowSet   bool    `json:"-"` // true if flexGrow was explicitly set (allows zero override)
+	FlexShrink    float64 `json:"flexShrink"`
+	FlexShrinkSet bool    `json:"-"` // true if flexShrink was explicitly set (allows zero override)
 
 	// Spacing
 	Padding    Padding `json:"padding"`
@@ -152,48 +161,62 @@ type Style struct {
 	Color      string `json:"color"`
 
 	// Border (expanded CSS-like properties)
-	BorderWidth             float64     `json:"borderWidth"`
-	BorderRadius            float64     `json:"borderRadius"`
-	BorderWidthSet          bool        `json:"-"` // true if borderWidth was explicitly set
-	BorderTopWidth          float64     `json:"borderTopWidth"`
-	BorderRightWidth        float64     `json:"borderRightWidth"`
-	BorderBottomWidth       float64     `json:"borderBottomWidth"`
-	BorderLeftWidth         float64     `json:"borderLeftWidth"`
-	BorderTop               string      `json:"borderTop"`
-	BorderRight             string      `json:"borderRight"`
-	BorderBottom            string      `json:"borderBottom"`
-	BorderLeft              string      `json:"borderLeft"`
-	BorderTopColor          color.Color `json:"-"`
-	BorderRightColor        color.Color `json:"-"`
-	BorderBottomColor       color.Color `json:"-"`
-	BorderLeftColor         color.Color `json:"-"`
-	BorderTopLeftRadius     float64     `json:"borderTopLeftRadius"`
-	BorderTopRightRadius    float64     `json:"borderTopRightRadius"`
-	BorderBottomLeftRadius  float64     `json:"borderBottomLeftRadius"`
-	BorderBottomRightRadius float64     `json:"borderBottomRightRadius"`
+	BorderWidth                float64     `json:"borderWidth"`
+	BorderRadius               float64     `json:"borderRadius"`
+	BorderRadiusSet            bool        `json:"-"` // true if borderRadius was explicitly set (allows zero override)
+	BorderWidthSet             bool        `json:"-"` // true if borderWidth was explicitly set
+	BorderTopWidth             float64     `json:"borderTopWidth"`
+	BorderTopWidthSet          bool        `json:"-"` // true if borderTopWidth was explicitly set (allows zero override)
+	BorderRightWidth           float64     `json:"borderRightWidth"`
+	BorderRightWidthSet        bool        `json:"-"` // true if borderRightWidth was explicitly set (allows zero override)
+	BorderBottomWidth          float64     `json:"borderBottomWidth"`
+	BorderBottomWidthSet       bool        `json:"-"` // true if borderBottomWidth was explicitly set (allows zero override)
+	BorderLeftWidth            float64     `json:"borderLeftWidth"`
+	BorderLeftWidthSet         bool        `json:"-"` // true if borderLeftWidth was explicitly set (allows zero override)
+	BorderTop                  string      `json:"borderTop"`
+	BorderRight                string      `json:"borderRight"`
+	BorderBottom               string      `json:"borderBottom"`
+	BorderLeft                 string      `json:"borderLeft"`
+	BorderTopColor             color.Color `json:"-"`
+	BorderRightColor           color.Color `json:"-"`
+	BorderBottomColor          color.Color `json:"-"`
+	BorderLeftColor            color.Color `json:"-"`
+	BorderTopLeftRadius        float64     `json:"borderTopLeftRadius"`
+	BorderTopLeftRadiusSet     bool        `json:"-"` // true if borderTopLeftRadius was explicitly set (allows zero override)
+	BorderTopRightRadius       float64     `json:"borderTopRightRadius"`
+	BorderTopRightRadiusSet    bool        `json:"-"` // true if borderTopRightRadius was explicitly set (allows zero override)
+	BorderBottomLeftRadius     float64     `json:"borderBottomLeftRadius"`
+	BorderBottomLeftRadiusSet  bool        `json:"-"` // true if borderBottomLeftRadius was explicitly set (allows zero override)
+	BorderBottomRightRadius    float64     `json:"borderBottomRightRadius"`
+	BorderBottomRightRadiusSet bool        `json:"-"` // true if borderBottomRightRadius was explicitly set (allows zero override)
 
 	// Text
-	FontSize      float64 `json:"fontSize"`
-	FontFamily    string  `json:"fontFamily"`
-	FontWeight    string  `json:"fontWeight"`    // normal, bold, 100-900
-	FontStyle     string  `json:"fontStyle"`     // normal, italic
-	TextAlign     string  `json:"textAlign"`     // left, center, right
-	VerticalAlign string  `json:"verticalAlign"` // top, center, bottom
-	LineHeight    float64 `json:"lineHeight"`
-	LetterSpacing float64 `json:"letterSpacing"`
-	TextWrap      string  `json:"textWrap"`     // normal, nowrap
-	TextOverflow  string  `json:"textOverflow"` // clip, ellipsis
+	FontSize         float64 `json:"fontSize"`
+	FontSizeSet      bool    `json:"-"` // true if fontSize was explicitly set (allows zero override)
+	FontFamily       string  `json:"fontFamily"`
+	FontWeight       string  `json:"fontWeight"`    // normal, bold, 100-900
+	FontStyle        string  `json:"fontStyle"`     // normal, italic
+	TextAlign        string  `json:"textAlign"`     // left, center, right
+	VerticalAlign    string  `json:"verticalAlign"` // top, center, bottom
+	LineHeight       float64 `json:"lineHeight"`
+	LineHeightSet    bool    `json:"-"` // true if lineHeight was explicitly set (allows zero override)
+	LetterSpacing    float64 `json:"letterSpacing"`
+	LetterSpacingSet bool    `json:"-"`            // true if letterSpacing was explicitly set (allows zero override)
+	TextWrap         string  `json:"textWrap"`     // normal, nowrap
+	TextOverflow     string  `json:"textOverflow"` // clip, ellipsis
 
 	// Visual Effects
 	Opacity    float64 `json:"opacity"`    // 0-1
+	OpacitySet bool    `json:"-"`          // true if opacity was explicitly set (allows zero override)
 	BoxShadow  string  `json:"boxShadow"`  // "offsetX offsetY blur spread color"
 	TextShadow string  `json:"textShadow"` // "offsetX offsetY blur color"
 	Cursor     string  `json:"cursor"`     // pointer, default, etc.
 	Transition string  `json:"transition"` // "property duration easing"
 
 	// Outline (separate from border)
-	Outline       string  `json:"outline"`       // "width style color"
-	OutlineOffset float64 `json:"outlineOffset"` // distance from border
+	Outline          string  `json:"outline"`       // "width style color"
+	OutlineOffset    float64 `json:"outlineOffset"` // distance from border
+	OutlineOffsetSet bool    `json:"-"`             // true if outlineOffset was explicitly set (allows zero override)
 
 	// Filters
 	Filter         string `json:"filter"`         // blur(), brightness(), etc.
@@ -220,12 +243,17 @@ type Style struct {
 	OverflowY string `json:"overflowY"`
 
 	// Position
-	Position string  `json:"position"` // relative, absolute
-	Top      float64 `json:"top"`
-	Right    float64 `json:"right"`
-	Bottom   float64 `json:"bottom"`
-	Left     float64 `json:"left"`
-	ZIndex   int     `json:"zIndex"`
+	Position  string  `json:"position"` // relative, absolute
+	Top       float64 `json:"top"`
+	TopSet    bool    `json:"-"` // true if top was explicitly set (allows zero override)
+	Right     float64 `json:"right"`
+	RightSet  bool    `json:"-"` // true if right was explicitly set (allows zero override)
+	Bottom    float64 `json:"bottom"`
+	BottomSet bool    `json:"-"` // true if bottom was explicitly set (allows zero override)
+	Left      float64 `json:"left"`
+	LeftSet   bool    `json:"-"` // true if left was explicitly set (allows zero override)
+	ZIndex    int     `json:"zIndex"`
+	ZIndexSet bool    `json:"-"` // true if zIndex was explicitly set (allows zero override)
 
 	// Display
 	Display    string `json:"display"`    // block, flex, none
@@ -286,37 +314,46 @@ func (s *Style) Merge(other *Style) {
 	if other.Justify != "" {
 		s.Justify = other.Justify
 	}
-	if other.Gap != 0 {
+	if other.GapSet || other.Gap != 0 {
 		s.Gap = other.Gap
+		s.GapSet = other.GapSet
 	}
 	if other.FlexWrap != "" {
 		s.FlexWrap = other.FlexWrap
 	}
 
 	// Sizing
-	if other.Width != 0 {
+	if other.WidthSet || other.Width != 0 {
 		s.Width = other.Width
+		s.WidthSet = other.WidthSet
 	}
-	if other.Height != 0 {
+	if other.HeightSet || other.Height != 0 {
 		s.Height = other.Height
+		s.HeightSet = other.HeightSet
 	}
-	if other.MinWidth != 0 {
+	if other.MinWidthSet || other.MinWidth != 0 {
 		s.MinWidth = other.MinWidth
+		s.MinWidthSet = other.MinWidthSet
 	}
-	if other.MinHeight != 0 {
+	if other.MinHeightSet || other.MinHeight != 0 {
 		s.MinHeight = other.MinHeight
+		s.MinHeightSet = other.MinHeightSet
 	}
-	if other.MaxWidth != 0 {
+	if other.MaxWidthSet || other.MaxWidth != 0 {
 		s.MaxWidth = other.MaxWidth
+		s.MaxWidthSet = other.MaxWidthSet
 	}
-	if other.MaxHeight != 0 {
+	if other.MaxHeightSet || other.MaxHeight != 0 {
 		s.MaxHeight = other.MaxHeight
+		s.MaxHeightSet = other.MaxHeightSet
 	}
-	if other.FlexGrow != 0 {
+	if other.FlexGrowSet || other.FlexGrow != 0 {
 		s.FlexGrow = other.FlexGrow
+		s.FlexGrowSet = other.FlexGrowSet
 	}
-	if other.FlexShrink != 0 {
+	if other.FlexShrinkSet || other.FlexShrink != 0 {
 		s.FlexShrink = other.FlexShrink
+		s.FlexShrinkSet = other.FlexShrinkSet
 	}
 
 	// Spacing - PaddingSet/MarginSet allow explicit zero-padding overrides
@@ -383,37 +420,47 @@ func (s *Style) Merge(other *Style) {
 		s.BorderWidth = other.BorderWidth
 		s.BorderWidthSet = true
 	}
-	if other.BorderTopWidth != 0 {
+	if other.BorderTopWidthSet || other.BorderTopWidth != 0 {
 		s.BorderTopWidth = other.BorderTopWidth
+		s.BorderTopWidthSet = other.BorderTopWidthSet
 	}
-	if other.BorderRightWidth != 0 {
+	if other.BorderRightWidthSet || other.BorderRightWidth != 0 {
 		s.BorderRightWidth = other.BorderRightWidth
+		s.BorderRightWidthSet = other.BorderRightWidthSet
 	}
-	if other.BorderBottomWidth != 0 {
+	if other.BorderBottomWidthSet || other.BorderBottomWidth != 0 {
 		s.BorderBottomWidth = other.BorderBottomWidth
+		s.BorderBottomWidthSet = other.BorderBottomWidthSet
 	}
-	if other.BorderLeftWidth != 0 {
+	if other.BorderLeftWidthSet || other.BorderLeftWidth != 0 {
 		s.BorderLeftWidth = other.BorderLeftWidth
+		s.BorderLeftWidthSet = other.BorderLeftWidthSet
 	}
-	if other.BorderRadius != 0 {
+	if other.BorderRadiusSet || other.BorderRadius != 0 {
 		s.BorderRadius = other.BorderRadius
+		s.BorderRadiusSet = other.BorderRadiusSet
 	}
-	if other.BorderTopLeftRadius != 0 {
+	if other.BorderTopLeftRadiusSet || other.BorderTopLeftRadius != 0 {
 		s.BorderTopLeftRadius = other.BorderTopLeftRadius
+		s.BorderTopLeftRadiusSet = other.BorderTopLeftRadiusSet
 	}
-	if other.BorderTopRightRadius != 0 {
+	if other.BorderTopRightRadiusSet || other.BorderTopRightRadius != 0 {
 		s.BorderTopRightRadius = other.BorderTopRightRadius
+		s.BorderTopRightRadiusSet = other.BorderTopRightRadiusSet
 	}
-	if other.BorderBottomLeftRadius != 0 {
+	if other.BorderBottomLeftRadiusSet || other.BorderBottomLeftRadius != 0 {
 		s.BorderBottomLeftRadius = other.BorderBottomLeftRadius
+		s.BorderBottomLeftRadiusSet = other.BorderBottomLeftRadiusSet
 	}
-	if other.BorderBottomRightRadius != 0 {
+	if other.BorderBottomRightRadiusSet || other.BorderBottomRightRadius != 0 {
 		s.BorderBottomRightRadius = other.BorderBottomRightRadius
+		s.BorderBottomRightRadiusSet = other.BorderBottomRightRadiusSet
 	}
 
 	// Text
-	if other.FontSize != 0 {
+	if other.FontSizeSet || other.FontSize != 0 {
 		s.FontSize = other.FontSize
+		s.FontSizeSet = other.FontSizeSet
 	}
 	if other.FontFamily != "" {
 		s.FontFamily = other.FontFamily
@@ -421,8 +468,9 @@ func (s *Style) Merge(other *Style) {
 	if other.TextAlign != "" {
 		s.TextAlign = other.TextAlign
 	}
-	if other.LineHeight != 0 {
+	if other.LineHeightSet || other.LineHeight != 0 {
 		s.LineHeight = other.LineHeight
+		s.LineHeightSet = other.LineHeightSet
 	}
 	if other.TextWrap != "" {
 		s.TextWrap = other.TextWrap
@@ -439,13 +487,15 @@ func (s *Style) Merge(other *Style) {
 	if other.VerticalAlign != "" {
 		s.VerticalAlign = other.VerticalAlign
 	}
-	if other.LetterSpacing != 0 {
+	if other.LetterSpacingSet || other.LetterSpacing != 0 {
 		s.LetterSpacing = other.LetterSpacing
+		s.LetterSpacingSet = other.LetterSpacingSet
 	}
 
 	// Visual Effects
-	if other.Opacity != 0 {
+	if other.OpacitySet || other.Opacity != 0 {
 		s.Opacity = other.Opacity
+		s.OpacitySet = other.OpacitySet
 	}
 	if other.BoxShadow != "" {
 		s.BoxShadow = other.BoxShadow
@@ -459,8 +509,9 @@ func (s *Style) Merge(other *Style) {
 		s.Outline = other.Outline
 		s.parsedOutline = other.parsedOutline
 	}
-	if other.OutlineOffset != 0 {
+	if other.OutlineOffsetSet || other.OutlineOffset != 0 {
 		s.OutlineOffset = other.OutlineOffset
+		s.OutlineOffsetSet = other.OutlineOffsetSet
 	}
 	if other.Transition != "" {
 		s.Transition = other.Transition
@@ -520,8 +571,25 @@ func (s *Style) Merge(other *Style) {
 	if other.Position != "" {
 		s.Position = other.Position
 	}
-	if other.ZIndex != 0 {
+	if other.TopSet || other.Top != 0 {
+		s.Top = other.Top
+		s.TopSet = other.TopSet
+	}
+	if other.RightSet || other.Right != 0 {
+		s.Right = other.Right
+		s.RightSet = other.RightSet
+	}
+	if other.BottomSet || other.Bottom != 0 {
+		s.Bottom = other.Bottom
+		s.BottomSet = other.BottomSet
+	}
+	if other.LeftSet || other.Left != 0 {
+		s.Left = other.Left
+		s.LeftSet = other.LeftSet
+	}
+	if other.ZIndexSet || other.ZIndex != 0 {
 		s.ZIndex = other.ZIndex
+		s.ZIndexSet = other.ZIndexSet
 	}
 
 	// Display

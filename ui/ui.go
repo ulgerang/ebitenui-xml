@@ -162,6 +162,10 @@ func (ui *UI) Update() {
 		return
 	}
 
+	// FIX: Reset input state at start of each frame to allow fresh input consumption
+	// This is required for consumeFrameInput() in input.go to work correctly
+	resetInputForFrame()
+
 	// Get mouse position
 	mx, my := ebiten.CursorPosition()
 	mouseX, mouseY := float64(mx), float64(my)
@@ -212,7 +216,10 @@ func (ui *UI) Update() {
 	if ui.activeWidget != nil && ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		if slider, ok := ui.activeWidget.(*Slider); ok {
 			mx, _ := ebiten.CursorPosition()
-			slider.setValueFromCursor(float64(mx))
+			rect := slider.ComputedRect()
+			// FIX: Convert absolute screen coordinates to widget-relative coordinates
+			// Same bug as HandleClick - must subtract widget X position
+			slider.setValueFromCursor(float64(mx) - rect.X)
 		}
 	}
 
@@ -537,6 +544,10 @@ func (ui *UI) setFonts(widget Widget) {
 		case *Button:
 			w.FontFace = fontFace
 		case *Text:
+			w.FontFace = fontFace
+		case *TextInput:
+			w.FontFace = fontFace
+		case *TextArea:
 			w.FontFace = fontFace
 		case *Toggle:
 			w.FontFace = fontFace

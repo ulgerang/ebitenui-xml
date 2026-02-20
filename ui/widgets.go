@@ -7,6 +7,19 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
+// Widget-specific constants
+const (
+	// Slider dimensions
+	sliderTrackHeight = 4.0
+	sliderThumbSize   = 16.0
+
+	// Checkbox dimensions
+	checkboxBoxSize = 18.0
+
+	// Progress bar
+	progressBarCornerRadiusFactor = 0.5
+)
+
 // Panel is a container widget (like <div>)
 type Panel struct {
 	*BaseWidget
@@ -98,7 +111,7 @@ func (b *Button) Draw(screen *ebiten.Image) {
 		}
 		if shadow != nil {
 			shadowOp := &text.DrawOptions{}
-			shadowOp.GeoM.Translate(x+shadow.OffsetX, y+shadow.OffsetY)
+			shadowOp.GeoM.Translate(snapToPixel(x+shadow.OffsetX), snapToPixel(y+shadow.OffsetY))
 			shadowColor := shadow.Color
 			if shadowColor == nil {
 				shadowColor = color.RGBA{0, 0, 0, 128}
@@ -109,7 +122,7 @@ func (b *Button) Draw(screen *ebiten.Image) {
 
 		// Original label drawing
 		op := &text.DrawOptions{}
-		op.GeoM.Translate(x, y)
+		op.GeoM.Translate(snapToPixel(x), snapToPixel(y))
 		op.ColorScale.ScaleWithColor(textColor)
 		text.Draw(screen, b.Label, b.FontFace, op)
 	}
@@ -254,7 +267,7 @@ func (t *Text) Draw(screen *ebiten.Image) {
 		}
 		if shadow != nil {
 			shadowOp := &text.DrawOptions{}
-			shadowOp.GeoM.Translate(x+shadow.OffsetX, y+shadow.OffsetY)
+			shadowOp.GeoM.Translate(snapToPixel(x+shadow.OffsetX), snapToPixel(y+shadow.OffsetY))
 			shadowColor := shadow.Color
 			if shadowColor == nil {
 				shadowColor = color.RGBA{0, 0, 0, 128}
@@ -265,7 +278,7 @@ func (t *Text) Draw(screen *ebiten.Image) {
 
 		// Original text drawing
 		op := &text.DrawOptions{}
-		op.GeoM.Translate(x, y)
+		op.GeoM.Translate(snapToPixel(x), snapToPixel(y))
 		op.ColorScale.ScaleWithColor(textColor)
 		text.Draw(screen, line, t.FontFace, op)
 
@@ -417,22 +430,20 @@ func (s *Slider) Draw(screen *ebiten.Image) {
 	norm := s.normalizedValue()
 
 	// Draw track
-	trackHeight := 4.0
-	trackY := r.Y + (r.H-trackHeight)/2
-	trackRect := Rect{X: r.X, Y: trackY, W: r.W, H: trackHeight}
+	trackY := r.Y + (r.H-sliderTrackHeight)/2
+	trackRect := Rect{X: r.X, Y: trackY, W: r.W, H: sliderTrackHeight}
 	DrawRoundedRectPath(screen, trackRect, 2, s.TrackColor)
 
 	// Draw filled portion
 	fillW := r.W * norm
-	fillRect := Rect{X: r.X, Y: trackY, W: fillW, H: trackHeight}
+	fillRect := Rect{X: r.X, Y: trackY, W: fillW, H: sliderTrackHeight}
 	DrawRoundedRectPath(screen, fillRect, 2, s.ThumbColor)
 
 	// Draw thumb
-	thumbSize := 16.0
-	thumbX := r.X + fillW - thumbSize/2
-	thumbY := r.Y + (r.H-thumbSize)/2
-	thumbRect := Rect{X: thumbX, Y: thumbY, W: thumbSize, H: thumbSize}
-	DrawRoundedRectPath(screen, thumbRect, thumbSize/2, s.ThumbColor)
+	thumbX := r.X + fillW - sliderThumbSize/2
+	thumbY := r.Y + (r.H-sliderThumbSize)/2
+	thumbRect := Rect{X: thumbX, Y: thumbY, W: sliderThumbSize, H: sliderThumbSize}
+	DrawRoundedRectPath(screen, thumbRect, sliderThumbSize/2, s.ThumbColor)
 }
 
 func (s *Slider) normalizedValue() float64 {
@@ -466,7 +477,9 @@ func (s *Slider) setValueFromCursor(mouseX float64) {
 	if r.W <= 0 {
 		return
 	}
-	ratio := clamp((mouseX-r.X)/r.W, 0, 1)
+	// FIX: mouseX is now widget-relative (already has r.X subtracted)
+	// Bug was: expected absolute coordinates but parameter name suggested relative
+	ratio := clamp(mouseX/r.W, 0, 1)
 	s.SetValue(s.Min + ratio*(s.Max-s.Min))
 }
 
@@ -476,7 +489,11 @@ func (s *Slider) HandleClick() {
 		return
 	}
 	mx, _ := ebiten.CursorPosition()
-	s.setValueFromCursor(float64(mx))
+	rect := s.ComputedRect()
+	// FIX: Convert absolute screen coordinates to widget-relative coordinates
+	// Bug: Previously passed absolute mx directly, causing incorrect value calculation
+	// when widget wasn't at screen position (0, 0)
+	s.setValueFromCursor(float64(mx) - rect.X)
 	if s.onClickHandler != nil {
 		s.onClickHandler()
 	}
@@ -508,10 +525,9 @@ func (c *Checkbox) Draw(screen *ebiten.Image) {
 	}
 
 	r := c.computedRect
-	boxSize := 18.0
 
 	// Draw checkbox box
-	boxRect := Rect{X: r.X, Y: r.Y + (r.H-boxSize)/2, W: boxSize, H: boxSize}
+	boxRect := Rect{X: r.X, Y: r.Y + (r.H-checkboxBoxSize)/2, W: checkboxBoxSize, H: checkboxBoxSize}
 
 	bgColor := c.style.BackgroundColor
 	if bgColor == nil {
@@ -531,8 +547,8 @@ func (c *Checkbox) Draw(screen *ebiten.Image) {
 		checkRect := Rect{
 			X: boxRect.X + 4,
 			Y: boxRect.Y + 4,
-			W: boxSize - 8,
-			H: boxSize - 8,
+			W: checkboxBoxSize - 8,
+			H: checkboxBoxSize - 8,
 		}
 		DrawRoundedRectPath(screen, checkRect, 2, c.CheckColor)
 	}
@@ -545,13 +561,13 @@ func (c *Checkbox) Draw(screen *ebiten.Image) {
 		}
 
 		// In Ebitengine v2 text/v2, the origin is the top-left of the glyph's em-box.
-		x := r.X + boxSize + 8
+		x := r.X + checkboxBoxSize + 8
 		metrics := c.FontFace.Metrics()
 		emHeight := metrics.HAscent + metrics.HDescent
 		y := r.Y + (r.H-emHeight)/2
 
 		op := &text.DrawOptions{}
-		op.GeoM.Translate(x, y)
+		op.GeoM.Translate(snapToPixel(x), snapToPixel(y))
 		op.ColorScale.ScaleWithColor(textColor)
 		text.Draw(screen, c.Label, c.FontFace, op)
 	}

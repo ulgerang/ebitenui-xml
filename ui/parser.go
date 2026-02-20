@@ -382,8 +382,10 @@ func (f *WidgetFactory) applyInlineStyles(widget Widget, node *XMLNode) {
 		switch attr.Name.Local {
 		case "width":
 			style.Width = parseSize(attr.Value)
+			style.WidthSet = true
 		case "height":
 			style.Height = parseSize(attr.Value)
+			style.HeightSet = true
 		case "direction", "layout":
 			style.Direction = LayoutDirection(attr.Value)
 		case "align":
@@ -392,12 +394,15 @@ func (f *WidgetFactory) applyInlineStyles(widget Widget, node *XMLNode) {
 			style.Justify = Justify(attr.Value)
 		case "gap":
 			style.Gap = parseSize(attr.Value)
+			style.GapSet = true
 		case "padding":
 			p := parseSize(attr.Value)
 			style.Padding = Padding{p, p, p, p}
+			style.PaddingSet = true
 		case "margin":
 			m := parseSize(attr.Value)
 			style.Margin = Margin{m, m, m, m}
+			style.MarginSet = true
 		case "background", "bg":
 			style.Background = attr.Value
 			style.BackgroundColor = parseColor(attr.Value)
@@ -406,13 +411,62 @@ func (f *WidgetFactory) applyInlineStyles(widget Widget, node *XMLNode) {
 			style.BorderColor = parseColor(attr.Value)
 		case "border-width":
 			style.BorderWidth = parseSize(attr.Value)
+			style.BorderWidthSet = true
+		case "border-radius":
+			style.BorderRadius = parseSize(attr.Value)
+			style.BorderRadiusSet = true
 		case "color":
 			style.Color = attr.Value
 			style.TextColor = parseColor(attr.Value)
 		case "font-size":
 			style.FontSize = parseSize(attr.Value)
+			style.FontSizeSet = true
+		case "line-height":
+			style.LineHeight = parseSize(attr.Value)
+			style.LineHeightSet = true
+		case "letter-spacing":
+			style.LetterSpacing = parseSize(attr.Value)
+			style.LetterSpacingSet = true
 		case "flex-grow", "grow":
-			style.FlexGrow, _ = strconv.ParseFloat(attr.Value, 64)
+			val, _ := strconv.ParseFloat(attr.Value, 64)
+			style.FlexGrow = val
+			style.FlexGrowSet = true
+		case "flex-shrink", "shrink":
+			val, _ := strconv.ParseFloat(attr.Value, 64)
+			style.FlexShrink = val
+			style.FlexShrinkSet = true
+		case "opacity":
+			val, _ := strconv.ParseFloat(attr.Value, 64)
+			style.Opacity = val
+			style.OpacitySet = true
+		case "top":
+			style.Top = parseSize(attr.Value)
+			style.TopSet = true
+		case "right":
+			style.Right = parseSize(attr.Value)
+			style.RightSet = true
+		case "bottom":
+			style.Bottom = parseSize(attr.Value)
+			style.BottomSet = true
+		case "left":
+			style.Left = parseSize(attr.Value)
+			style.LeftSet = true
+		case "z-index", "zindex":
+			val, _ := strconv.Atoi(attr.Value)
+			style.ZIndex = val
+			style.ZIndexSet = true
+		case "min-width":
+			style.MinWidth = parseSize(attr.Value)
+			style.MinWidthSet = true
+		case "min-height":
+			style.MinHeight = parseSize(attr.Value)
+			style.MinHeightSet = true
+		case "max-width":
+			style.MaxWidth = parseSize(attr.Value)
+			style.MaxWidthSet = true
+		case "max-height":
+			style.MaxHeight = parseSize(attr.Value)
+			style.MaxHeightSet = true
 		}
 	}
 }
