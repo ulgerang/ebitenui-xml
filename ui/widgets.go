@@ -134,16 +134,25 @@ type Text struct {
 	Content  string
 	FontFace text.Face
 
-	// Cached wrapped lines
-	wrappedLines []string
-	lastWidth    float64
+	// Cached layout state
+	wrappedLines     []string
+	lastWidth        float64
+	layoutCache      *textLayout
+	layoutText       string
+	layoutFace       text.Face
+	layoutLineHeight float64
+	layoutWrap       bool
+	HoveredCluster   int
+	onClusterHover   func(TextHit)
+	onClusterLeave   func()
 }
 
 // NewText creates a new text widget
 func NewText(id, content string) *Text {
 	return &Text{
-		BaseWidget: NewBaseWidget(id, "text"),
-		Content:    content,
+		BaseWidget:     NewBaseWidget(id, "text"),
+		Content:        content,
+		HoveredCluster: -1,
 	}
 }
 
@@ -171,7 +180,170 @@ func (t *Text) IntrinsicHeight() float64 {
 func (t *Text) SetContent(content string) {
 	if t.Content != content {
 		t.Content = content
-		t.wrappedLines = nil // invalidate cache
+		t.invalidateLayout()
+	}
+}
+
+func (t *Text) invalidateLayout() {
+	t.wrappedLines = nil
+	t.layoutCache = nil
+	t.layoutText = ""
+	t.layoutFace = nil
+	t.layoutLineHeight = 0
+	t.layoutWrap = false
+	t.lastWidth = 0
+	t.ClearHoveredCluster()
+}
+
+// OnClusterHover registers a handler that fires when the hovered grapheme cluster changes.
+func (t *Text) OnClusterHover(handler func(TextHit)) {
+	t.onClusterHover = handler
+}
+
+// OnClusterLeave registers a handler that fires when the hovered grapheme cluster is cleared.
+func (t *Text) OnClusterLeave(handler func()) {
+	t.onClusterLeave = handler
+}
+
+// ClearHoveredCluster clears the current hovered grapheme cluster.
+func (t *Text) ClearHoveredCluster() {
+	if t.HoveredCluster == -1 {
+		return
+	}
+	t.HoveredCluster = -1
+	if t.onClusterLeave != nil {
+		t.onClusterLeave()
+	}
+}
+
+func (t *Text) ensureLayout(maxWidth float64, style *Style) *textLayout {
+	if t.FontFace == nil {
+		return nil
+	}
+	if style == nil {
+		style = t.getActiveStyle()
+	}
+
+	lineHeight := style.LineHeight
+	if lineHeight <= 0 {
+		lineHeight = measureLineHeight(t.FontFace)
+	}
+	wrap := style.TextWrap != "nowrap"
+	displayText := t.Content
+	if !wrap && style.TextOverflow == "ellipsis" && maxWidth > 0 {
+		displayText = truncateTextWithEllipsis(displayText, t.FontFace, maxWidth)
+	}
+
+	if t.layoutCache != nil &&
+		t.layoutText == displayText &&
+		t.layoutFace == t.FontFace &&
+		t.layoutLineHeight == lineHeight &&
+		t.layoutWrap == wrap &&
+		t.lastWidth == maxWidth {
+		return t.layoutCache
+	}
+
+	t.layoutCache = newTextLayout(displayText, t.FontFace, textLayoutOptions{
+		MaxWidth:               maxWidth,
+		Wrap:                   wrap,
+		WhiteSpace:             textWhiteSpaceNormal,
+		LineHeight:             lineHeight,
+		TrimTrailingWhitespace: true,
+	})
+	t.layoutText = displayText
+	t.layoutFace = t.FontFace
+	t.layoutLineHeight = lineHeight
+	t.layoutWrap = wrap
+	t.lastWidth = maxWidth
+
+	t.wrappedLines = t.wrappedLines[:0]
+	for _, line := range t.layoutCache.lines {
+		t.wrappedLines = append(t.wrappedLines, line.Text)
+	}
+	return t.layoutCache
+}
+
+func (t *Text) textStartY(r Rect, layout *textLayout, style *Style) float64 {
+	startY := r.Y
+	if style.VerticalAlign == "center" {
+		startY = r.Y + (r.H-layout.height)/2
+	} else if style.VerticalAlign == "bottom" {
+		startY = r.Y + r.H - layout.height
+	}
+	return startY
+}
+
+func (t *Text) lineOriginX(r Rect, lineWidth float64, style *Style) float64 {
+	x := r.X
+	if style.TextAlign == "center" {
+		x = r.X + (r.W-lineWidth)/2
+	} else if style.TextAlign == "right" {
+		x = r.X + r.W - lineWidth
+	}
+	return x
+}
+
+// HitTest returns the grapheme cluster under the given absolute coordinates.
+func (t *Text) HitTest(x, y float64) (TextHit, bool) {
+	if t.FontFace == nil || !t.visible {
+		return TextHit{}, false
+	}
+	style := t.getActiveStyle()
+	r := t.ContentRect()
+	layout := t.ensureLayout(r.W, style)
+	if layout == nil || len(layout.lines) == 0 {
+		return TextHit{}, false
+	}
+
+	lineHeight := layout.lineHeight
+	lineTop := t.textStartY(r, layout, style)
+	for lineIndex, line := range layout.lines {
+		if y < lineTop || y > lineTop+lineHeight {
+			lineTop += lineHeight
+			continue
+		}
+		lineX := t.lineOriginX(r, line.Width, style)
+		localX := x - lineX
+		if localX < 0 || localX > line.Width {
+			return TextHit{}, false
+		}
+		for clusterIndex := line.StartCluster; clusterIndex < line.EndCluster; clusterIndex++ {
+			cluster := layout.clusters[clusterIndex]
+			if localX < cluster.X || localX > cluster.X+cluster.Width {
+				continue
+			}
+			return TextHit{
+				LineIndex:    lineIndex,
+				ClusterIndex: clusterIndex,
+				Text:         cluster.Text,
+				RuneStart:    cluster.RuneStart,
+				RuneEnd:      cluster.RuneEnd,
+				Rect: Rect{
+					X: lineX + cluster.X,
+					Y: lineTop,
+					W: cluster.Width,
+					H: lineHeight,
+				},
+			}, true
+		}
+		return TextHit{}, false
+	}
+	return TextHit{}, false
+}
+
+// HandlePointerMove updates the hovered grapheme cluster for the given absolute coordinates.
+func (t *Text) HandlePointerMove(x, y float64) {
+	hit, ok := t.HitTest(x, y)
+	if !ok {
+		t.ClearHoveredCluster()
+		return
+	}
+	if hit.ClusterIndex == t.HoveredCluster {
+		return
+	}
+	t.HoveredCluster = hit.ClusterIndex
+	if t.onClusterHover != nil {
+		t.onClusterHover(hit)
 	}
 }
 
@@ -188,7 +360,7 @@ func (t *Text) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	style := t.style
+	style := t.getActiveStyle()
 	r := t.ContentRect()
 
 	textColor := style.TextColor
@@ -201,63 +373,22 @@ func (t *Text) Draw(screen *ebiten.Image) {
 		textColor = applyOpacity(textColor, style.Opacity)
 	}
 
-	// Check if we need to wrap text
-	wrapper := NewTextWrapper(t.FontFace)
-
-	// Get line height
-	lineHeight := style.LineHeight
-	if lineHeight <= 0 {
-		lineHeight = wrapper.LineHeight()
-	}
-
-	// Check text wrap mode
-	shouldWrap := style.TextWrap != "nowrap"
-
-	var lines []string
-	if shouldWrap && r.W > 0 {
-		// Re-wrap if width changed
-		if t.wrappedLines == nil || t.lastWidth != r.W {
-			t.wrappedLines = wrapper.WrapText(t.Content, r.W)
-			t.lastWidth = r.W
-		}
-		lines = t.wrappedLines
-	} else {
-		lines = []string{t.Content}
-	}
-
-	// Apply text overflow
-	if style.TextOverflow == "ellipsis" && len(lines) == 1 {
-		lines[0] = wrapper.TruncateWithEllipsis(lines[0], r.W)
+	layout := t.ensureLayout(r.W, style)
+	if layout == nil {
+		return
 	}
 
 	// Draw each line — use font metrics for precise vertical positioning
 	metrics := t.FontFace.Metrics()
-	ascent := metrics.HAscent
-	emHeight := ascent + metrics.HDescent
-	halfLeading := (lineHeight - emHeight) / 2
-
-	// Vertical alignment within content rect
-	totalTextHeight := float64(len(lines)) * lineHeight
-	startY := r.Y // default: top
-	if style.VerticalAlign == "center" {
-		startY = r.Y + (r.H-totalTextHeight)/2
-	} else if style.VerticalAlign == "bottom" {
-		startY = r.Y + r.H - totalTextHeight
-	}
+	emHeight := metrics.HAscent + metrics.HDescent
+	halfLeading := (layout.lineHeight - emHeight) / 2
+	startY := t.textStartY(r, layout, style)
 
 	// In Ebitengine v2 text/v2, the origin is the top-left of the glyph's em-box.
 	// So we only need to move to the top of the centered em-box.
 	y := startY + halfLeading
-	for _, line := range lines {
-		// Calculate x position based on text alignment
-		x := r.X
-		if style.TextAlign == "center" {
-			lineW, _ := text.Measure(line, t.FontFace, 0)
-			x = r.X + (r.W-lineW)/2
-		} else if style.TextAlign == "right" {
-			lineW, _ := text.Measure(line, t.FontFace, 0)
-			x = r.X + r.W - lineW
-		}
+	for _, line := range layout.lines {
+		x := t.lineOriginX(r, line.Width, style)
 
 		// Draw text shadow first (behind the text)
 		shadow := style.parsedTextShadow
@@ -273,16 +404,16 @@ func (t *Text) Draw(screen *ebiten.Image) {
 				shadowColor = color.RGBA{0, 0, 0, 128}
 			}
 			shadowOp.ColorScale.ScaleWithColor(shadowColor)
-			text.Draw(screen, line, t.FontFace, shadowOp)
+			text.Draw(screen, line.Text, t.FontFace, shadowOp)
 		}
 
 		// Original text drawing
 		op := &text.DrawOptions{}
 		op.GeoM.Translate(snapToPixel(x), snapToPixel(y))
 		op.ColorScale.ScaleWithColor(textColor)
-		text.Draw(screen, line, t.FontFace, op)
+		text.Draw(screen, line.Text, t.FontFace, op)
 
-		y += lineHeight
+		y += layout.lineHeight
 	}
 }
 

@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"unicode/utf8"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -64,6 +66,11 @@ func New(width, height float64) *UI {
 // Root returns the root widget
 func (ui *UI) Root() Widget { return ui.root }
 
+// SetRoot sets the root widget directly and runs the normal style/font/layout pipeline.
+func (ui *UI) SetRoot(widget Widget) {
+	ui.setRoot(widget)
+}
+
 // LoadLayout loads a UI layout from XML
 func (ui *UI) LoadLayout(xmlContent string) error {
 	parser := NewXMLParser()
@@ -72,17 +79,11 @@ func (ui *UI) LoadLayout(xmlContent string) error {
 		return err
 	}
 
-	ui.root = ui.factory.CreateFromXML(node)
-	ui.widgetByID = make(map[string]Widget)
-	ui.buildWidgetCache(ui.root)
+	ui.setRoot(ui.factory.CreateFromXML(node))
 
 	// Pipeline: styles → inherit → fonts → layout
-	ui.reapplyStyles(ui.root)
-	ui.inheritCSSProperties(ui.root, nil)
-	ui.setFonts(ui.root)
 
 	// Initial layout
-	ui.Layout()
 
 	return nil
 }
@@ -95,15 +96,9 @@ func (ui *UI) LoadLayoutFile(filename string) error {
 		return err
 	}
 
-	ui.root = ui.factory.CreateFromXML(node)
-	ui.widgetByID = make(map[string]Widget)
-	ui.buildWidgetCache(ui.root)
+	ui.setRoot(ui.factory.CreateFromXML(node))
 
 	// Pipeline: styles → inherit → fonts → layout
-	ui.reapplyStyles(ui.root)
-	ui.inheritCSSProperties(ui.root, nil)
-	ui.setFonts(ui.root)
-	ui.Layout()
 
 	return nil
 }
@@ -177,6 +172,9 @@ func (ui *UI) Update() {
 	if hoveredWidget != ui.hoveredWidget {
 		// Leave previous
 		if ui.hoveredWidget != nil {
+			if txt, ok := ui.hoveredWidget.(*Text); ok {
+				txt.ClearHoveredCluster()
+			}
 			if ui.hoveredWidget == ui.focusedWidget {
 				ui.hoveredWidget.SetState(StateFocused)
 			} else {
@@ -194,13 +192,20 @@ func (ui *UI) Update() {
 		}
 		ui.hoveredWidget = hoveredWidget
 	}
+	if txt, ok := hoveredWidget.(*Text); ok {
+		txt.HandlePointerMove(mouseX, mouseY)
+	}
 
 	// Handle clicks
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		if hoveredWidget != nil {
-			switch hoveredWidget.(type) {
-			case *TextInput, *TextArea:
+			switch w := hoveredWidget.(type) {
+			case *TextInput:
 				ui.setFocusedWidget(hoveredWidget)
+				w.HandlePointerDown(mouseX, mouseY)
+			case *TextArea:
+				ui.setFocusedWidget(hoveredWidget)
+				w.HandlePointerDown(mouseX, mouseY)
 			default:
 				if ui.focusedWidget != nil && ui.focusedWidget != hoveredWidget {
 					ui.Blur()
@@ -258,6 +263,54 @@ func (ui *UI) Update() {
 			}
 			ui.activeWidget = nil
 		}
+	}
+}
+
+// SimulatePointerMove updates hover state as if the pointer moved.
+func (ui *UI) SimulatePointerMove(x, y float64) Widget {
+	return ui.handlePointerMove(x, y)
+}
+
+// SimulatePointerDown presses a pointer button at the given coordinates.
+func (ui *UI) SimulatePointerDown(x, y float64, button ebiten.MouseButton) Widget {
+	return ui.handlePointerDown(x, y, button)
+}
+
+// SimulatePointerUp releases a pointer button at the given coordinates.
+func (ui *UI) SimulatePointerUp(x, y float64, button ebiten.MouseButton) Widget {
+	hovered := ui.handlePointerMove(x, y)
+	ui.handlePointerUp(x, y, button, hovered)
+	return hovered
+}
+
+// SimulateClick performs a full left-click gesture at the given coordinates.
+func (ui *UI) SimulateClick(x, y float64) Widget {
+	hovered := ui.SimulatePointerDown(x, y, ebiten.MouseButtonLeft)
+	ui.handlePointerUp(x, y, ebiten.MouseButtonLeft, hovered)
+	return hovered
+}
+
+// SimulateTypeText inserts text into the currently focused text input or text area.
+func (ui *UI) SimulateTypeText(s string) {
+	switch w := ui.focusedWidget.(type) {
+	case *TextInput:
+		for _, r := range s {
+			w.insertChar(r)
+		}
+	case *TextArea:
+		for _, r := range s {
+			w.insertChar(r)
+		}
+	}
+}
+
+// SimulateKeyPress dispatches a keyboard event to the currently focused text widget.
+func (ui *UI) SimulateKeyPress(key ebiten.Key, shift, control bool) {
+	switch w := ui.focusedWidget.(type) {
+	case *TextInput:
+		simulateTextInputKeyPress(w, key, shift, control)
+	case *TextArea:
+		simulateTextAreaKeyPress(w, key, shift, control)
 	}
 }
 
@@ -462,6 +515,179 @@ func (ui *UI) setFocusedWidget(w Widget) {
 		fw.Focus()
 	default:
 		w.SetState(StateFocused)
+	}
+}
+
+func (ui *UI) setRoot(widget Widget) {
+	ui.root = widget
+	ui.widgetByID = make(map[string]Widget)
+	ui.buildWidgetCache(ui.root)
+	ui.reapplyStyles(ui.root)
+	ui.inheritCSSProperties(ui.root, nil)
+	ui.setFonts(ui.root)
+	ui.Layout()
+}
+
+func (ui *UI) handlePointerMove(x, y float64) Widget {
+	if ui.root == nil {
+		return nil
+	}
+
+	hoveredWidget := ui.findWidgetAt(ui.root, x, y)
+	if hoveredWidget != ui.hoveredWidget {
+		if ui.hoveredWidget != nil {
+			if txt, ok := ui.hoveredWidget.(*Text); ok {
+				txt.ClearHoveredCluster()
+			}
+			if ui.hoveredWidget == ui.focusedWidget {
+				ui.hoveredWidget.SetState(StateFocused)
+			} else {
+				ui.hoveredWidget.SetState(StateNormal)
+			}
+		}
+		if hoveredWidget != nil {
+			if hoveredWidget != ui.focusedWidget {
+				hoveredWidget.SetState(StateHover)
+				if bw, ok := hoveredWidget.(*Button); ok {
+					bw.HandleHover()
+				}
+			}
+		}
+		ui.hoveredWidget = hoveredWidget
+	}
+	if txt, ok := hoveredWidget.(*Text); ok {
+		txt.HandlePointerMove(x, y)
+	}
+	return hoveredWidget
+}
+
+func (ui *UI) handlePointerDown(x, y float64, button ebiten.MouseButton) Widget {
+	hoveredWidget := ui.handlePointerMove(x, y)
+	if button != ebiten.MouseButtonLeft {
+		return hoveredWidget
+	}
+
+	if hoveredWidget != nil {
+		switch w := hoveredWidget.(type) {
+		case *TextInput:
+			ui.setFocusedWidget(hoveredWidget)
+			w.HandlePointerDown(x, y)
+		case *TextArea:
+			ui.setFocusedWidget(hoveredWidget)
+			w.HandlePointerDown(x, y)
+		default:
+			if ui.focusedWidget != nil && ui.focusedWidget != hoveredWidget {
+				ui.Blur()
+			}
+		}
+		hoveredWidget.SetState(StateActive)
+		ui.activeWidget = hoveredWidget
+		return hoveredWidget
+	}
+
+	ui.Blur()
+	return nil
+}
+
+func (ui *UI) handlePointerUp(x, y float64, button ebiten.MouseButton, hoveredWidget Widget) {
+	if button != ebiten.MouseButtonLeft || ui.activeWidget == nil {
+		return
+	}
+	if hoveredWidget == nil {
+		hoveredWidget = ui.handlePointerMove(x, y)
+	}
+
+	if ui.activeWidget == hoveredWidget {
+		switch w := ui.activeWidget.(type) {
+		case *Button:
+			w.HandleClick()
+		case *Panel:
+			w.HandleClick()
+		case *Toggle:
+			w.HandleClick()
+		case *RadioButton:
+			w.HandleClick()
+		case *Dropdown:
+			w.HandleClick()
+		case *Checkbox:
+			w.HandleClick()
+		case *Slider:
+			w.HandleClick()
+		}
+	}
+
+	if ui.activeWidget == ui.focusedWidget {
+		ui.activeWidget.SetState(StateFocused)
+	} else {
+		ui.activeWidget.SetState(StateNormal)
+	}
+	if hoveredWidget != nil {
+		if hoveredWidget == ui.focusedWidget {
+			hoveredWidget.SetState(StateFocused)
+		} else {
+			hoveredWidget.SetState(StateHover)
+		}
+	}
+	ui.activeWidget = nil
+}
+
+func simulateTextInputKeyPress(ti *TextInput, key ebiten.Key, shift, control bool) {
+	switch {
+	case control && key == ebiten.KeyA:
+		ti.SelectStart = 0
+		ti.SelectEnd = utf8.RuneCountInString(ti.Text)
+		ti.CursorPos = ti.SelectEnd
+		ti.clampIndices()
+	case key == ebiten.KeyBackspace:
+		ti.handleBackspace()
+	case key == ebiten.KeyDelete:
+		ti.handleDelete()
+	case key == ebiten.KeyLeft:
+		ti.moveCursor(-1, shift)
+	case key == ebiten.KeyRight:
+		ti.moveCursor(1, shift)
+	case key == ebiten.KeyHome:
+		ti.CursorPos = 0
+		ti.clampIndices()
+	case key == ebiten.KeyEnd:
+		ti.CursorPos = utf8.RuneCountInString(ti.Text)
+		ti.clampIndices()
+	case key == ebiten.KeyEnter || key == ebiten.KeyNumpadEnter:
+		if ti.OnSubmit != nil {
+			ti.OnSubmit(ti.Text)
+		}
+	}
+}
+
+func simulateTextAreaKeyPress(ta *TextArea, key ebiten.Key, _ bool, control bool) {
+	switch {
+	case control && key == ebiten.KeyA:
+		ta.SelectStart = 0
+		ta.SelectEnd = utf8.RuneCountInString(ta.Text)
+		ta.CursorPos = ta.SelectEnd
+		ta.updateCursorLineCol()
+	case key == ebiten.KeyBackspace:
+		ta.handleBackspace()
+	case key == ebiten.KeyDelete:
+		ta.handleDelete()
+	case key == ebiten.KeyEnter || key == ebiten.KeyNumpadEnter:
+		ta.insertChar('\n')
+	case key == ebiten.KeyLeft:
+		ta.moveCursorHorizontal(-1)
+	case key == ebiten.KeyRight:
+		ta.moveCursorHorizontal(1)
+	case key == ebiten.KeyUp:
+		ta.moveCursorVertical(-1)
+	case key == ebiten.KeyDown:
+		ta.moveCursorVertical(1)
+	case key == ebiten.KeyHome:
+		ta.CursorCol = 0
+		ta.updateCursorPosFromLineCol()
+	case key == ebiten.KeyEnd:
+		if ta.CursorLine >= 0 && ta.CursorLine < len(ta.lines) {
+			ta.CursorCol = utf8.RuneCountInString(ta.lines[ta.CursorLine])
+			ta.updateCursorPosFromLineCol()
+		}
 	}
 }
 

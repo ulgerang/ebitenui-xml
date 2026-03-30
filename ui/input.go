@@ -93,18 +93,21 @@ func (ti *TextInput) clampIndices() {
 	} else if ti.CursorPos > runeLen {
 		ti.CursorPos = runeLen
 	}
+	ti.CursorPos = snapRuneIndexToBoundary(ti.Text, ti.CursorPos)
 
 	if ti.SelectStart < 0 {
 		ti.SelectStart = 0
 	} else if ti.SelectStart > runeLen {
 		ti.SelectStart = runeLen
 	}
+	ti.SelectStart = snapRuneIndexToBoundary(ti.Text, ti.SelectStart)
 
 	if ti.SelectEnd < 0 {
 		ti.SelectEnd = 0
 	} else if ti.SelectEnd > runeLen {
 		ti.SelectEnd = runeLen
 	}
+	ti.SelectEnd = snapRuneIndexToBoundary(ti.Text, ti.SelectEnd)
 }
 
 // ============================================================================
@@ -319,8 +322,9 @@ func (ti *TextInput) handleBackspace() {
 
 	if ti.CursorPos > 0 {
 		runes := []rune(ti.Text)
-		ti.Text = string(append(runes[:ti.CursorPos-1], runes[ti.CursorPos:]...))
-		ti.CursorPos--
+		prev := prevGraphemeBoundary(ti.Text, ti.CursorPos)
+		ti.Text = string(append(runes[:prev], runes[ti.CursorPos:]...))
+		ti.CursorPos = prev
 
 		if ti.OnChange != nil {
 			ti.OnChange(ti.Text)
@@ -338,7 +342,8 @@ func (ti *TextInput) handleDelete() {
 
 	runes := []rune(ti.Text)
 	if ti.CursorPos < len(runes) {
-		ti.Text = string(append(runes[:ti.CursorPos], runes[ti.CursorPos+1:]...))
+		next := nextGraphemeBoundary(ti.Text, ti.CursorPos)
+		ti.Text = string(append(runes[:ti.CursorPos], runes[next:]...))
 
 		if ti.OnChange != nil {
 			ti.OnChange(ti.Text)
@@ -381,13 +386,15 @@ func (ti *TextInput) deleteSelection() {
 func (ti *TextInput) moveCursor(delta int, selecting bool) {
 	ti.clampIndices()
 
-	newPos := ti.CursorPos + delta
-	if newPos < 0 {
-		newPos = 0
-	}
-	runes := []rune(ti.Text)
-	if newPos > len(runes) {
-		newPos = len(runes)
+	newPos := ti.CursorPos
+	if delta < 0 {
+		for i := 0; i < -delta; i++ {
+			newPos = prevGraphemeBoundary(ti.Text, newPos)
+		}
+	} else if delta > 0 {
+		for i := 0; i < delta; i++ {
+			newPos = nextGraphemeBoundary(ti.Text, newPos)
+		}
 	}
 
 	if selecting {
@@ -401,6 +408,23 @@ func (ti *TextInput) moveCursor(delta int, selecting bool) {
 	}
 
 	ti.CursorPos = newPos
+	ti.cursorBlink = 0
+	ti.cursorVisible = true
+}
+
+func (ti *TextInput) HandlePointerDown(x, _ float64) {
+	if ti.FontFace == nil {
+		return
+	}
+	r := ti.ContentRect()
+	displayText := ti.Text
+	if ti.Password {
+		displayText = strings.Repeat("●", utf8.RuneCountInString(ti.Text))
+	}
+	localX := x - r.X + ti.scrollOffset
+	ti.CursorPos = caretRuneIndexForSingleLine(ti.FontFace, displayText, localX)
+	ti.SelectStart = 0
+	ti.SelectEnd = 0
 	ti.cursorBlink = 0
 	ti.cursorVisible = true
 }
@@ -576,6 +600,7 @@ func (ta *TextArea) clampCursorPos() {
 	} else if ta.CursorPos > runeLen {
 		ta.CursorPos = runeLen
 	}
+	ta.CursorPos = snapRuneIndexToBoundary(ta.Text, ta.CursorPos)
 }
 
 func (ta *TextArea) updateLines() {
@@ -846,8 +871,9 @@ func (ta *TextArea) handleBackspace() {
 
 	if ta.CursorPos > 0 {
 		runes := []rune(ta.Text)
-		ta.Text = string(append(runes[:ta.CursorPos-1], runes[ta.CursorPos:]...))
-		ta.CursorPos--
+		prev := prevGraphemeBoundary(ta.Text, ta.CursorPos)
+		ta.Text = string(append(runes[:prev], runes[ta.CursorPos:]...))
+		ta.CursorPos = prev
 		ta.updateLines()
 		ta.updateCursorLineCol()
 
@@ -868,7 +894,8 @@ func (ta *TextArea) handleDelete() {
 
 	runes := []rune(ta.Text)
 	if ta.CursorPos < len(runes) {
-		ta.Text = string(append(runes[:ta.CursorPos], runes[ta.CursorPos+1:]...))
+		next := nextGraphemeBoundary(ta.Text, ta.CursorPos)
+		ta.Text = string(append(runes[:ta.CursorPos], runes[next:]...))
 		ta.updateLines()
 		ta.updateCursorLineCol()
 
@@ -881,13 +908,15 @@ func (ta *TextArea) handleDelete() {
 func (ta *TextArea) moveCursorHorizontal(delta int) {
 	ta.clampCursorPos()
 
-	newPos := ta.CursorPos + delta
-	if newPos < 0 {
-		newPos = 0
-	}
-	runes := []rune(ta.Text)
-	if newPos > len(runes) {
-		newPos = len(runes)
+	newPos := ta.CursorPos
+	if delta < 0 {
+		for i := 0; i < -delta; i++ {
+			newPos = prevGraphemeBoundary(ta.Text, newPos)
+		}
+	} else if delta > 0 {
+		for i := 0; i < delta; i++ {
+			newPos = nextGraphemeBoundary(ta.Text, newPos)
+		}
 	}
 	ta.CursorPos = newPos
 	ta.updateCursorLineCol()
@@ -909,6 +938,7 @@ func (ta *TextArea) moveCursorVertical(delta int) {
 	if ta.CursorCol > lineRuneLen {
 		ta.CursorCol = lineRuneLen
 	}
+	ta.CursorCol = snapRuneIndexToBoundary(ta.lines[newLine], ta.CursorCol)
 
 	ta.updateCursorPosFromLineCol()
 	ta.cursorBlink = 0
@@ -942,10 +972,39 @@ func (ta *TextArea) updateCursorPosFromLineCol() {
 		if ta.CursorCol > maxCol {
 			ta.CursorCol = maxCol
 		}
+		ta.CursorCol = snapRuneIndexToBoundary(ta.lines[ta.CursorLine], ta.CursorCol)
 	}
 	pos += ta.CursorCol
 	ta.CursorPos = pos
 	ta.clampCursorPos()
+}
+
+func (ta *TextArea) HandlePointerDown(x, y float64) {
+	if ta.FontFace == nil || len(ta.lines) == 0 {
+		return
+	}
+	r := ta.ContentRect()
+	_, lineH := text.Measure("Ag", ta.FontFace, 0)
+	lineHeight := lineH * 1.2
+	localY := y - r.Y + ta.ScrollY
+	lineIndex := 0
+	if lineHeight > 0 {
+		lineIndex = int(localY / lineHeight)
+	}
+	if lineIndex < 0 {
+		lineIndex = 0
+	}
+	if lineIndex >= len(ta.lines) {
+		lineIndex = len(ta.lines) - 1
+	}
+
+	ta.CursorLine = lineIndex
+	ta.CursorCol = caretRuneIndexForSingleLine(ta.FontFace, ta.lines[lineIndex], x-r.X)
+	ta.updateCursorPosFromLineCol()
+	ta.SelectStart = 0
+	ta.SelectEnd = 0
+	ta.cursorBlink = 0
+	ta.cursorVisible = true
 }
 
 // Draw renders the text area
