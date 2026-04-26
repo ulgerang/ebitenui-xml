@@ -344,7 +344,7 @@ func ParseCalc(s string) *CalcExpression {
 
 func tokenizeCalc(s string) []calcToken {
 	tokens := make([]calcToken, 0)
-	re := regexp.MustCompile(`([+-]?\s*[\d.]+)(px|%|vw|vh|em|rem)?|([+\-*/])`)
+	re := regexp.MustCompile(`(\d+(?:\.\d+)?|\.\d+)(px|%|vw|vh|em|rem)?|([+\-*/])`)
 
 	matches := re.FindAllStringSubmatch(s, -1)
 	for _, match := range matches {

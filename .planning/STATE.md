@@ -119,3 +119,8 @@ Most recent phase-local verification:
 - `.omx/` is pre-existing untracked workspace output and is not part of this
   plan.
 - This repo did not have `.planning/` before this GSD planning pass.
+- Phase 23 started from `.planning/HTML-CSS-BINDING-REMAINING-PLAN.md`:
+  OpenSpec change `audit-and-close-css-units-calc` records that lower-level
+  `%`/`vw`/`vh`/`em`/`rem`/`calc()` utilities exist, while production CSS/XML
+  style loading remains pixel-field based. Audit tests also fixed simple
+  `calc(...)` operator tokenization in `ui/variables.go`.

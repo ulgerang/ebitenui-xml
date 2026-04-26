@@ -1,0 +1,7 @@
+- [x] Audit current code paths for `%`, `vw`, `vh`, `em`, `rem`, and `calc()`.
+- [x] Add tests for lower-level relative unit and calc resolution utilities.
+- [x] Fix simple `calc(...)` tokenizer operator handling discovered by audit tests.
+- [x] Add tests documenting current CSS/XML style loader boundaries.
+- [x] Update support matrix and gap list with exact current status.
+- [x] Validate OpenSpec, tests, build, and whitespace.
+- [ ] Follow-up: wire live relative units through production CSS/XML style and layout paths.

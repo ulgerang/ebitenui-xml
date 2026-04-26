@@ -28,6 +28,6 @@ interface:
           type: float64
           access: get; set
 metadata:
-    status: ""
+    status: draft
     origin: code_extracted
     extracted_at: "2026-04-26"

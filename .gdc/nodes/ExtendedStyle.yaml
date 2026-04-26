@@ -81,6 +81,6 @@ dependencies:
       type: class
       injection: method
 metadata:
-    status: ""
+    status: draft
     origin: code_extracted
     extracted_at: "2026-04-26"

@@ -176,6 +176,11 @@ and imperative data binding. The gaps below are the implementation backlog.
     explicitly registered UI font faces or font sources before falling back to
     the configured default face/source. Full OS/browser font discovery remains
     out of scope.
+- CSS relative unit utilities:
+  - Go callers can parse and resolve `%`, `vw`, `vh`, `em`, `rem`, px/unitless
+    values, and simple `calc(...)` expressions through `ParseSizeValue`,
+    `SizeValue.Resolve`, `ParseCalc`, and `CalcExpression.Resolve` with an
+    explicit `SizeContext`.
 
 ## Data Binding Gaps
 
@@ -193,6 +198,11 @@ and imperative data binding. The gaps below are the implementation backlog.
 1. Full OS/browser font discovery and shaping fallback behavior.
 2. Full CSS parser semantics beyond the current selector, media, state pseudo,
    and `!important` subset.
+3. Production style/layout loading does not yet live-resolve `%`, `vw`, `vh`,
+   `em`, `rem`, or `calc()` values from CSS rules, XML inline styles, binding
+   style updates, or keyframe layout fields. Current production loaders store
+   numeric pixel-style values on `Style`, while relative unit resolution remains
+   a lower-level utility.
 
 ## Deferred HTML Layout Scope
 
