@@ -162,19 +162,28 @@ func (w *BaseWidget) IntrinsicWidth() float64 {
 	var width float64
 	if style.Direction == LayoutRow {
 		// Sum of children widths + gaps
-		for i, child := range w.children {
+		visibleCount := visibleChildCount(w.children)
+		visibleIndex := 0
+		for _, child := range w.children {
+			if !child.Visible() {
+				continue
+			}
 			cw := child.Style().Width
 			if cw <= 0 {
 				cw = child.IntrinsicWidth()
 			}
 			width += cw + child.Style().Margin.Left + child.Style().Margin.Right
-			if i < len(w.children)-1 {
+			if visibleIndex < visibleCount-1 {
 				width += gap
 			}
+			visibleIndex++
 		}
 	} else {
 		// Max of children widths
 		for _, child := range w.children {
+			if !child.Visible() {
+				continue
+			}
 			cw := child.Style().Width
 			if cw <= 0 {
 				cw = child.IntrinsicWidth()
@@ -204,6 +213,9 @@ func (w *BaseWidget) IntrinsicHeight() float64 {
 	if style.Direction == LayoutRow {
 		// Max of children heights
 		for _, child := range w.children {
+			if !child.Visible() {
+				continue
+			}
 			ch := child.Style().Height
 			if ch <= 0 {
 				ch = child.IntrinsicHeight()
@@ -215,19 +227,35 @@ func (w *BaseWidget) IntrinsicHeight() float64 {
 		}
 	} else {
 		// Sum of children heights + gaps
-		for i, child := range w.children {
+		visibleCount := visibleChildCount(w.children)
+		visibleIndex := 0
+		for _, child := range w.children {
+			if !child.Visible() {
+				continue
+			}
 			ch := child.Style().Height
 			if ch <= 0 {
 				ch = child.IntrinsicHeight()
 			}
 			height += ch + child.Style().Margin.Top + child.Style().Margin.Bottom
-			if i < len(w.children)-1 {
+			if visibleIndex < visibleCount-1 {
 				height += gap
 			}
+			visibleIndex++
 		}
 	}
 
 	return height + padding.Top + padding.Bottom + bw*2
+}
+
+func visibleChildCount(children []Widget) int {
+	count := 0
+	for _, child := range children {
+		if child.Visible() {
+			count++
+		}
+	}
+	return count
 }
 
 // State returns the widget's state

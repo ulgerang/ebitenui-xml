@@ -3,6 +3,7 @@ package ui
 import (
 	"image"
 	"image/color"
+	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -63,7 +64,7 @@ func (b *Button) IntrinsicHeight() float64 {
 	if b.Label == "" || b.FontFace == nil {
 		return 0
 	}
-	_, th := text.Measure(b.Label, b.FontFace, 0)
+	th := math.Ceil(resolveTextLineHeight(b.FontFace, b.getActiveStyle()))
 	bw := b.style.BorderWidth
 	return th + b.style.Padding.Top + b.style.Padding.Bottom + bw*2
 }
@@ -185,7 +186,18 @@ func (t *Text) IntrinsicHeight() float64 {
 	if t.Content == "" || t.FontFace == nil {
 		return 0
 	}
-	_, th := text.Measure(t.Content, t.FontFace, 0)
+	style := t.getActiveStyle()
+	layout := newTextLayout(t.Content, t.FontFace, textLayoutOptions{
+		Wrap:                   false,
+		WhiteSpace:             textWhiteSpaceNormal,
+		LineHeight:             resolveTextLineHeight(t.FontFace, style),
+		TrimTrailingWhitespace: true,
+	})
+	th := layout.height
+	if th <= 0 {
+		th = resolveTextLineHeight(t.FontFace, style)
+	}
+	th = math.Ceil(th)
 	bw := t.style.BorderWidth
 	return th + t.style.Padding.Top + t.style.Padding.Bottom + bw*2
 }
@@ -238,10 +250,7 @@ func (t *Text) ensureLayout(maxWidth float64, style *Style) *textLayout {
 		style = t.getActiveStyle()
 	}
 
-	lineHeight := style.LineHeight
-	if lineHeight <= 0 {
-		lineHeight = measureLineHeight(t.FontFace)
-	}
+	lineHeight := resolveTextLineHeight(t.FontFace, style)
 	wrap := style.TextWrap != "nowrap"
 	displayText := t.Content
 	if !wrap && style.TextOverflow == "ellipsis" && maxWidth > 0 {
@@ -275,6 +284,13 @@ func (t *Text) ensureLayout(maxWidth float64, style *Style) *textLayout {
 		t.wrappedLines = append(t.wrappedLines, line.Text)
 	}
 	return t.layoutCache
+}
+
+func resolveTextLineHeight(face text.Face, style *Style) float64 {
+	if style != nil && style.LineHeight > 0 {
+		return style.LineHeight
+	}
+	return measureLineHeight(face)
 }
 
 func (t *Text) textStartY(r Rect, layout *textLayout, style *Style) float64 {

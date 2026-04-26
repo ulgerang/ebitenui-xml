@@ -1,0 +1,7 @@
+- [x] Align `Text.IntrinsicHeight` with draw/layout line-height.
+- [x] Respect explicit `lineHeight` in text intrinsic sizing.
+- [x] Add Korean column-layout regression coverage.
+- [x] Check button intrinsic label height against the same line box.
+- [x] Re-layout after binding updates that change text content or visibility.
+- [x] Exclude invisible children from column layout sizing and gaps.
+- [x] Validate OpenSpec, tests, build, and touched GDC scope.

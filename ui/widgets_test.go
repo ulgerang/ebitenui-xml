@@ -98,6 +98,20 @@ func TestButtonIntrinsicSize(t *testing.T) {
 			t.Errorf("IntrinsicHeight() = %v, want 0 (empty label)", height)
 		}
 	})
+
+	t.Run("intrinsic height uses line box", func(t *testing.T) {
+		btn := NewButton("btn", "보고")
+		btn.FontFace = testTextFace()
+		btn.SetStyle(&Style{
+			LineHeight:    28,
+			LineHeightSet: true,
+			Padding:       PaddingAll(3),
+		})
+
+		if got, want := btn.IntrinsicHeight(), 34.0; got != want {
+			t.Errorf("IntrinsicHeight() = %v, want %v", got, want)
+		}
+	})
 }
 
 func TestButtonClick(t *testing.T) {
@@ -481,6 +495,130 @@ func TestTextWidget(t *testing.T) {
 			t.Errorf("IntrinsicHeight() = %v, want 0 (no font)", txt.IntrinsicHeight())
 		}
 	})
+}
+
+func TestTextIntrinsicHeightUsesDrawLineBox(t *testing.T) {
+	txt := NewText("txt", "자원 현황")
+	txt.FontFace = testTextFace()
+	txt.SetStyle(&Style{
+		LineHeight:    24,
+		LineHeightSet: true,
+		Padding:       PaddingAll(2),
+		BorderWidth:   1,
+	})
+
+	if got, want := txt.IntrinsicHeight(), 30.0; got != want {
+		t.Fatalf("IntrinsicHeight() = %v, want %v", got, want)
+	}
+
+	layout := txt.ensureLayout(160, txt.Style())
+	if layout == nil {
+		t.Fatal("expected text layout")
+	}
+	if layout.lineHeight != 24 {
+		t.Fatalf("layout lineHeight = %v, want 24", layout.lineHeight)
+	}
+}
+
+func TestKoreanTextColumnLayoutDoesNotOverlap(t *testing.T) {
+	root := NewPanel("root")
+	root.SetStyle(&Style{
+		Direction:  LayoutColumn,
+		Width:      180,
+		Height:     120,
+		Gap:        8,
+		GapSet:     true,
+		Padding:    PaddingAll(0),
+		PaddingSet: true,
+	})
+
+	contents := []string{"자원 현황", "재산: 100G", "보급: 0"}
+	texts := make([]*Text, 0, len(contents))
+	for _, content := range contents {
+		txt := NewText("", content)
+		txt.FontFace = testTextFace()
+		txt.SetStyle(&Style{
+			LineHeight:    22,
+			LineHeightSet: true,
+		})
+		root.AddChild(txt)
+		texts = append(texts, txt)
+	}
+
+	NewLayoutEngine().Layout(root, 180, 120)
+
+	for i, txt := range texts {
+		if got := txt.ComputedRect().H; got < 22 {
+			t.Fatalf("text %d computed height = %v, want at least lineHeight 22", i, got)
+		}
+		if i == 0 {
+			continue
+		}
+		prev := texts[i-1].ComputedRect()
+		current := txt.ComputedRect()
+		if current.Y < prev.Y+prev.H+8 {
+			t.Fatalf("text %d overlaps previous: prev=%+v current=%+v", i, prev, current)
+		}
+	}
+}
+
+func TestBoundKoreanTextRelayoutPreventsOverlap(t *testing.T) {
+	ui := New(220, 140)
+	ui.DefaultFontFace = testTextFace()
+	if err := ui.LoadLayout(`
+		<ui id="root">
+			<panel id="section">
+				<text id="label">자원 현황</text>
+				<text id="gold" bind-text="resource.gold"></text>
+				<text id="supply" bind-text="resource.supply"></text>
+				<text id="hidden" bind-visible="resource.hidden">질서: 80</text>
+			</panel>
+		</ui>
+	`); err != nil {
+		t.Fatalf("LoadLayout() error = %v", err)
+	}
+	if err := ui.LoadStyles(`{
+		"#section": {
+			"direction": "column",
+			"gap": 8,
+			"padding": {"top": 14, "right": 16, "bottom": 14, "left": 16},
+			"borderWidth": 1
+		},
+		"text": {"fontSize": 13}
+	}`); err != nil {
+		t.Fatalf("LoadStyles() error = %v", err)
+	}
+
+	before := ui.GetWidget("section").ComputedRect()
+	ui.Bind("resource.gold", "재산: 100G")
+	ui.Bind("resource.supply", "보급: 0")
+	ui.Bind("resource.hidden", false)
+	after := ui.GetWidget("section").ComputedRect()
+	if after.H <= before.H {
+		t.Fatalf("section height did not grow after bound text: before=%+v after=%+v", before, after)
+	}
+	if hidden := ui.GetText("hidden"); hidden.ComputedRect().H != 0 {
+		t.Fatalf("hidden bound text should not consume layout height: rect=%+v", hidden.ComputedRect())
+	}
+
+	rows := []*Text{
+		ui.GetText("label"),
+		ui.GetText("gold"),
+		ui.GetText("supply"),
+	}
+	for i, row := range rows {
+		if got := row.ComputedRect().H; got < row.IntrinsicHeight() {
+			t.Fatalf("row %d computed height = %v, want at least intrinsic %v", i, got, row.IntrinsicHeight())
+		}
+		if i == 0 {
+			continue
+		}
+		prev := rows[i-1].ComputedRect()
+		current := row.ComputedRect()
+		if gotGap := current.Y - (prev.Y + prev.H); gotGap != 8 {
+			t.Fatalf("row gap %d = %v, want 8; prev=%+v current=%+v", i, gotGap, prev, current)
+		}
+	}
 }
 
 // ============================================================================

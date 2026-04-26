@@ -788,6 +788,7 @@ func (ui *UI) Bindings() *BindingContext {
 // Bind sets a binding value
 func (ui *UI) Bind(key string, value interface{}) {
 	ui.bindings.Set(key, value)
+	ui.Layout()
 }
 
 // BindText binds a value to a text widget

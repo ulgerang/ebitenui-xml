@@ -77,7 +77,7 @@ func (le *LayoutEngine) Layout(root Widget, containerWidth, containerHeight floa
 
 // layoutChildren arranges children within a parent widget
 func (le *LayoutEngine) layoutChildren(parent Widget) {
-	allChildren := parent.Children()
+	allChildren := visibleLayoutChildren(parent.Children())
 	if len(allChildren) == 0 {
 		updateOverflowContentSize(parent)
 		return
@@ -388,6 +388,24 @@ func (le *LayoutEngine) layoutChildren(parent Widget) {
 		le.layoutAbsoluteChild(child, containingRect)
 	}
 	updateOverflowContentSize(parent)
+}
+
+func visibleLayoutChildren(children []Widget) []Widget {
+	if len(children) == 0 {
+		return nil
+	}
+	visible := make([]Widget, 0, len(children))
+	for _, child := range children {
+		if child == nil {
+			continue
+		}
+		if !child.Visible() {
+			child.SetComputedRect(Rect{})
+			continue
+		}
+		visible = append(visible, child)
+	}
+	return visible
 }
 
 func updateOverflowContentSize(parent Widget) {
