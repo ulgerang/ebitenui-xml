@@ -1,0 +1,31 @@
+schema_version: "1.0"
+node:
+    id: Outline
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Width
+          type: float64
+          access: get; set
+        - name: Style
+          type: string
+          access: get; set
+          description: '"solid", "dashed", "dotted"'
+        - name: Color
+          type: color.Color
+          access: get; set
+        - name: Offset
+          type: float64
+          access: get; set
+          description: distance from border
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

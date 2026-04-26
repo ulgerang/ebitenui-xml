@@ -1,0 +1,35 @@
+schema_version: "1.0"
+node:
+    id: DrawGradient
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: DrawGradient
+          signature: DrawGradient(screen *ebiten.Image, r Rect, g *Gradient)
+          description: |-
+            DrawGradient draws a linear gradient in the given rectangle with angle support.
+            CSS angles: 0deg=bottom-to-top, 90deg=left-to-right, 180deg=top-to-bottom, 270deg=right-to-left.
+            Uses a GPU shader with a 1D gradient strip texture for O(1) draw calls regardless of size.
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: r
+              type: Rect
+            - name: g
+              type: '*Gradient'
+          exported: true
+dependencies:
+    - target: Gradient
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

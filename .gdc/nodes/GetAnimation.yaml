@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: GetAnimation
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\animation.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: GetAnimation
+          signature: GetAnimation(name string) *Animation
+          description: GetAnimation returns a pre-defined animation by name
+          parameters:
+            - name: name
+              type: string
+          returns:
+            type: '*Animation'
+          exported: true
+dependencies:
+    - target: Animation
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

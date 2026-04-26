@@ -1,0 +1,33 @@
+schema_version: "1.0"
+node:
+    id: ParseOutline
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParseOutline
+          signature: ParseOutline(s string) *Outline
+          description: |-
+            ParseOutline parses a CSS outline string
+            Format: "width style color"
+            Example: "2px solid red"
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: '*Outline'
+          exported: true
+dependencies:
+    - target: Outline
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

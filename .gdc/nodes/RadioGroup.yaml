@@ -1,0 +1,75 @@
+schema_version: "1.0"
+node:
+    id: RadioGroup
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets_extended.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewRadioGroup(id string) *RadioGroup
+          parameters:
+            - name: id
+              type: string
+          description: NewRadioGroup creates a new radio button group
+    methods:
+        - name: AddButton
+          signature: AddButton(btn *RadioButton)
+          description: AddButton adds a radio button to the group
+          parameters:
+            - name: btn
+              type: '*RadioButton'
+          exported: true
+        - name: SetValue
+          signature: SetValue(value string)
+          description: SetValue sets the selected value
+          parameters:
+            - name: value
+              type: string
+          exported: true
+        - name: MoveSelection
+          signature: MoveSelection(delta int) *RadioButton
+          description: MoveSelection moves selection by one or more positions in group order.
+          parameters:
+            - name: delta
+              type: int
+          returns:
+            type: '*RadioButton'
+          exported: true
+        - name: MoveSelectionFrom
+          signature: MoveSelectionFrom(currentButton *RadioButton, delta int) *RadioButton
+          description: MoveSelectionFrom moves selection relative to a specific radio button.
+          parameters:
+            - name: currentButton
+              type: '*RadioButton'
+            - name: delta
+              type: int
+          returns:
+            type: '*RadioButton'
+          exported: true
+    properties:
+        - name: ID
+          type: string
+          access: get; set
+        - name: Value
+          type: string
+          access: get; set
+          description: Currently selected value
+        - name: Buttons
+          type: '[]*RadioButton'
+          access: get; set
+        - name: OnChange
+          type: func(...)
+          access: get; set
+dependencies:
+    - target: RadioButton
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

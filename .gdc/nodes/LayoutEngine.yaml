@@ -1,0 +1,31 @@
+schema_version: "1.0"
+node:
+    id: LayoutEngine
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\layout.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewLayoutEngine() *LayoutEngine
+          description: NewLayoutEngine creates a new layout engine
+    methods:
+        - name: Layout
+          signature: Layout(root Widget, containerWidth float64, containerHeight float64)
+          description: Layout calculates positions and sizes for a widget tree
+          parameters:
+            - name: root
+              type: Widget
+            - name: containerWidth
+              type: float64
+            - name: containerHeight
+              type: float64
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

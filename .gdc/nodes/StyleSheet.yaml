@@ -1,0 +1,23 @@
+schema_version: "1.0"
+node:
+    id: StyleSheet
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\style.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Styles
+          type: map[string]*Style
+          access: get; set
+        - name: Keyframes
+          type: map[string]map[string]KeyframeStyle
+          access: get; set
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

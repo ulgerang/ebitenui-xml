@@ -1,0 +1,81 @@
+schema_version: "1.0"
+node:
+    id: SVGIcon
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewSVGIcon(id string) *SVGIcon
+          parameters:
+            - name: id
+              type: string
+          description: NewSVGIcon creates a new SVG icon widget
+    methods:
+        - name: SetIcon
+          signature: SetIcon(name string, clr color.Color, strokeWidth float64)
+          description: SetIcon sets a built-in icon by name
+          parameters:
+            - name: name
+              type: string
+            - name: clr
+              type: color.Color
+            - name: strokeWidth
+              type: float64
+          exported: true
+        - name: LoadFromFile
+          signature: LoadFromFile(filename string) error
+          description: LoadFromFile loads SVG from a file
+          parameters:
+            - name: filename
+              type: string
+          returns:
+            type: error
+          exported: true
+        - name: LoadFromString
+          signature: LoadFromString(svgContent string) error
+          description: LoadFromString loads SVG from a string
+          parameters:
+            - name: svgContent
+              type: string
+          returns:
+            type: error
+          exported: true
+        - name: SetColor
+          signature: SetColor(clr color.Color)
+          description: SetColor updates the icon color (for single-color icons)
+          parameters:
+            - name: clr
+              type: color.Color
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the SVG icon
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+    properties:
+        - name: Document
+          type: '*SVGDocument'
+          access: get; set
+        - name: IconName
+          type: string
+          access: get; set
+          description: For built-in icons
+        - name: SourceURL
+          type: string
+          access: get; set
+          description: Source file path
+        - name: IconColor
+          type: color.Color
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

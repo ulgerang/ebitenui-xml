@@ -1,0 +1,19 @@
+schema_version: "1.0"
+node:
+    id: checkDescendants
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\selector.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+dependencies:
+    - target: Selector
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

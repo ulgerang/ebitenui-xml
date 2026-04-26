@@ -1,0 +1,38 @@
+schema_version: "1.0"
+node:
+    id: WidgetFactory
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\parser.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewWidgetFactory(styleEngine *StyleEngine, bindings unknown) *WidgetFactory
+          parameters:
+            - name: styleEngine
+              type: '*StyleEngine'
+            - name: bindings
+              type: unknown
+          description: NewWidgetFactory creates a new widget factory
+    methods:
+        - name: CreateFromXML
+          signature: CreateFromXML(node *XMLNode) Widget
+          description: CreateFromXML creates a widget tree from XML
+          parameters:
+            - name: node
+              type: '*XMLNode'
+          returns:
+            type: Widget
+          exported: true
+dependencies:
+    - target: XMLNode
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

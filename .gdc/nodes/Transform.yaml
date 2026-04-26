@@ -1,0 +1,43 @@
+schema_version: "1.0"
+node:
+    id: Transform
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewTransform() *Transform
+          description: NewTransform creates a default transform (identity)
+    properties:
+        - name: TranslateX
+          type: float64
+          access: get; set
+        - name: TranslateY
+          type: float64
+          access: get; set
+        - name: ScaleX
+          type: float64
+          access: get; set
+        - name: ScaleY
+          type: float64
+          access: get; set
+        - name: Rotate
+          type: float64
+          access: get; set
+          description: in degrees
+        - name: OriginX
+          type: float64
+          access: get; set
+          description: 0-1, where 0.5 is center
+        - name: OriginY
+          type: float64
+          access: get; set
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

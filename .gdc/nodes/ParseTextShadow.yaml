@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: ParseTextShadow
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParseTextShadow
+          signature: ParseTextShadow(s string) *TextShadow
+          description: ParseTextShadow parses a CSS text-shadow string
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: '*TextShadow'
+          exported: true
+dependencies:
+    - target: TextShadow
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

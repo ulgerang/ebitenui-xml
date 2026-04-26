@@ -29,9 +29,14 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 	}
 
 	// Kernel radius: 3 standard deviations captures ~99.7% of the Gaussian.
-	radius := int(ceil(3.0 * Sigma))
-	if radius < 1 {
-		radius = 1
+	// Kage requires compile-time loop bounds, so the loop below is fixed and
+	// samples outside the requested radius are skipped with a zero weight.
+	radius := ceil(3.0 * Sigma)
+	if radius < 1.0 {
+		radius = 1.0
+	}
+	if radius > 48.0 {
+		radius = 48.0
 	}
 
 	// Precompute denominator: -1 / (2 * sigma^2)
@@ -40,8 +45,11 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 	result := vec4(0.0)
 	totalWeight := 0.0
 
-	for i := -radius; i <= radius; i++ {
+	for i := -48; i <= 48; i++ {
 		fi := float(i)
+		if abs(fi) > radius {
+			continue
+		}
 		// Gaussian weight: exp(-x^2 / (2*sigma^2))
 		w := exp(fi * fi * invTwoSigmaSq)
 		pos := srcPos + Direction*fi

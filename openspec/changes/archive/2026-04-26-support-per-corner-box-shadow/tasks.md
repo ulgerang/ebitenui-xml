@@ -1,0 +1,6 @@
+- [x] Extend shadow rendering to use per-corner radius data.
+- [x] Preserve uniform `borderRadius` fallback behavior.
+- [x] Preserve current blur/spread and multi-shadow behavior.
+- [x] Add tests for per-corner shadow radius handling.
+- [x] Add visual fixture comparing asymmetric radius shadow.
+- [x] Update docs/status and validate OpenSpec/GDC/build checks.

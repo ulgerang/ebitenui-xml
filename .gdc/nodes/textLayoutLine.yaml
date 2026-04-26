@@ -1,0 +1,35 @@
+schema_version: "1.0"
+node:
+    id: textLayoutLine
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\text_layout.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Text
+          type: string
+          access: get; set
+        - name: StartCluster
+          type: int
+          access: get; set
+        - name: EndCluster
+          type: int
+          access: get; set
+        - name: RuneStart
+          type: int
+          access: get; set
+        - name: RuneEnd
+          type: int
+          access: get; set
+        - name: Width
+          type: float64
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

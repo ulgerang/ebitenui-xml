@@ -435,15 +435,45 @@ func (ti *TextInput) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	// Draw base
-	ti.BaseWidget.Draw(screen)
+	r := ti.computedRect
+	style := ti.renderStyle(ti.getActiveStyle())
+	ti.ensureDeclarativeAnimation(style)
+	opacity := style.Opacity
+	if opacity <= 0 {
+		opacity = 1
+	}
+	animGeoM, hasAnimTransform, animOpacity := ti.animationTransform()
+	opacity *= animOpacity
+	hasTransform := style.Transform != "" && style.Transform != "none"
+	hasFilter := style.parsedFilter != nil
+	hasClipPath := style.ClipPath != "" && style.ClipPath != "none"
+	needsOffscreen := opacity < 1 || hasTransform || hasFilter || hasAnimTransform || hasClipPath
 
-	style := ti.getActiveStyle()
-	r := ti.ContentRect()
+	drawContent := func(target *ebiten.Image, contentRect Rect, contentStyle *Style) {
+		ti.drawContentOnly(target, contentRect, contentStyle)
+		ti.drawTextInputContent(target, contentRect, contentStyle)
+	}
 
+	if needsOffscreen {
+		ti.drawCustomWithCompositing(screen, r, style, opacity, hasTransform, hasFilter, hasClipPath, animGeoM, hasAnimTransform, drawContent)
+		return
+	}
+
+	drawContent(screen, r, style)
+}
+
+func (ti *TextInput) drawTextInputContent(screen *ebiten.Image, widgetRect Rect, style *Style) {
 	if ti.FontFace == nil {
 		return
 	}
+
+	bw := style.BorderWidth
+	r := widgetRect.Inset(
+		style.Padding.Top+bw,
+		style.Padding.Right+bw,
+		style.Padding.Bottom+bw,
+		style.Padding.Left+bw,
+	)
 
 	// Determine display text
 	displayText := ti.Text
@@ -1013,14 +1043,45 @@ func (ta *TextArea) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	ta.BaseWidget.Draw(screen)
+	r := ta.computedRect
+	style := ta.renderStyle(ta.getActiveStyle())
+	ta.ensureDeclarativeAnimation(style)
+	opacity := style.Opacity
+	if opacity <= 0 {
+		opacity = 1
+	}
+	animGeoM, hasAnimTransform, animOpacity := ta.animationTransform()
+	opacity *= animOpacity
+	hasTransform := style.Transform != "" && style.Transform != "none"
+	hasFilter := style.parsedFilter != nil
+	hasClipPath := style.ClipPath != "" && style.ClipPath != "none"
+	needsOffscreen := opacity < 1 || hasTransform || hasFilter || hasAnimTransform || hasClipPath
 
-	style := ta.getActiveStyle()
-	r := ta.ContentRect()
+	drawContent := func(target *ebiten.Image, contentRect Rect, contentStyle *Style) {
+		ta.drawContentOnly(target, contentRect, contentStyle)
+		ta.drawTextAreaContent(target, contentRect, contentStyle)
+	}
 
+	if needsOffscreen {
+		ta.drawCustomWithCompositing(screen, r, style, opacity, hasTransform, hasFilter, hasClipPath, animGeoM, hasAnimTransform, drawContent)
+		return
+	}
+
+	drawContent(screen, r, style)
+}
+
+func (ta *TextArea) drawTextAreaContent(screen *ebiten.Image, widgetRect Rect, style *Style) {
 	if ta.FontFace == nil {
 		return
 	}
+
+	bw := style.BorderWidth
+	r := widgetRect.Inset(
+		style.Padding.Top+bw,
+		style.Padding.Right+bw,
+		style.Padding.Bottom+bw,
+		style.Padding.Left+bw,
+	)
 
 	// Draw placeholder if empty
 	if ta.Text == "" && ta.Placeholder != "" && !ta.Focused {

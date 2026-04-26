@@ -1,0 +1,42 @@
+# Implementation Request: {{ .Node.ID }}
+
+## Target Node Specification
+
+### Responsibility
+{{ .Node.Responsibility.Summary }}
+
+{{ if .Node.Responsibility.Details }}
+**Details:**
+{{ .Node.Responsibility.Details }}
+{{ end }}
+
+## Public Interface to Implement
+
+```{{ .Config.Language }}
+{{ .InterfaceCode }}
+```
+
+{{ if .Dependencies }}
+## Available Dependencies (Contracts)
+
+{{ range .Dependencies }}
+### {{ .Target }}{{ if .Optional }} (Optional){{ end }}
+
+```{{ $.Config.Language }}
+{{ .InterfaceCode }}
+```
+
+{{ if .Usage }}
+**Usage:**
+{{ .Usage }}
+{{ end }}
+
+{{ end }}
+{{ end }}
+
+## Implementation Guidelines
+
+1. Implement EXACTLY the interface specified above.
+2. Use only the provided dependencies.
+3. Maintain all listed invariants.
+4. Follow {{ .Config.Language }} idiomatic conventions.

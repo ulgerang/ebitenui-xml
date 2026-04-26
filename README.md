@@ -7,11 +7,20 @@ A **data-driven UI framework** for [Ebitengine](https://ebitengine.org/) (Ebiten
 - **XML Layouts** - Declarative UI structure with familiar HTML-like syntax
 - **CSS-like JSON Styling** - Flexible styling with selectors, classes, and cascading
 - **Flexbox Layout** - Row/column direction, justify, align, gap, and wrap
+- **HTML-like XML Semantics** - Semantic aliases, forms, fieldsets, radio
+  groups, focus traversal, and DOM-like query helpers
 - **SVG Rendering** - Built-in vector graphics with native SVG parser
 - **Icon Library** - 20+ built-in icons (arrow, check, heart, star, etc.)
 - **9-Slice Scaling** - Scalable UI backgrounds
 - **Data Binding** - Reactive state management
-- **Animation System** - Smooth transitions and effects
+- **XML Data Binding** - `bind-text`, `bind-value`, `bind-checked`,
+  `bind-visible`, `bind-enabled`, `bind-repeat`, `bind-if`, template
+  interpolation, attribute/style bindings, and command events
+- **CSS Effects** - Blur filters, transforms, transitions, animations,
+  multi-shadows, text-shadow blur, z-index, runtime overflow scrolling, and
+  `inset`/`circle`/`polygon` clip-path support
+- **Animation System** - Built-in presets plus JSON custom keyframes and
+  literal CSS `@keyframes`
 - **Extended Widgets** - Toggle, Dropdown, Modal, Toast, Spinner, and more
 
 ## 🚀 Quick Start
@@ -128,6 +137,22 @@ go get github.com/ulgerang/ebitenui-xml
 }
 ```
 
+Top-level JSON `keyframes` can register custom animations:
+
+```json
+{
+    "keyframes": {
+        "popIn": {
+            "from": {"opacity": 0, "transform": "translateY(16px) scale(0.9)"},
+            "to": {"opacity": 1, "transform": "translateY(0) scale(1)"}
+        }
+    },
+    "styles": {
+        ".card": {"animation": "popIn 350ms ease-out 1"}
+    }
+}
+```
+
 ## 🔤 Built-in Icons
 
 ```xml
@@ -144,6 +169,8 @@ Available icons: `arrow-left`, `arrow-right`, `arrow-up`, `arrow-down`, `check`,
 See the [docs](./docs/) folder for detailed documentation:
 - [Cheatsheet](./docs/CHEATSHEET.md)
 - [Extended Widgets](./docs/WIDGETS_EXTENDED.md)
+- [Support Matrix](./docs/SUPPORT_MATRIX.md)
+- [CSS Visual Compare](./docs/CSS_COMPARE.md)
 
 ## 📝 License
 

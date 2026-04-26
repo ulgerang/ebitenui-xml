@@ -1,0 +1,56 @@
+schema_version: "1.0"
+node:
+    id: Rect
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\types.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Contains
+          signature: Contains(x float64, y float64) bool
+          description: Contains checks if a point is inside the rectangle
+          parameters:
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+          returns:
+            type: bool
+          exported: true
+        - name: Inset
+          signature: Inset(top float64, right float64, bottom float64, left float64) Rect
+          description: Inset returns a new rect with padding applied inward
+          parameters:
+            - name: top
+              type: float64
+            - name: right
+              type: float64
+            - name: bottom
+              type: float64
+            - name: left
+              type: float64
+          returns:
+            type: Rect
+          exported: true
+    properties:
+        - name: X
+          type: float64
+          access: get; set
+        - name: "Y"
+          type: float64
+          access: get; set
+        - name: W
+          type: float64
+          access: get; set
+        - name: H
+          type: float64
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

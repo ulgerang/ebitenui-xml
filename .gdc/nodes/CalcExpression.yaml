@@ -1,0 +1,33 @@
+schema_version: "1.0"
+node:
+    id: CalcExpression
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\variables.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Resolve
+          signature: Resolve(ctx SizeContext) float64
+          description: Resolve evaluates the calc expression
+          parameters:
+            - name: ctx
+              type: SizeContext
+          returns:
+            type: float64
+          exported: true
+dependencies:
+    - target: calcToken
+      type: class
+      injection: field
+    - target: SizeContext
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

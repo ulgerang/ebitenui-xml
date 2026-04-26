@@ -1,0 +1,40 @@
+schema_version: "1.0"
+node:
+    id: FontCache
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\font_cache.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewFontCache(source *text.GoTextFaceSource) *FontCache
+          parameters:
+            - name: source
+              type: '*text.GoTextFaceSource'
+          description: NewFontCache creates a new FontCache backed by the given GoTextFaceSource.
+    methods:
+        - name: GetFace
+          signature: GetFace(size float64) *text.GoTextFace
+          description: |-
+            GetFace returns a cached GoTextFace for the given size, creating one if
+            needed. Uses double-checked locking to minimise write-lock contention.
+          parameters:
+            - name: size
+              type: float64
+          returns:
+            type: '*text.GoTextFace'
+          exported: true
+        - name: Source
+          signature: Source() *text.GoTextFaceSource
+          description: Source returns the underlying GoTextFaceSource.
+          returns:
+            type: '*text.GoTextFaceSource'
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

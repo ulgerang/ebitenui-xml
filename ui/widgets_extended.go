@@ -42,6 +42,9 @@ func (t *Toggle) Draw(screen *ebiten.Image) {
 	if !t.visible {
 		return
 	}
+	if t.drawFullWidgetWithEffects(screen, t.Draw) {
+		return
+	}
 
 	r := t.computedRect
 
@@ -152,6 +155,37 @@ func (g *RadioGroup) SetValue(value string) {
 	}
 }
 
+// MoveSelection moves selection by one or more positions in group order.
+func (g *RadioGroup) MoveSelection(delta int) *RadioButton {
+	return g.MoveSelectionFrom(nil, delta)
+}
+
+// MoveSelectionFrom moves selection relative to a specific radio button.
+func (g *RadioGroup) MoveSelectionFrom(currentButton *RadioButton, delta int) *RadioButton {
+	if len(g.Buttons) == 0 {
+		return nil
+	}
+	current := -1
+	for i, btn := range g.Buttons {
+		if currentButton != nil && btn == currentButton {
+			current = i
+			break
+		}
+		if btn.Selected || btn.Value == g.Value {
+			current = i
+			break
+		}
+	}
+	if current < 0 {
+		current = 0
+	} else {
+		current = (current + delta + len(g.Buttons)) % len(g.Buttons)
+	}
+	selected := g.Buttons[current]
+	g.SetValue(selected.Value)
+	return selected
+}
+
 // NewRadioButton creates a new radio button
 func NewRadioButton(id, label, value string) *RadioButton {
 	return &RadioButton{
@@ -164,6 +198,9 @@ func NewRadioButton(id, label, value string) *RadioButton {
 // Draw renders the radio button
 func (rb *RadioButton) Draw(screen *ebiten.Image) {
 	if !rb.visible {
+		return
+	}
+	if rb.drawFullWidgetWithEffects(screen, rb.Draw) {
 		return
 	}
 
@@ -278,7 +315,12 @@ func (d *Dropdown) AddOption(label, value string) {
 
 // SetOptions sets all options at once
 func (d *Dropdown) SetOptions(options []DropdownOption) {
+	selectedValue := d.GetSelectedValue()
 	d.Options = options
+	d.SelectedIndex = -1
+	if selectedValue != "" {
+		d.SetValue(selectedValue)
+	}
 }
 
 // GetSelectedValue returns the currently selected value
@@ -294,14 +336,74 @@ func (d *Dropdown) SetValue(value string) {
 	for i, opt := range d.Options {
 		if opt.Value == value {
 			d.SelectedIndex = i
+			d.hoveredIndex = i
 			return
 		}
+	}
+}
+
+// Open opens the option list and initializes keyboard highlight.
+func (d *Dropdown) Open() {
+	if !d.enabled || len(d.Options) == 0 {
+		return
+	}
+	d.IsOpen = true
+	if d.SelectedIndex >= 0 {
+		d.hoveredIndex = d.SelectedIndex
+	} else if d.hoveredIndex < 0 {
+		d.hoveredIndex = 0
+	}
+}
+
+// Close closes the option list.
+func (d *Dropdown) Close() {
+	d.IsOpen = false
+	d.hoveredIndex = -1
+}
+
+// MoveHighlight moves the keyboard highlight through visible options.
+func (d *Dropdown) MoveHighlight(delta int) {
+	if len(d.Options) == 0 {
+		return
+	}
+	if !d.IsOpen {
+		d.Open()
+		return
+	}
+	if d.hoveredIndex < 0 {
+		if d.SelectedIndex >= 0 {
+			d.hoveredIndex = d.SelectedIndex
+		} else {
+			d.hoveredIndex = 0
+		}
+		return
+	}
+	d.hoveredIndex = (d.hoveredIndex + delta + len(d.Options)) % len(d.Options)
+}
+
+// SelectHighlighted selects the highlighted option.
+func (d *Dropdown) SelectHighlighted() {
+	if !d.IsOpen {
+		d.Open()
+		return
+	}
+	if d.hoveredIndex < 0 || d.hoveredIndex >= len(d.Options) {
+		d.Close()
+		return
+	}
+	d.SelectedIndex = d.hoveredIndex
+	d.Close()
+	if d.OnChange != nil {
+		d.OnChange(d.SelectedIndex, d.Options[d.SelectedIndex].Value)
 	}
 }
 
 // Draw renders the dropdown
 func (d *Dropdown) Draw(screen *ebiten.Image) {
 	if !d.visible {
+		return
+	}
+	if d.drawFullWidgetWithEffects(screen, d.Draw) {
 		return
 	}
 
@@ -445,7 +547,7 @@ func (d *Dropdown) HandleClick() {
 		}
 		d.IsOpen = false
 	} else {
-		d.IsOpen = true
+		d.Open()
 	}
 
 	if d.onClickHandler != nil {
@@ -544,6 +646,9 @@ func (m *Modal) AddButton(btn *Button) {
 // Draw renders the modal
 func (m *Modal) Draw(screen *ebiten.Image) {
 	if !m.IsOpen || !m.visible {
+		return
+	}
+	if m.drawFullWidgetWithEffects(screen, m.Draw) {
 		return
 	}
 
@@ -693,6 +798,9 @@ func (t *Tooltip) Draw(screen *ebiten.Image) {
 	if !t.IsVisible || t.Text == "" || t.FontFace == nil {
 		return
 	}
+	if t.drawFullWidgetWithEffects(screen, t.Draw) {
+		return
+	}
 
 	// Calculate position based on cursor or target
 	mx, my := ebiten.CursorPosition()
@@ -766,6 +874,9 @@ func NewBadge(id, text string) *Badge {
 // Draw renders the badge
 func (b *Badge) Draw(screen *ebiten.Image) {
 	if !b.visible || b.Text == "" {
+		return
+	}
+	if b.drawFullWidgetWithEffects(screen, b.Draw) {
 		return
 	}
 
@@ -842,6 +953,9 @@ func (s *Spinner) Update() {
 // Draw renders the spinner
 func (s *Spinner) Draw(screen *ebiten.Image) {
 	if !s.visible || !s.IsSpinning {
+		return
+	}
+	if s.drawFullWidgetWithEffects(screen, s.Draw) {
 		return
 	}
 
@@ -957,6 +1071,9 @@ func (t *Toast) Update() {
 // Draw renders the toast
 func (t *Toast) Draw(screen *ebiten.Image) {
 	if !t.IsVisible || t.Message == "" {
+		return
+	}
+	if t.drawFullWidgetWithEffects(screen, t.Draw) {
 		return
 	}
 

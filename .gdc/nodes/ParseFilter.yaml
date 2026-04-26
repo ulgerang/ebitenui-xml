@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: ParseFilter
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\style.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParseFilter
+          signature: ParseFilter(s string) *Filter
+          description: |-
+            ParseFilter parses a CSS filter string.
+            Supported functions: blur(), brightness(), contrast(), grayscale(), sepia(),
+            saturate(), hue-rotate(), invert()
+            Example: "blur(5px) brightness(1.2) contrast(0.8)"
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: '*Filter'
+          exported: true
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

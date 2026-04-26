@@ -1,0 +1,34 @@
+schema_version: "1.0"
+node:
+    id: ApplyBackdropFilter
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ApplyBackdropFilter
+          signature: ApplyBackdropFilter(screen *ebiten.Image, r Rect, bf *BackdropFilter)
+          description: |-
+            ApplyBackdropFilter captures the screen region behind a widget, applies
+            blur/brightness/saturate effects, and composites the result back.
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: r
+              type: Rect
+            - name: bf
+              type: '*BackdropFilter'
+          exported: true
+dependencies:
+    - target: BackdropFilter
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

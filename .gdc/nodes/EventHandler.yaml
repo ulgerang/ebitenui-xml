@@ -1,0 +1,26 @@
+schema_version: "1.0"
+node:
+    id: EventHandler
+    type: interface
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\types.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Invoke
+          signature: Invoke(widget Widget, event Event)
+          description: EventHandler is a function that handles UI events
+          parameters:
+            - name: widget
+              type: Widget
+            - name: event
+              type: Event
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

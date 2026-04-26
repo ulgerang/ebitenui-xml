@@ -1,0 +1,81 @@
+schema_version: "1.0"
+node:
+    id: XMLNode
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\parser.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: GetAttr
+          signature: GetAttr(name string) string
+          description: GetAttr gets an attribute value by name
+          parameters:
+            - name: name
+              type: string
+          returns:
+            type: string
+          exported: true
+        - name: GetFirstAttr
+          signature: GetFirstAttr(names unknown) string
+          description: GetFirstAttr returns the first non-empty attribute value for the given names.
+          parameters:
+            - name: names
+              type: unknown
+          returns:
+            type: string
+          exported: true
+        - name: GetAttrFloat
+          signature: GetAttrFloat(name string) float64
+          description: GetAttrFloat gets an attribute as float64
+          parameters:
+            - name: name
+              type: string
+          returns:
+            type: float64
+          exported: true
+        - name: GetAttrInt
+          signature: GetAttrInt(name string) int
+          description: GetAttrInt gets an attribute as int
+          parameters:
+            - name: name
+              type: string
+          returns:
+            type: int
+          exported: true
+        - name: GetAttrBool
+          signature: GetAttrBool(name string) bool
+          description: GetAttrBool gets an attribute as bool
+          parameters:
+            - name: name
+              type: string
+          returns:
+            type: bool
+          exported: true
+    properties:
+        - name: XMLName
+          type: xml.Name
+          access: get; set
+        - name: ID
+          type: string
+          access: get; set
+        - name: Class
+          type: string
+          access: get; set
+        - name: Text
+          type: string
+          access: get; set
+        - name: Children
+          type: '[]XMLNode'
+          access: get; set
+        - name: Attrs
+          type: '[]xml.Attr'
+          access: get; set
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

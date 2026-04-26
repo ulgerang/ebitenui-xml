@@ -1,0 +1,60 @@
+schema_version: "1.0"
+node:
+    id: Toggle
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets_extended.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewToggle(id string, label string) *Toggle
+          parameters:
+            - name: id
+              type: string
+            - name: label
+              type: string
+          description: NewToggle creates a new toggle widget
+    methods:
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the toggle switch
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+        - name: HandleClick
+          signature: HandleClick()
+          description: HandleClick toggles the switch
+          exported: true
+    properties:
+        - name: Checked
+          type: bool
+          access: get; set
+        - name: Label
+          type: string
+          access: get; set
+        - name: FontFace
+          type: text.Face
+          access: get; set
+        - name: OnChange
+          type: func(...)
+          access: get; set
+        - name: OnColor
+          type: color.Color
+          access: get; set
+          description: Color when on
+        - name: OffColor
+          type: color.Color
+          access: get; set
+          description: Color when off
+        - name: ThumbColor
+          type: color.Color
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

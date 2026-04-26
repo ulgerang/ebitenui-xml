@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: ParseSizeValue
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\variables.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParseSizeValue
+          signature: ParseSizeValue(s string) SizeValue
+          description: ParseSizeValue parses a size value string (e.g., "50%", "100px", "10vh")
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: SizeValue
+          exported: true
+dependencies:
+    - target: SizeValue
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

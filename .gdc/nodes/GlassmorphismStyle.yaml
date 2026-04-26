@@ -1,0 +1,32 @@
+schema_version: "1.0"
+node:
+    id: GlassmorphismStyle
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: GlassmorphismStyle
+          signature: GlassmorphismStyle(blurAmount float64, bgAlpha float64) (*Style, *BackdropFilter)
+          description: GlassmorphismStyle creates a glassmorphism effect style
+          parameters:
+            - name: blurAmount
+              type: float64
+            - name: bgAlpha
+              type: float64
+          returns:
+            type: (*Style, *BackdropFilter)
+          exported: true
+dependencies:
+    - target: BackdropFilter
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

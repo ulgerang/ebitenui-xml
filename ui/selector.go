@@ -173,7 +173,7 @@ func (s *Selector) Matches(widget Widget, parent Widget) bool {
 
 func (s *Selector) matchesSingle(widget Widget) bool {
 	// Match tag
-	if s.Tag != "" && s.Tag != widget.Type() {
+	if s.Tag != "" && !selectorTagMatches(widget, s.Tag) {
 		return false
 	}
 
@@ -200,6 +200,16 @@ func (s *Selector) matchesSingle(widget Widget) bool {
 	}
 
 	return true
+}
+
+func selectorTagMatches(widget Widget, tag string) bool {
+	if widget.Type() == tag {
+		return true
+	}
+	if bw := baseWidgetOf(widget); bw != nil && bw.SemanticType() == tag {
+		return true
+	}
+	return widget.HasClass(tag)
 }
 
 func (s *Selector) matchesDescendant(widget Widget, childSelector *Selector) bool {

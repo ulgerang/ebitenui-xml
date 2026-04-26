@@ -1,0 +1,41 @@
+schema_version: "1.0"
+node:
+    id: DrawPerSideBorder
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: DrawPerSideBorder
+          signature: DrawPerSideBorder(screen *ebiten.Image, r Rect, top float64, right float64, bottom float64, left float64, clr color.Color, borderRadius float64)
+          description: |-
+            DrawPerSideBorder draws borders with independent widths per side.
+            Each side (top, right, bottom, left) is rendered as a filled rectangle.
+            borderRadius is reserved for future rounded-corner clipping; currently unused.
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: r
+              type: Rect
+            - name: top
+              type: float64
+            - name: right
+              type: float64
+            - name: bottom
+              type: float64
+            - name: left
+              type: float64
+            - name: clr
+              type: color.Color
+            - name: borderRadius
+              type: float64
+          exported: true
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

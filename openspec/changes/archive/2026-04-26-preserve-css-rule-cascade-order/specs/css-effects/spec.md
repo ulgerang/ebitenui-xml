@@ -1,0 +1,37 @@
+## MODIFIED Requirements
+
+### Requirement: CSS rule subset for visual properties
+
+The style engine SHALL accept simple CSS selector blocks for common visual and
+effect properties.
+
+#### Scenario: class rule sets effects
+
+Given a stylesheet contains `.badge { transform: scale(1.2); filter: blur(2px); opacity: 0.5; }`
+When the stylesheet is loaded
+Then the `.badge` style records transform, filter, and opacity declarations.
+
+#### Scenario: descendant selector sets visual style
+
+Given a stylesheet contains `.card .title { color: #ffffff; }`
+When the stylesheet is loaded and the layout is applied
+Then only title descendants of `.card` receive the declared color.
+
+#### Scenario: sibling selector sets visual style
+
+Given a stylesheet contains `.label + .value { color: #ffffff; }`
+When the stylesheet is loaded and the layout is applied
+Then only matching following sibling widgets receive the declared color.
+
+#### Scenario: same-specificity CSS source order wins
+
+Given a stylesheet contains `.primary { color: #111111; }` before `.accent { color: #ffffff; }`
+And a widget has both `primary` and `accent` classes
+When styles are applied
+Then the later same-specificity rule wins for overlapping properties.
+
+#### Scenario: UI style loading resolves CSS variables
+
+Given the UI variable `--primary` is set to `#ffffff`
+When `UI.LoadCSS` or `UI.LoadStyles` receives a declaration containing `var(--primary)`
+Then the resulting widget style uses the resolved value.

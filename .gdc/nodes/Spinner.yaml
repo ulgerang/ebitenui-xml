@@ -1,0 +1,41 @@
+schema_version: "1.0"
+node:
+    id: Spinner
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets_extended.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewSpinner(id string) *Spinner
+          parameters:
+            - name: id
+              type: string
+          description: NewSpinner creates a new spinner widget
+    methods:
+        - name: Update
+          signature: Update()
+          description: Update updates the spinner animation
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the spinner
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+    properties:
+        - name: IsSpinning
+          type: bool
+          access: get; set
+        - name: SpinnerColor
+          type: color.Color
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

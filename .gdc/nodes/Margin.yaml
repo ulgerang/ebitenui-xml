@@ -1,0 +1,42 @@
+schema_version: "1.0"
+node:
+    id: Margin
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\types.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Horizontal
+          signature: Horizontal() float64
+          description: Horizontal returns horizontal margin total
+          returns:
+            type: float64
+          exported: true
+        - name: Vertical
+          signature: Vertical() float64
+          description: Vertical returns vertical margin total
+          returns:
+            type: float64
+          exported: true
+    properties:
+        - name: Top
+          type: float64
+          access: get; set
+        - name: Right
+          type: float64
+          access: get; set
+        - name: Bottom
+          type: float64
+          access: get; set
+        - name: Left
+          type: float64
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

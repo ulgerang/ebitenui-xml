@@ -1,0 +1,6 @@
+- [x] Parse comma-separated top-level `@media` query lists.
+- [x] Support optional `screen` and `all` media types.
+- [x] Support `orientation: landscape|portrait`.
+- [x] Preserve existing min/max width/height behavior.
+- [x] Add regression tests for matching and non-matching expanded queries.
+- [x] Update docs/status and validate OpenSpec/GDC/build checks.

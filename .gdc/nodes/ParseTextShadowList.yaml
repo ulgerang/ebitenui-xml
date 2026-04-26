@@ -1,0 +1,26 @@
+schema_version: "1.0"
+node:
+    id: ParseTextShadowList
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParseTextShadowList
+          signature: ParseTextShadowList(s string) []*TextShadow
+          description: ParseTextShadowList parses a comma-separated CSS text-shadow list.
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: '[]*TextShadow'
+          exported: true
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

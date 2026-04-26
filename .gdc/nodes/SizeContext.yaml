@@ -1,0 +1,33 @@
+schema_version: "1.0"
+node:
+    id: SizeContext
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\variables.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: ParentSize
+          type: float64
+          access: get; set
+          description: Parent dimension (width or height)
+        - name: ViewportWidth
+          type: float64
+          access: get; set
+        - name: ViewportHeight
+          type: float64
+          access: get; set
+        - name: FontSize
+          type: float64
+          access: get; set
+        - name: RootFontSize
+          type: float64
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

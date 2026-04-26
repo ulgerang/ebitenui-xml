@@ -1,0 +1,29 @@
+schema_version: "1.0"
+node:
+    id: BackdropFilter
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewBackdropFilter() *BackdropFilter
+          description: NewBackdropFilter creates a BackdropFilter with identity defaults.
+    properties:
+        - name: Blur
+          type: float64
+          access: get; set
+        - name: Brightness
+          type: float64
+          access: get; set
+        - name: Saturate
+          type: float64
+          access: get; set
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

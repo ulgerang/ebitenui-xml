@@ -1,0 +1,39 @@
+schema_version: "1.0"
+node:
+    id: SVGRadialGradient
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: ID
+          type: string
+          access: get; set
+        - name: CX
+          type: float64
+          access: get; set
+          description: center, default 0.5
+        - name: CY
+          type: float64
+          access: get; set
+          description: center, default 0.5
+        - name: R
+          type: float64
+          access: get; set
+          description: radius, default 0.5
+        - name: Stops
+          type: '[]SVGGradientStop'
+          access: get; set
+dependencies:
+    - target: SVGGradientStop
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

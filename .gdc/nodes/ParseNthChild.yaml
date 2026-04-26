@@ -1,0 +1,26 @@
+schema_version: "1.0"
+node:
+    id: ParseNthChild
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\selector.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParseNthChild
+          signature: ParseNthChild(expr string) (a int, b int)
+          description: ParseNthChild parses :nth-child(n) expressions
+          parameters:
+            - name: expr
+              type: string
+          returns:
+            type: int
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

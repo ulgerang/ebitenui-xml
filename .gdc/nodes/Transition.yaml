@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: Transition
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Property
+          type: string
+          access: get; set
+        - name: Duration
+          type: float64
+          access: get; set
+          description: in seconds
+        - name: Easing
+          type: EasingFunc
+          access: get; set
+        - name: Delay
+          type: float64
+          access: get; set
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

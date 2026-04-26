@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: DrawRoundedRectPath
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: DrawRoundedRectPath
+          signature: DrawRoundedRectPath(screen *ebiten.Image, r Rect, radius float64, clr color.Color)
+          description: DrawRoundedRectPath draws a rounded rectangle with the same radius on all corners.
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: r
+              type: Rect
+            - name: radius
+              type: float64
+            - name: clr
+              type: color.Color
+          exported: true
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

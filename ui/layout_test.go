@@ -799,6 +799,247 @@ func TestLayoutEngineMinMaxConstraints(t *testing.T) {
 	})
 }
 
+func TestLayoutEnginePhase3FlexParity(t *testing.T) {
+	t.Run("justify around and evenly distribute free space", func(t *testing.T) {
+		for _, tc := range []struct {
+			name    string
+			justify Justify
+			wantX   []float64
+		}{
+			{name: "around", justify: JustifyAround, wantX: []float64{27, 160, 293}},
+			{name: "evenly", justify: JustifyEvenly, wantX: []float64{40, 160, 280}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				parent := NewPanel("parent")
+				parent.SetStyle(&Style{Direction: LayoutRow, Width: 400, Height: 100, Justify: tc.justify})
+				for i := 0; i < 3; i++ {
+					child := NewPanel("child")
+					child.SetStyle(&Style{Width: 80, Height: 20, BoxSizing: "border-box"})
+					parent.AddChild(child)
+				}
+
+				NewLayoutEngine().Layout(parent, 400, 100)
+				for i, child := range parent.Children() {
+					if got := child.ComputedRect().X; math.Abs(got-tc.wantX[i]) > 1 {
+						t.Fatalf("child %d X = %v, want %v", i, got, tc.wantX[i])
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("box sizing content box expands outer size", func(t *testing.T) {
+		parent := NewPanel("parent")
+		parent.SetStyle(&Style{Direction: LayoutRow, Width: 300, Height: 100})
+		child := NewPanel("child")
+		child.SetStyle(&Style{
+			Width:       100,
+			Height:      20,
+			Padding:     PaddingAll(10),
+			PaddingSet:  true,
+			BorderWidth: 2,
+		})
+		parent.AddChild(child)
+
+		NewLayoutEngine().Layout(parent, 300, 100)
+		if got := child.ComputedRect().W; got != 124 {
+			t.Fatalf("content-box outer width = %v, want 124", got)
+		}
+
+		child.Style().BoxSizing = "border-box"
+		NewLayoutEngine().Layout(parent, 300, 100)
+		if got := child.ComputedRect().W; got != 100 {
+			t.Fatalf("border-box outer width = %v, want 100", got)
+		}
+	})
+
+	t.Run("flex shrink respects zero shrink and min width", func(t *testing.T) {
+		parent := NewPanel("parent")
+		parent.SetStyle(&Style{Direction: LayoutRow, Width: 180, Height: 100})
+
+		fixed := NewPanel("fixed")
+		fixed.SetStyle(&Style{Width: 100, Height: 20, FlexShrink: 0, FlexShrinkSet: true, BoxSizing: "border-box"})
+		shrinking := NewPanel("shrinking")
+		shrinking.SetStyle(&Style{Width: 120, Height: 20, MinWidth: 90, FlexShrink: 1, FlexShrinkSet: true, BoxSizing: "border-box"})
+		parent.AddChild(fixed)
+		parent.AddChild(shrinking)
+
+		NewLayoutEngine().Layout(parent, 180, 100)
+		if got := fixed.ComputedRect().W; got != 100 {
+			t.Fatalf("fixed width = %v, want 100", got)
+		}
+		if got := shrinking.ComputedRect().W; got != 90 {
+			t.Fatalf("shrinking width = %v, want min 90", got)
+		}
+	})
+
+	t.Run("flex wrap creates additional rows", func(t *testing.T) {
+		parent := NewPanel("parent")
+		parent.SetStyle(&Style{Direction: LayoutRow, Width: 220, Height: 200, FlexWrap: FlexWrapNormal, Gap: 10})
+		for i := 0; i < 3; i++ {
+			child := NewPanel("child")
+			child.SetStyle(&Style{Width: 100, Height: 30, BoxSizing: "border-box"})
+			parent.AddChild(child)
+		}
+
+		NewLayoutEngine().Layout(parent, 220, 200)
+		children := parent.Children()
+		if children[0].ComputedRect().Y != children[1].ComputedRect().Y {
+			t.Fatal("first two children should share the first row")
+		}
+		if children[2].ComputedRect().Y <= children[0].ComputedRect().Y {
+			t.Fatalf("third child Y = %v, want wrapped below first row", children[2].ComputedRect().Y)
+		}
+	})
+}
+
+func TestLayoutEnginePhase4PositionOverflowZIndex(t *testing.T) {
+	t.Run("absolute child uses inset offsets and does not affect flex flow", func(t *testing.T) {
+		parent := NewPanel("parent")
+		parent.SetStyle(&Style{Direction: LayoutRow, Width: 300, Height: 100})
+
+		normal := NewPanel("normal")
+		normal.SetStyle(&Style{Width: 50, Height: 20, BoxSizing: "border-box"})
+		absolute := NewPanel("absolute")
+		absolute.SetStyle(&Style{
+			Position:  "absolute",
+			Left:      100,
+			LeftSet:   true,
+			Top:       10,
+			TopSet:    true,
+			Width:     80,
+			WidthSet:  true,
+			Height:    20,
+			HeightSet: true,
+			BoxSizing: "border-box",
+		})
+		second := NewPanel("second")
+		second.SetStyle(&Style{Width: 50, Height: 20, BoxSizing: "border-box"})
+		parent.AddChild(normal)
+		parent.AddChild(absolute)
+		parent.AddChild(second)
+
+		NewLayoutEngine().Layout(parent, 300, 100)
+		if got := normal.ComputedRect().X; got != 0 {
+			t.Fatalf("normal child X = %v, want 0", got)
+		}
+		if got := second.ComputedRect().X; got != 50 {
+			t.Fatalf("second normal child X = %v, want 50", got)
+		}
+		rect := absolute.ComputedRect()
+		if rect.X != 100 || rect.Y != 10 || rect.W != 80 || rect.H != 20 {
+			t.Fatalf("absolute rect = %+v, want X=100 Y=10 W=80 H=20", rect)
+		}
+	})
+
+	t.Run("absolute child derives size from opposing insets", func(t *testing.T) {
+		parent := NewPanel("parent")
+		parent.SetStyle(&Style{Width: 300, Height: 200})
+		child := NewPanel("absolute")
+		child.SetStyle(&Style{
+			Position:  "absolute",
+			Left:      20,
+			LeftSet:   true,
+			Right:     30,
+			RightSet:  true,
+			Top:       10,
+			TopSet:    true,
+			Bottom:    40,
+			BottomSet: true,
+		})
+		parent.AddChild(child)
+
+		NewLayoutEngine().Layout(parent, 300, 200)
+		rect := child.ComputedRect()
+		if rect.X != 20 || rect.Y != 10 || rect.W != 250 || rect.H != 150 {
+			t.Fatalf("absolute inset rect = %+v, want X=20 Y=10 W=250 H=150", rect)
+		}
+	})
+
+	t.Run("overflow hidden clips hit testing outside parent bounds", func(t *testing.T) {
+		manager := New(200, 200)
+		parent := NewPanel("parent")
+		parent.SetStyle(&Style{Width: 100, Height: 100, Overflow: "hidden"})
+		child := NewButton("child", "child")
+		child.SetStyle(&Style{
+			Position:  "absolute",
+			Left:      120,
+			LeftSet:   true,
+			Top:       0,
+			TopSet:    true,
+			Width:     50,
+			WidthSet:  true,
+			Height:    50,
+			HeightSet: true,
+		})
+		parent.AddChild(child)
+		manager.SetRoot(parent)
+
+		if got := manager.findWidgetAt(manager.Root(), 130, 10); got == child {
+			t.Fatalf("overflow hidden should clip hit testing outside parent bounds")
+		}
+	})
+
+	t.Run("z-index controls topmost hit target", func(t *testing.T) {
+		manager := New(200, 200)
+		root := NewPanel("root")
+		root.SetStyle(&Style{Width: 200, Height: 200})
+		low := NewButton("low", "low")
+		low.SetStyle(&Style{Position: "absolute", LeftSet: true, TopSet: true, Width: 100, WidthSet: true, Height: 100, HeightSet: true, ZIndex: 1, ZIndexSet: true})
+		high := NewButton("high", "high")
+		high.SetStyle(&Style{Position: "absolute", LeftSet: true, TopSet: true, Width: 100, WidthSet: true, Height: 100, HeightSet: true, ZIndex: 5, ZIndexSet: true})
+		root.AddChild(low)
+		root.AddChild(high)
+		manager.SetRoot(root)
+
+		if got := manager.findWidgetAt(manager.Root(), 10, 10); got != high {
+			t.Fatalf("topmost hit widget = %v, want high z-index widget", got)
+		}
+	})
+}
+
+func TestOverflowScrollRuntimeOffsetAndHitTesting(t *testing.T) {
+	ui := New(200, 200)
+	root := NewPanel("root")
+	root.SetStyle(&Style{Width: 200, Height: 200, Direction: LayoutColumn})
+	scroller := NewPanel("scroller")
+	scroller.SetStyle(&Style{Width: 100, Height: 100, Direction: LayoutColumn, Overflow: "scroll"})
+	first := NewButton("first", "First")
+	first.SetStyle(&Style{Height: 80, FlexShrink: 0, FlexShrinkSet: true})
+	second := NewButton("second", "Second")
+	second.SetStyle(&Style{Height: 80, FlexShrink: 0, FlexShrinkSet: true})
+	third := NewButton("third", "Third")
+	third.SetStyle(&Style{Height: 80, FlexShrink: 0, FlexShrinkSet: true})
+	scroller.AddChild(first)
+	scroller.AddChild(second)
+	scroller.AddChild(third)
+	root.AddChild(scroller)
+	ui.root = root
+	ui.widgetByID = make(map[string]Widget)
+	ui.buildWidgetCache(root)
+	ui.Layout()
+
+	if got := baseWidgetOf(scroller).MaxScrollY(); got != 140 {
+		t.Fatalf("MaxScrollY = %v, want 140", got)
+	}
+	if got := ui.findWidgetAt(ui.root, 10, 50); got == nil || got.ID() != "first" {
+		t.Fatalf("initial hit = %v, want first", got)
+	}
+
+	ui.SetWidgetScroll("scroller", 0, 120)
+	if _, y := baseWidgetOf(scroller).ScrollOffset(); y != 120 {
+		t.Fatalf("scroll offset y = %v, want 120", y)
+	}
+	if got := ui.findWidgetAt(ui.root, 10, 50); got == nil || got.ID() != "third" {
+		t.Fatalf("scrolled hit = %v, want third", got)
+	}
+
+	ui.ScrollWidgetBy("scroller", 0, 1000)
+	if _, y := baseWidgetOf(scroller).ScrollOffset(); y != 140 {
+		t.Fatalf("clamped scroll offset y = %v, want 140", y)
+	}
+}
+
 // ============================================================================
 // LayoutWidget and DrawWidget Tests
 // ============================================================================

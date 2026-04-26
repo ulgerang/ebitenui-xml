@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: LoadSVG
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: LoadSVG
+          signature: LoadSVG(filename string) (*SVGDocument, error)
+          description: LoadSVG loads an SVG file from disk
+          parameters:
+            - name: filename
+              type: string
+          returns:
+            type: (*SVGDocument, error)
+          exported: true
+dependencies:
+    - target: SVGDocument
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

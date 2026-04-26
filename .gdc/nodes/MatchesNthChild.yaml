@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: MatchesNthChild
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\selector.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: MatchesNthChild
+          signature: MatchesNthChild(index int, a int, b int) bool
+          description: MatchesNthChild checks if index matches :nth-child(An+B)
+          parameters:
+            - name: index
+              type: int
+            - name: a
+              type: int
+            - name: b
+              type: int
+          returns:
+            type: bool
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

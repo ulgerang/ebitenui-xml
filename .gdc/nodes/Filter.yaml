@@ -1,0 +1,52 @@
+schema_version: "1.0"
+node:
+    id: Filter
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewFilter() *Filter
+          description: NewFilter creates a default filter (no effect)
+    properties:
+        - name: Blur
+          type: float64
+          access: get; set
+          description: blur radius in pixels
+        - name: Brightness
+          type: float64
+          access: get; set
+          description: 0-2, where 1 is normal
+        - name: Contrast
+          type: float64
+          access: get; set
+          description: 0-2, where 1 is normal
+        - name: Saturate
+          type: float64
+          access: get; set
+          description: 0-2, where 1 is normal
+        - name: Grayscale
+          type: float64
+          access: get; set
+          description: 0-1
+        - name: Sepia
+          type: float64
+          access: get; set
+          description: 0-1
+        - name: HueRotate
+          type: float64
+          access: get; set
+          description: degrees
+        - name: Invert
+          type: float64
+          access: get; set
+          description: 0-1
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

@@ -6,8 +6,10 @@ import (
 	"image/color"
 	"math"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ParseColor is the exported color parsing function for external use
@@ -17,18 +19,47 @@ func ParseColor(s string) color.Color {
 
 // StyleSheet holds all style definitions
 type StyleSheet struct {
-	Styles map[string]*Style `json:"styles"`
+	Styles    map[string]*Style                   `json:"styles"`
+	Keyframes map[string]map[string]KeyframeStyle `json:"keyframes"`
+}
+
+// KeyframeStyle describes animatable properties in a JSON keyframe block.
+type KeyframeStyle struct {
+	Transform       string  `json:"transform"`
+	Opacity         float64 `json:"opacity"`
+	Width           float64 `json:"width"`
+	Height          float64 `json:"height"`
+	Background      string  `json:"background"`
+	Border          string  `json:"border"`
+	BoxShadowBlur   float64 `json:"boxShadowBlur"`
+	BoxShadowSpread float64 `json:"boxShadowSpread"`
 }
 
 // StyleEngine manages and applies styles
 type StyleEngine struct {
 	styles map[string]*Style
+	rules  []styleRuleRecord
+}
+
+type styleRuleRecord struct {
+	Selector    string
+	Style       *Style
+	Specificity int
+	Order       int
+	Important   bool
+}
+
+type cssParsedRule struct {
+	Selector  string
+	Style     *Style
+	Important bool
 }
 
 // NewStyleEngine creates a new style engine
 func NewStyleEngine() *StyleEngine {
 	return &StyleEngine{
 		styles: make(map[string]*Style),
+		rules:  make([]styleRuleRecord, 0),
 	}
 }
 
@@ -48,6 +79,13 @@ func (se *StyleEngine) LoadFromJSON(data []byte) error {
 	var rawMap map[string]json.RawMessage
 	if err := json.Unmarshal(data, &rawMap); err != nil {
 		return fmt.Errorf("failed to parse styles: %w", err)
+	}
+
+	if rawKeyframes, ok := rawMap["keyframes"]; ok {
+		if err := se.loadKeyframes(rawKeyframes); err != nil {
+			return err
+		}
+		delete(rawMap, "keyframes")
 	}
 
 	// Determine the style map source
@@ -88,11 +126,728 @@ func (se *StyleEngine) LoadFromJSON(data []byte) error {
 		// Detect explicitly-set fields from raw JSON
 		se.detectExplicitFields(&style, rawStyle)
 
-		se.parseStyleColors(&style)
-		se.styles[selector] = &style
+		se.AddStyle(selector, &style)
 	}
 
 	return nil
+}
+
+func (se *StyleEngine) loadKeyframes(raw json.RawMessage) error {
+	var rawAnimations map[string]map[string]KeyframeStyle
+	if err := json.Unmarshal(raw, &rawAnimations); err != nil {
+		return fmt.Errorf("failed to parse keyframes: %w", err)
+	}
+	for name, frames := range rawAnimations {
+		anim := animationFromKeyframeStyles(name, frames)
+		if anim != nil {
+			RegisterAnimation(name, anim)
+		}
+	}
+	return nil
+}
+
+// LoadCSS loads a small CSS subset: simple selector blocks plus literal @keyframes blocks.
+func (se *StyleEngine) LoadCSS(css string) error {
+	animations, err := parseCSSKeyframes(css)
+	if err != nil {
+		return err
+	}
+	for name, frames := range animations {
+		anim := animationFromKeyframeStyles(name, frames)
+		if anim != nil {
+			RegisterAnimation(name, anim)
+		}
+	}
+	rules, err := parseCSSStyleRules(css)
+	if err != nil {
+		return err
+	}
+	for _, rule := range rules {
+		se.addStyle(rule.Selector, rule.Style, rule.Important)
+	}
+	return nil
+}
+
+func parseCSSKeyframes(css string) (map[string]map[string]KeyframeStyle, error) {
+	result := make(map[string]map[string]KeyframeStyle)
+	remaining := stripCSSComments(css)
+	for {
+		idx := strings.Index(remaining, "@keyframes")
+		if idx < 0 {
+			break
+		}
+		remaining = remaining[idx+len("@keyframes"):]
+		remaining = strings.TrimSpace(remaining)
+		nameEnd := strings.IndexAny(remaining, " \t\r\n{")
+		if nameEnd <= 0 {
+			return nil, fmt.Errorf("failed to parse @keyframes: missing animation name")
+		}
+		name := strings.TrimSpace(remaining[:nameEnd])
+		remaining = strings.TrimSpace(remaining[nameEnd:])
+		if !strings.HasPrefix(remaining, "{") {
+			return nil, fmt.Errorf("failed to parse @keyframes %q: missing block", name)
+		}
+		body, rest, ok := consumeCSSBlock(remaining)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse @keyframes %q: unclosed block", name)
+		}
+		frames, err := parseCSSKeyframeBody(name, body)
+		if err != nil {
+			return nil, err
+		}
+		result[name] = frames
+		remaining = rest
+	}
+	if len(result) == 0 && strings.Contains(css, "@keyframes") {
+		return nil, fmt.Errorf("failed to parse @keyframes")
+	}
+	return result, nil
+}
+
+func parseCSSStyleRules(css string) ([]cssParsedRule, error) {
+	remaining := stripCSSAtKeyframes(stripCSSComments(css))
+	rules := make([]cssParsedRule, 0)
+	for strings.TrimSpace(remaining) != "" {
+		open := strings.Index(remaining, "{")
+		if open < 0 {
+			if strings.TrimSpace(remaining) == "" {
+				break
+			}
+			return nil, fmt.Errorf("failed to parse CSS rule: missing block")
+		}
+		selectorText := strings.TrimSpace(remaining[:open])
+		if selectorText == "" {
+			return nil, fmt.Errorf("failed to parse CSS rule: empty selector")
+		}
+		block, rest, ok := consumeCSSBlock(remaining[open:])
+		if !ok {
+			return nil, fmt.Errorf("failed to parse CSS rule %q: unclosed block", selectorText)
+		}
+		normalStyle, importantStyle := stylesFromCSSDeclarations(block)
+		for _, selector := range splitCSSSelectorList(selectorText) {
+			selector = strings.TrimSpace(selector)
+			if selector != "" {
+				if normalStyle != nil {
+					rules = append(rules, cssParsedRule{Selector: selector, Style: normalStyle.Clone()})
+				}
+				if importantStyle != nil {
+					rules = append(rules, cssParsedRule{Selector: selector, Style: importantStyle.Clone(), Important: true})
+				}
+			}
+		}
+		remaining = strings.TrimSpace(rest)
+	}
+	return rules, nil
+}
+
+func styleFromCSSDeclarations(block string) *Style {
+	style, important := stylesFromCSSDeclarations(block)
+	if style != nil {
+		return style
+	}
+	if important != nil {
+		return important
+	}
+	return &Style{}
+}
+
+func stylesFromCSSDeclarations(block string) (*Style, *Style) {
+	normalStyle := &Style{}
+	importantStyle := &Style{}
+	hasNormal := false
+	hasImportant := false
+	for _, declaration := range splitCSSDeclarations(block) {
+		name, value, ok := strings.Cut(declaration, ":")
+		if !ok {
+			continue
+		}
+		cleanValue, important := parseCSSImportantValue(value)
+		if important {
+			applyCSSDeclaration(importantStyle, strings.ToLower(strings.TrimSpace(name)), cleanValue)
+			hasImportant = true
+		} else {
+			applyCSSDeclaration(normalStyle, strings.ToLower(strings.TrimSpace(name)), cleanValue)
+			hasNormal = true
+		}
+	}
+	if !hasNormal {
+		normalStyle = nil
+	}
+	if !hasImportant {
+		importantStyle = nil
+	}
+	return normalStyle, importantStyle
+}
+
+func applyCSSDeclaration(style *Style, prop, value string) {
+	switch prop {
+	case "display":
+		style.Display = value
+	case "flex-direction":
+		switch value {
+		case "row":
+			style.Direction = LayoutRow
+		case "column":
+			style.Direction = LayoutColumn
+		}
+	case "justify-content":
+		style.Justify = cssJustify(value)
+	case "align-items":
+		style.Align = cssAlign(value)
+	case "gap":
+		style.Gap = parseCSSPixels(value)
+		style.GapSet = true
+	case "width":
+		style.Width = parseCSSPixels(value)
+		style.WidthSet = true
+	case "height":
+		style.Height = parseCSSPixels(value)
+		style.HeightSet = true
+	case "min-width":
+		style.MinWidth = parseCSSPixels(value)
+		style.MinWidthSet = true
+	case "min-height":
+		style.MinHeight = parseCSSPixels(value)
+		style.MinHeightSet = true
+	case "max-width":
+		style.MaxWidth = parseCSSPixels(value)
+		style.MaxWidthSet = true
+	case "max-height":
+		style.MaxHeight = parseCSSPixels(value)
+		style.MaxHeightSet = true
+	case "box-sizing":
+		style.BoxSizing = value
+	case "flex-grow":
+		style.FlexGrow, _ = strconv.ParseFloat(value, 64)
+		style.FlexGrowSet = true
+	case "flex-shrink":
+		style.FlexShrink, _ = strconv.ParseFloat(value, 64)
+		style.FlexShrinkSet = true
+	case "flex-wrap":
+		style.FlexWrap = FlexWrap(value)
+	case "padding":
+		spacing := cssBoxSpacing(value)
+		style.Padding = Padding(spacing)
+		style.PaddingSet = true
+	case "margin":
+		spacing := cssBoxSpacing(value)
+		style.Margin = Margin(spacing)
+		style.MarginSet = true
+	case "background", "background-color":
+		style.Background = value
+	case "color":
+		style.Color = value
+	case "border":
+		applyCSSBorderDeclaration(style, value)
+	case "border-color":
+		style.Border = value
+	case "border-width":
+		style.BorderWidth = parseCSSPixels(value)
+		style.BorderWidthSet = true
+	case "border-radius":
+		style.BorderRadius = parseCSSPixels(value)
+		style.BorderRadiusSet = true
+	case "font-size":
+		style.FontSize = parseCSSPixels(value)
+		style.FontSizeSet = true
+	case "font-weight":
+		style.FontWeight = value
+	case "line-height":
+		style.LineHeight = parseCSSPixels(value)
+		style.LineHeightSet = true
+	case "letter-spacing":
+		style.LetterSpacing = parseCSSPixels(value)
+		style.LetterSpacingSet = true
+	case "opacity":
+		style.Opacity, _ = strconv.ParseFloat(value, 64)
+		style.OpacitySet = true
+	case "box-shadow":
+		style.BoxShadow = value
+	case "text-shadow":
+		style.TextShadow = value
+	case "transition":
+		style.Transition = value
+	case "animation":
+		style.Animation = value
+	case "filter":
+		style.Filter = value
+	case "backdrop-filter":
+		style.BackdropFilter = value
+	case "transform":
+		style.Transform = value
+	case "transform-origin":
+		style.TransformOrigin = value
+	case "clip-path":
+		style.ClipPath = value
+	case "overflow":
+		style.Overflow = value
+	case "overflow-x":
+		style.OverflowX = value
+	case "overflow-y":
+		style.OverflowY = value
+	case "position":
+		style.Position = value
+	case "top":
+		style.Top = parseCSSPixels(value)
+		style.TopSet = true
+	case "right":
+		style.Right = parseCSSPixels(value)
+		style.RightSet = true
+	case "bottom":
+		style.Bottom = parseCSSPixels(value)
+		style.BottomSet = true
+	case "left":
+		style.Left = parseCSSPixels(value)
+		style.LeftSet = true
+	case "z-index":
+		style.ZIndex, _ = strconv.Atoi(strings.TrimSpace(value))
+		style.ZIndexSet = true
+	case "visibility":
+		style.Visibility = value
+	}
+}
+
+func cssJustify(value string) Justify {
+	switch value {
+	case "center":
+		return JustifyCenter
+	case "flex-end", "end":
+		return JustifyEnd
+	case "space-between":
+		return JustifyBetween
+	case "space-around":
+		return JustifyAround
+	case "space-evenly":
+		return JustifyEvenly
+	default:
+		return JustifyStart
+	}
+}
+
+func cssAlign(value string) Alignment {
+	switch value {
+	case "center":
+		return AlignCenter
+	case "flex-end", "end":
+		return AlignEnd
+	case "stretch":
+		return AlignStretch
+	default:
+		return AlignStart
+	}
+}
+
+type cssSpacing struct {
+	Top, Right, Bottom, Left float64
+}
+
+func cssBoxSpacing(value string) cssSpacing {
+	parts := strings.Fields(value)
+	if len(parts) == 0 {
+		return cssSpacing{}
+	}
+	values := make([]float64, len(parts))
+	for i, part := range parts {
+		values[i] = parseCSSPixels(part)
+	}
+	top, right, bottom, left := values[0], values[0], values[0], values[0]
+	if len(values) == 2 {
+		top, bottom = values[0], values[0]
+		right, left = values[1], values[1]
+	} else if len(values) == 3 {
+		top = values[0]
+		right, left = values[1], values[1]
+		bottom = values[2]
+	} else if len(values) >= 4 {
+		top, right, bottom, left = values[0], values[1], values[2], values[3]
+	}
+	return cssSpacing{Top: top, Right: right, Bottom: bottom, Left: left}
+}
+
+func applyCSSBorderDeclaration(style *Style, value string) {
+	parts := strings.Fields(value)
+	for _, part := range parts {
+		if strings.HasSuffix(part, "px") || isCSSNumeric(part) {
+			style.BorderWidth = parseCSSPixels(part)
+			style.BorderWidthSet = true
+			continue
+		}
+		if strings.HasPrefix(part, "#") || strings.HasPrefix(part, "rgb") || isNamedColor(part) {
+			style.Border = part
+		}
+	}
+}
+
+func isCSSNumeric(value string) bool {
+	_, err := strconv.ParseFloat(value, 64)
+	return err == nil
+}
+
+func isNamedColor(value string) bool {
+	switch strings.ToLower(value) {
+	case "white", "black", "red", "green", "blue", "transparent":
+		return true
+	default:
+		return false
+	}
+}
+
+func parseCSSKeyframeBody(name, body string) (map[string]KeyframeStyle, error) {
+	frames := make(map[string]KeyframeStyle)
+	remaining := strings.TrimSpace(body)
+	for remaining != "" {
+		open := strings.Index(remaining, "{")
+		if open < 0 {
+			if strings.TrimSpace(remaining) == "" {
+				break
+			}
+			return nil, fmt.Errorf("failed to parse @keyframes %q: malformed selector", name)
+		}
+		selector := strings.TrimSpace(remaining[:open])
+		if selector == "" {
+			return nil, fmt.Errorf("failed to parse @keyframes %q: empty selector", name)
+		}
+		block, rest, ok := consumeCSSBlock(remaining[open:])
+		if !ok {
+			return nil, fmt.Errorf("failed to parse @keyframes %q: unclosed keyframe block", name)
+		}
+		for _, part := range strings.Split(selector, ",") {
+			label := strings.TrimSpace(part)
+			if _, ok := parseKeyframePercent(label); !ok {
+				return nil, fmt.Errorf("failed to parse @keyframes %q: invalid selector %q", name, label)
+			}
+			frames[label] = keyframeStyleFromCSSDeclarations(block)
+		}
+		remaining = strings.TrimSpace(rest)
+	}
+	if len(frames) == 0 {
+		return nil, fmt.Errorf("failed to parse @keyframes %q: no frames", name)
+	}
+	return frames, nil
+}
+
+func keyframeStyleFromCSSDeclarations(block string) KeyframeStyle {
+	var frame KeyframeStyle
+	for _, declaration := range splitCSSDeclarations(block) {
+		name, value, ok := strings.Cut(declaration, ":")
+		if !ok {
+			continue
+		}
+		prop := strings.ToLower(strings.TrimSpace(name))
+		text, _ := parseCSSImportantValue(value)
+		switch prop {
+		case "opacity":
+			frame.Opacity, _ = strconv.ParseFloat(text, 64)
+		case "transform":
+			frame.Transform = text
+		case "width":
+			frame.Width = parseCSSPixels(text)
+		case "height":
+			frame.Height = parseCSSPixels(text)
+		case "background", "background-color":
+			frame.Background = text
+		case "border", "border-color":
+			frame.Border = text
+		case "box-shadow-blur":
+			frame.BoxShadowBlur = parseCSSPixels(text)
+		case "box-shadow-spread":
+			frame.BoxShadowSpread = parseCSSPixels(text)
+		}
+	}
+	return frame
+}
+
+func splitCSSDeclarations(block string) []string {
+	return splitCSSListLike(block, ';')
+}
+
+func splitCSSSelectorList(selectorText string) []string {
+	return splitCSSListLike(selectorText, ',')
+}
+
+func splitCSSListLike(s string, separator rune) []string {
+	parts := make([]string, 0)
+	var current strings.Builder
+	depth := 0
+	var quote rune
+	escaped := false
+	for _, r := range s {
+		if quote != 0 {
+			current.WriteRune(r)
+			if escaped {
+				escaped = false
+				continue
+			}
+			if r == '\\' {
+				escaped = true
+				continue
+			}
+			if r == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch r {
+		case '\'', '"':
+			quote = r
+			current.WriteRune(r)
+		case '(':
+			depth++
+			current.WriteRune(r)
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			current.WriteRune(r)
+		default:
+			if r == separator && depth == 0 {
+				if part := strings.TrimSpace(current.String()); part != "" {
+					parts = append(parts, part)
+				}
+				current.Reset()
+				continue
+			}
+			current.WriteRune(r)
+		}
+	}
+	if part := strings.TrimSpace(current.String()); part != "" {
+		parts = append(parts, part)
+	}
+	return parts
+}
+
+func parseCSSImportantValue(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	lower := strings.ToLower(value)
+	if !strings.HasSuffix(lower, "!important") {
+		return value, false
+	}
+	before := strings.TrimSpace(value[:len(value)-len("!important")])
+	return before, true
+}
+
+func stripCSSComments(css string) string {
+	for {
+		start := strings.Index(css, "/*")
+		if start < 0 {
+			return css
+		}
+		end := strings.Index(css[start+2:], "*/")
+		if end < 0 {
+			return css[:start]
+		}
+		css = css[:start] + css[start+2+end+2:]
+	}
+}
+
+func stripCSSAtKeyframes(css string) string {
+	var out strings.Builder
+	remaining := css
+	for {
+		idx := strings.Index(remaining, "@keyframes")
+		if idx < 0 {
+			out.WriteString(remaining)
+			return out.String()
+		}
+		out.WriteString(remaining[:idx])
+		after := strings.TrimSpace(remaining[idx+len("@keyframes"):])
+		nameEnd := strings.IndexAny(after, " \t\r\n{")
+		if nameEnd < 0 {
+			return out.String()
+		}
+		after = strings.TrimSpace(after[nameEnd:])
+		if !strings.HasPrefix(after, "{") {
+			return out.String()
+		}
+		_, rest, ok := consumeCSSBlock(after)
+		if !ok {
+			return out.String()
+		}
+		remaining = rest
+	}
+}
+
+func consumeCSSBlock(s string) (body, rest string, ok bool) {
+	s = strings.TrimSpace(s)
+	if !strings.HasPrefix(s, "{") {
+		return "", s, false
+	}
+	depth := 0
+	for i, r := range s {
+		switch r {
+		case '{':
+			depth++
+			if depth == 1 {
+				continue
+			}
+		case '}':
+			depth--
+			if depth == 0 {
+				return s[1:i], s[i+1:], true
+			}
+		}
+	}
+	return "", s, false
+}
+
+func animationFromKeyframeStyles(name string, frames map[string]KeyframeStyle) *Animation {
+	if name == "" || len(frames) == 0 {
+		return nil
+	}
+	keyframes := make([]Keyframe, 0, len(frames))
+	for label, frame := range frames {
+		percent, ok := parseKeyframePercent(label)
+		if !ok {
+			continue
+		}
+		keyframes = append(keyframes, Keyframe{
+			Percent:    percent,
+			Properties: keyframePropertiesFromStyle(frame),
+		})
+	}
+	if len(keyframes) == 0 {
+		return nil
+	}
+	sort.Slice(keyframes, func(i, j int) bool {
+		return keyframes[i].Percent < keyframes[j].Percent
+	})
+	return &Animation{
+		Name:           name,
+		Duration:       300 * time.Millisecond,
+		IterationCount: 1,
+		TimingFunc:     EaseLinear,
+		Keyframes:      keyframes,
+	}
+}
+
+func parseKeyframePercent(label string) (float64, bool) {
+	label = strings.TrimSpace(strings.ToLower(label))
+	switch label {
+	case "from":
+		return 0, true
+	case "to":
+		return 100, true
+	}
+	label = strings.TrimSuffix(label, "%")
+	value, err := strconv.ParseFloat(label, 64)
+	if err != nil {
+		return 0, false
+	}
+	if value < 0 {
+		value = 0
+	}
+	if value > 100 {
+		value = 100
+	}
+	return value, true
+}
+
+func keyframePropertiesFromStyle(frame KeyframeStyle) KeyframeProperties {
+	props := KeyframeProperties{
+		Opacity:         frame.Opacity,
+		Width:           frame.Width,
+		Height:          frame.Height,
+		BackgroundColor: parseColor(frame.Background),
+		BorderColor:     parseColor(frame.Border),
+		BoxShadowBlur:   frame.BoxShadowBlur,
+		BoxShadowSpread: frame.BoxShadowSpread,
+	}
+	if frame.Transform != "" {
+		transform := parseKeyframeTransform(frame.Transform)
+		props.TranslateX = transform.TranslateX
+		props.TranslateY = transform.TranslateY
+		props.ScaleX = transform.ScaleX
+		props.ScaleY = transform.ScaleY
+		props.Rotate = transform.Rotate
+		props.SkewX = transform.SkewX
+		props.SkewY = transform.SkewY
+	}
+	return props
+}
+
+func parseKeyframeTransform(value string) KeyframeProperties {
+	props := KeyframeProperties{ScaleX: 1, ScaleY: 1}
+	for _, fn := range parseTransformFunctions(value) {
+		name, args, ok := strings.Cut(fn, "(")
+		if !ok {
+			continue
+		}
+		args = strings.TrimSuffix(args, ")")
+		parts := strings.Split(args, ",")
+		if len(parts) == 1 {
+			parts = strings.Fields(args)
+		}
+		switch strings.ToLower(strings.TrimSpace(name)) {
+		case "translate", "translate3d":
+			if len(parts) > 0 {
+				props.TranslateX = parseCSSPixels(parts[0])
+			}
+			if len(parts) > 1 {
+				props.TranslateY = parseCSSPixels(parts[1])
+			}
+		case "translatex":
+			if len(parts) > 0 {
+				props.TranslateX = parseCSSPixels(parts[0])
+			}
+		case "translatey":
+			if len(parts) > 0 {
+				props.TranslateY = parseCSSPixels(parts[0])
+			}
+		case "scale":
+			if len(parts) > 0 {
+				props.ScaleX = parseCSSScaleValue(parts[0])
+				props.ScaleY = props.ScaleX
+			}
+			if len(parts) > 1 {
+				props.ScaleY = parseCSSScaleValue(parts[1])
+			}
+		case "scalex":
+			if len(parts) > 0 {
+				props.ScaleX = parseCSSScaleValue(parts[0])
+			}
+		case "scaley":
+			if len(parts) > 0 {
+				props.ScaleY = parseCSSScaleValue(parts[0])
+			}
+		case "rotate":
+			if len(parts) > 0 {
+				props.Rotate = parseCSSAngle(parts[0]) * 180 / math.Pi
+			}
+		case "skewx":
+			if len(parts) > 0 {
+				props.SkewX = parseCSSAngle(parts[0]) * 180 / math.Pi
+			}
+		case "skewy":
+			if len(parts) > 0 {
+				props.SkewY = parseCSSAngle(parts[0]) * 180 / math.Pi
+			}
+		}
+	}
+	return props
+}
+
+func parseTransformFunctions(value string) []string {
+	var funcs []string
+	start := -1
+	depth := 0
+	for i, r := range value {
+		if start == -1 && r != ' ' && r != '\t' {
+			start = i
+		}
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			if depth == 0 && start >= 0 {
+				funcs = append(funcs, strings.TrimSpace(value[start:i+1]))
+				start = -1
+			}
+		}
+	}
+	return funcs
 }
 
 // detectExplicitFields scans raw JSON to set flags for explicitly-specified fields
@@ -262,11 +1017,23 @@ func (se *StyleEngine) parseStyleColors(style *Style) {
 	// Parse box shadow
 	if style.BoxShadow != "" {
 		style.parsedBoxShadow = parseBoxShadow(style.BoxShadow)
+		style.parsedBoxShadows = ParseBoxShadowList(style.BoxShadow)
+	}
+
+	// Parse text shadow
+	if style.TextShadow != "" {
+		style.parsedTextShadow = ParseTextShadow(style.TextShadow)
+		style.parsedTextShadows = ParseTextShadowList(style.TextShadow)
 	}
 
 	// Parse transitions
 	if style.Transition != "" {
 		style.parsedTransitions = parseTransitions(style.Transition)
+	}
+
+	// Parse declarative animation
+	if style.Animation != "" {
+		style.parsedAnimation = ParseAnimationDeclaration(style.Animation)
 	}
 
 	// Parse filter
@@ -296,13 +1063,107 @@ func (se *StyleEngine) parseStyleColors(style *Style) {
 
 // LoadFromString loads styles from a JSON string
 func (se *StyleEngine) LoadFromString(s string) error {
+	trimmed := strings.TrimSpace(s)
+	if !strings.HasPrefix(trimmed, "{") && (strings.Contains(trimmed, "@keyframes") || looksLikeCSSRuleString(trimmed)) {
+		return se.LoadCSS(s)
+	}
 	return se.LoadFromJSON([]byte(s))
+}
+
+func looksLikeCSSRuleString(s string) bool {
+	open := strings.Index(s, "{")
+	close := strings.LastIndex(s, "}")
+	if open <= 0 || close <= open {
+		return false
+	}
+	selector := strings.TrimSpace(s[:open])
+	block := s[open+1 : close]
+	return selector != "" && strings.Contains(block, ":") && strings.Contains(block, ";")
 }
 
 // AddStyle adds a style for a selector
 func (se *StyleEngine) AddStyle(selector string, style *Style) {
+	se.addStyle(selector, style, false)
+}
+
+func (se *StyleEngine) addStyle(selector string, style *Style, important bool) {
 	se.parseStyleColors(style)
-	se.styles[selector] = style
+	specificity := complexSelectorSpecificity(selector)
+	selector, style = styleForTerminalPseudoSelector(selector, style)
+	if !important {
+		se.styles[selector] = style
+	}
+	se.rules = append(se.rules, styleRuleRecord{
+		Selector:    selector,
+		Style:       style.Clone(),
+		Specificity: specificity,
+		Order:       len(se.rules),
+		Important:   important,
+	})
+}
+
+func styleForTerminalPseudoSelector(selector string, style *Style) (string, *Style) {
+	base, pseudo, ok := splitTerminalStatePseudo(selector)
+	if !ok {
+		return selector, style
+	}
+	stateStyle := &Style{}
+	switch pseudo {
+	case "hover":
+		stateStyle.HoverStyle = style.Clone()
+	case "active":
+		stateStyle.ActiveStyle = style.Clone()
+	case "focus", "focused":
+		stateStyle.FocusStyle = style.Clone()
+	case "disabled":
+		stateStyle.DisabledStyle = style.Clone()
+	default:
+		return selector, style
+	}
+	return base, stateStyle
+}
+
+func splitTerminalStatePseudo(selector string) (string, string, bool) {
+	depth := 0
+	var quote rune
+	escaped := false
+	for i := len(selector) - 1; i >= 0; i-- {
+		r := rune(selector[i])
+		if quote != 0 {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if r == '\\' {
+				escaped = true
+				continue
+			}
+			if r == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch r {
+		case '\'', '"':
+			quote = r
+		case ')':
+			depth++
+		case '(':
+			if depth > 0 {
+				depth--
+			}
+		case ':':
+			if depth == 0 {
+				pseudo := strings.TrimSpace(selector[i+1:])
+				if strings.ContainsAny(pseudo, " .#[:>+~") {
+					return selector, "", false
+				}
+				base := strings.TrimSpace(selector[:i])
+				return base, strings.ToLower(pseudo), base != ""
+			}
+		}
+	}
+	return selector, "", false
 }
 
 // GetStyle gets a style by selector
@@ -444,6 +1305,48 @@ func parseDuration(s string) float64 {
 
 	f, _ := strconv.ParseFloat(s, 64)
 	return f
+}
+
+// ParseAnimationDeclaration parses a compact CSS-like animation declaration.
+// Supported form: "name [duration] [easing] [iteration-count]".
+func ParseAnimationDeclaration(s string) *Animation {
+	s = strings.TrimSpace(s)
+	if s == "" || s == "none" {
+		return nil
+	}
+
+	parts := strings.Fields(s)
+	if len(parts) == 0 {
+		return nil
+	}
+
+	anim := GetAnimation(parts[0])
+	if anim == nil {
+		return nil
+	}
+
+	for _, part := range parts[1:] {
+		lower := strings.ToLower(part)
+		switch {
+		case strings.HasSuffix(lower, "ms") || strings.HasSuffix(lower, "s"):
+			anim.Duration = timeDuration(parseDuration(lower))
+		case lower == "infinite":
+			anim.IterationCount = -1
+		case isNumeric(lower):
+			count, err := strconv.Atoi(lower)
+			if err == nil {
+				anim.IterationCount = count
+			}
+		default:
+			anim.TimingFunc = ParseEasing(lower)
+		}
+	}
+
+	return anim
+}
+
+func timeDuration(seconds float64) time.Duration {
+	return time.Duration(seconds * float64(time.Second))
 }
 
 // parsePixelValue parses a pixel value (e.g., "10px", "10")

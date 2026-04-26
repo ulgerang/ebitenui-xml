@@ -1,0 +1,58 @@
+schema_version: "1.0"
+node:
+    id: Toast
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets_extended.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewToast(id string, message string) *Toast
+          parameters:
+            - name: id
+              type: string
+            - name: message
+              type: string
+          description: NewToast creates a new toast notification
+    methods:
+        - name: Show
+          signature: Show()
+          description: Show displays the toast
+          exported: true
+        - name: Update
+          signature: Update()
+          description: Update updates the toast animation
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the toast
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+    properties:
+        - name: Message
+          type: string
+          access: get; set
+        - name: Duration
+          type: float64
+          access: get; set
+          description: seconds
+        - name: FontFace
+          type: text.Face
+          access: get; set
+        - name: ToastType
+          type: string
+          access: get; set
+          description: '"info", "success", "warning", "error"'
+        - name: IsVisible
+          type: bool
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

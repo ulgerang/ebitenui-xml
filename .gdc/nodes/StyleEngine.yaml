@@ -1,0 +1,89 @@
+schema_version: "1.0"
+node:
+    id: StyleEngine
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\style.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewStyleEngine() *StyleEngine
+          description: NewStyleEngine creates a new style engine
+    methods:
+        - name: LoadFromFile
+          signature: LoadFromFile(filename string) error
+          description: LoadFromFile loads styles from a JSON file
+          parameters:
+            - name: filename
+              type: string
+          returns:
+            type: error
+          exported: true
+        - name: LoadFromJSON
+          signature: LoadFromJSON(data []byte) error
+          description: |-
+            LoadFromJSON loads styles from JSON data
+            Supports both flat format: { "#root": {...} } and nested format: { "styles": { "#root": {...} } }
+          parameters:
+            - name: data
+              type: '[]byte'
+          returns:
+            type: error
+          exported: true
+        - name: LoadCSS
+          signature: LoadCSS(css string) error
+          description: 'LoadCSS loads a small CSS subset: simple selector blocks plus literal @keyframes blocks.'
+          parameters:
+            - name: css
+              type: string
+          returns:
+            type: error
+          exported: true
+        - name: LoadFromString
+          signature: LoadFromString(s string) error
+          description: LoadFromString loads styles from a JSON string
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: error
+          exported: true
+        - name: AddStyle
+          signature: AddStyle(selector string, style *Style)
+          description: AddStyle adds a style for a selector
+          parameters:
+            - name: selector
+              type: string
+            - name: style
+              type: '*Style'
+          exported: true
+        - name: GetStyle
+          signature: GetStyle(selector string) *Style
+          description: GetStyle gets a style by selector
+          parameters:
+            - name: selector
+              type: string
+          returns:
+            type: '*Style'
+          exported: true
+        - name: ApplyStyle
+          signature: ApplyStyle(widget Widget, selector string)
+          description: ApplyStyle applies a style to a widget by selector
+          parameters:
+            - name: widget
+              type: Widget
+            - name: selector
+              type: string
+          exported: true
+dependencies:
+    - target: styleRuleRecord
+      type: class
+      injection: field
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

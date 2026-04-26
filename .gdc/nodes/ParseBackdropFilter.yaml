@@ -1,0 +1,28 @@
+schema_version: "1.0"
+node:
+    id: ParseBackdropFilter
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\style.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParseBackdropFilter
+          signature: ParseBackdropFilter(s string) *BackdropFilter
+          description: |-
+            ParseBackdropFilter parses a CSS backdrop-filter string.
+            Currently supports: blur(Npx), brightness(), saturate()
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: '*BackdropFilter'
+          exported: true
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

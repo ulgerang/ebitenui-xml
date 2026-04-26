@@ -1,0 +1,40 @@
+schema_version: "1.0"
+node:
+    id: DrawBoxShadowEx
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: DrawBoxShadowEx
+          signature: DrawBoxShadowEx(screen *ebiten.Image, r Rect, shadow *BoxShadow, radTL float64, radTR float64, radBR float64, radBL float64)
+          description: DrawBoxShadowEx draws a box shadow using individual corner radii.
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: r
+              type: Rect
+            - name: shadow
+              type: '*BoxShadow'
+            - name: radTL
+              type: float64
+            - name: radTR
+              type: float64
+            - name: radBR
+              type: float64
+            - name: radBL
+              type: float64
+          exported: true
+dependencies:
+    - target: BoxShadow
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

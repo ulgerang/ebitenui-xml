@@ -1,0 +1,37 @@
+schema_version: "1.0"
+node:
+    id: DrawBoxShadow
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: DrawBoxShadow
+          signature: DrawBoxShadow(screen *ebiten.Image, r Rect, shadow *BoxShadow, borderRadius float64)
+          description: |-
+            DrawBoxShadow draws a box shadow effect around a rectangle.
+            Outset shadows use a GPU SDF shader with analytical Gaussian blur (single draw call).
+            Inset shadows fall back to a CPU multi-layer approach for now.
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: r
+              type: Rect
+            - name: shadow
+              type: '*BoxShadow'
+            - name: borderRadius
+              type: float64
+          exported: true
+dependencies:
+    - target: BoxShadow
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

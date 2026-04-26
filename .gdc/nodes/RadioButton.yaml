@@ -1,0 +1,58 @@
+schema_version: "1.0"
+node:
+    id: RadioButton
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets_extended.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewRadioButton(id string, label string, value string) *RadioButton
+          parameters:
+            - name: id
+              type: string
+            - name: label
+              type: string
+            - name: value
+              type: string
+          description: NewRadioButton creates a new radio button
+    methods:
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the radio button
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+        - name: HandleClick
+          signature: HandleClick()
+          description: HandleClick selects this radio button
+          exported: true
+    properties:
+        - name: Label
+          type: string
+          access: get; set
+        - name: Value
+          type: string
+          access: get; set
+        - name: Selected
+          type: bool
+          access: get; set
+        - name: FontFace
+          type: text.Face
+          access: get; set
+        - name: Group
+          type: '*RadioGroup'
+          access: get; set
+dependencies:
+    - target: RadioGroup
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

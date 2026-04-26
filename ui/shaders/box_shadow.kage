@@ -22,7 +22,10 @@ var HalfW float
 var HalfH float
 
 // Radius — corner radius of the shadow shape (borderRadius + spread, clamped).
-var Radius float
+var RadiusTL float
+var RadiusTR float
+var RadiusBR float
+var RadiusBL float
 
 // Sigma — Gaussian blur sigma (CSS blur-radius / 2).  Zero means hard edge.
 var Sigma float
@@ -38,16 +41,26 @@ func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
 	// Local coordinates relative to shape centre.
 	px := dstPos.x - CenterX
 	py := dstPos.y - CenterY
+	radius := RadiusBR
+	if px < 0.0 {
+		if py < 0.0 {
+			radius = RadiusTL
+		} else {
+			radius = RadiusBL
+		}
+	} else if py < 0.0 {
+		radius = RadiusTR
+	}
 
 	// Rounded rectangle SDF (exact signed distance).
 	//   q = abs(p) - (half_extents - radius)
 	//   d = length(max(q, 0)) + min(max(q.x, q.y), 0) - radius
-	qx := abs(px) - (HalfW - Radius)
-	qy := abs(py) - (HalfH - Radius)
+	qx := abs(px) - (HalfW - radius)
+	qy := abs(py) - (HalfH - radius)
 
 	mx := max(qx, 0.0)
 	my := max(qy, 0.0)
-	d := sqrt(mx*mx+my*my) + min(max(qx, qy), 0.0) - Radius
+	d := sqrt(mx*mx+my*my) + min(max(qx, qy), 0.0) - radius
 
 	// Gaussian blur via analytical SDF.
 	var a float

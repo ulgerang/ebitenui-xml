@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: ParseCalc
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\variables.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParseCalc
+          signature: ParseCalc(s string) *CalcExpression
+          description: ParseCalc parses a calc() expression
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: '*CalcExpression'
+          exported: true
+dependencies:
+    - target: CalcExpression
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

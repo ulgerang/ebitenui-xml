@@ -1,0 +1,31 @@
+schema_version: "1.0"
+node:
+    id: DrawWidget
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\layout.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: DrawWidget
+          signature: DrawWidget(screen *ebiten.Image, widget Widget)
+          description: |-
+            DrawWidget draws a widget (and its children via widget.Draw's internal
+            drawChildren call).  The previous recursive child loop has been removed
+            because widget.Draw() already calls drawChildren() internally — the extra
+            loop caused every child to be drawn twice, resulting in double-blend
+            artefacts (visible in overflow:hidden tests).
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: widget
+              type: Widget
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

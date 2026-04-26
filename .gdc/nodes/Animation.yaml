@@ -1,0 +1,46 @@
+schema_version: "1.0"
+node:
+    id: Animation
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\animation.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Name
+          type: string
+          access: get; set
+        - name: Keyframes
+          type: '[]Keyframe'
+          access: get; set
+        - name: Duration
+          type: time.Duration
+          access: get; set
+        - name: Delay
+          type: time.Duration
+          access: get; set
+        - name: IterationCount
+          type: int
+          access: get; set
+          description: -1 for infinite
+        - name: Direction
+          type: AnimationDirection
+          access: get; set
+        - name: FillMode
+          type: AnimationFillMode
+          access: get; set
+        - name: TimingFunc
+          type: EasingFunc
+          access: get; set
+dependencies:
+    - target: Keyframe
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

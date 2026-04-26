@@ -15,6 +15,7 @@ import (
 type BaseWidget struct {
 	id           string
 	widgetType   string
+	semanticType string
 	classes      []string
 	parent       Widget
 	children     []Widget
@@ -23,6 +24,17 @@ type BaseWidget struct {
 	state        WidgetState
 	visible      bool
 	enabled      bool
+	tabIndex     int
+	tabIndexSet  bool
+	focusable    bool
+	formInitial  string
+	validation   ValidationState
+	rules        ValidationRules
+	message      string
+	scrollX      float64
+	scrollY      float64
+	contentW     float64
+	contentH     float64
 
 	// Event handlers
 	onClickHandler func()
@@ -32,8 +44,13 @@ type BaseWidget struct {
 	nineSlice *NineSlice
 
 	// Animation state
-	animating bool
-	animState *AnimationState
+	animating            bool
+	animState            *AnimationState
+	animationDeclaration string
+
+	// CSS transition state
+	transitionEngine *TransitionEngine
+	compositing      bool
 }
 
 // NewBaseWidget creates a new base widget
@@ -47,6 +64,7 @@ func NewBaseWidget(id, widgetType string) *BaseWidget {
 		visible:    true,
 		enabled:    true,
 		state:      StateNormal,
+		tabIndex:   0,
 	}
 }
 
@@ -55,6 +73,12 @@ func (w *BaseWidget) ID() string { return w.id }
 
 // Type returns the widget type
 func (w *BaseWidget) Type() string { return w.widgetType }
+
+// SemanticType returns the XML semantic tag used to create this widget, if any.
+func (w *BaseWidget) SemanticType() string { return w.semanticType }
+
+// SetSemanticType sets the XML semantic tag metadata for this widget.
+func (w *BaseWidget) SetSemanticType(tag string) { w.semanticType = tag }
 
 // Classes returns the widget's CSS classes
 func (w *BaseWidget) Classes() []string { return w.classes }
@@ -211,7 +235,16 @@ func (w *BaseWidget) IntrinsicHeight() float64 {
 func (w *BaseWidget) State() WidgetState { return w.state }
 
 // SetState sets the widget's state
-func (w *BaseWidget) SetState(s WidgetState) { w.state = s }
+func (w *BaseWidget) SetState(s WidgetState) {
+	if w.state == s {
+		return
+	}
+
+	oldStyle := w.currentTransitionBaseStyle()
+	w.state = s
+	newStyle := w.getActiveStyle()
+	w.startStyleTransitions(oldStyle, newStyle)
+}
 
 // Visible returns whether the widget is visible
 func (w *BaseWidget) Visible() bool { return w.visible }
@@ -230,6 +263,91 @@ func (w *BaseWidget) SetEnabled(e bool) {
 	} else if w.state == StateDisabled {
 		w.state = StateNormal
 	}
+}
+
+// SetTabIndex sets the widget's keyboard focus order. Negative values skip tab traversal.
+func (w *BaseWidget) SetTabIndex(index int) {
+	w.tabIndex = index
+	w.tabIndexSet = true
+}
+
+// TabIndex returns the widget's keyboard focus order.
+func (w *BaseWidget) TabIndex() int { return w.tabIndex }
+
+// SetFocusable marks whether this widget participates in default focus traversal.
+func (w *BaseWidget) SetFocusable(focusable bool) { w.focusable = focusable }
+
+// Focusable returns whether this widget can receive keyboard focus.
+func (w *BaseWidget) Focusable() bool {
+	return w.focusable || (w.tabIndexSet && w.tabIndex >= 0)
+}
+
+// SetFormInitialValue stores the reset value used by form semantics.
+func (w *BaseWidget) SetFormInitialValue(value string) { w.formInitial = value }
+
+// FormInitialValue returns the reset value used by form semantics.
+func (w *BaseWidget) FormInitialValue() string { return w.formInitial }
+
+// SetValidationState updates this widget's form validation state.
+func (w *BaseWidget) SetValidationState(state ValidationState) {
+	w.validation = state
+}
+
+// ValidationState returns this widget's form validation state.
+func (w *BaseWidget) ValidationState() ValidationState {
+	return w.validation
+}
+
+// SetValidationRules stores the validation constraints for this widget.
+func (w *BaseWidget) SetValidationRules(rules ValidationRules) {
+	w.rules = rules
+}
+
+// ValidationRules returns the validation constraints for this widget.
+func (w *BaseWidget) ValidationRules() ValidationRules {
+	return w.rules
+}
+
+// SetValidationMessage stores the latest validation message for this widget.
+func (w *BaseWidget) SetValidationMessage(message string) {
+	w.message = message
+}
+
+// ValidationMessage returns the latest validation message for this widget.
+func (w *BaseWidget) ValidationMessage() string {
+	return w.message
+}
+
+// SetScrollOffset sets the runtime scroll offset for overflow scroll/auto widgets.
+func (w *BaseWidget) SetScrollOffset(x, y float64) {
+	w.scrollX = clamp(x, 0, w.MaxScrollX())
+	w.scrollY = clamp(y, 0, w.MaxScrollY())
+}
+
+// ScrollOffset returns the runtime scroll offset for overflow scroll/auto widgets.
+func (w *BaseWidget) ScrollOffset() (float64, float64) {
+	return w.scrollX, w.scrollY
+}
+
+// ScrollBy moves the runtime scroll offset by a delta.
+func (w *BaseWidget) ScrollBy(dx, dy float64) {
+	w.SetScrollOffset(w.scrollX+dx, w.scrollY+dy)
+}
+
+// MaxScrollX returns the maximum horizontal scroll offset.
+func (w *BaseWidget) MaxScrollX() float64 {
+	return max(0, w.contentW-w.ContentRect().W)
+}
+
+// MaxScrollY returns the maximum vertical scroll offset.
+func (w *BaseWidget) MaxScrollY() float64 {
+	return max(0, w.contentH-w.ContentRect().H)
+}
+
+func (w *BaseWidget) setScrollContentSize(width, height float64) {
+	w.contentW = max(width, w.ContentRect().W)
+	w.contentH = max(height, w.ContentRect().H)
+	w.SetScrollOffset(w.scrollX, w.scrollY)
 }
 
 // Set9Slice sets a 9-slice image for the widget background
@@ -349,6 +467,95 @@ func (w *BaseWidget) getAnimationTransform() (translateX, translateY, scaleX, sc
 	return
 }
 
+func (w *BaseWidget) ensureDeclarativeAnimation(style *Style) {
+	if style == nil {
+		return
+	}
+
+	if style.Animation == "" {
+		if w.animationDeclaration != "" {
+			w.StopAnimation()
+			w.animationDeclaration = ""
+		}
+		return
+	}
+
+	if w.animationDeclaration == style.Animation && w.animState != nil {
+		return
+	}
+
+	anim := style.parsedAnimation
+	if anim == nil {
+		anim = ParseAnimationDeclaration(style.Animation)
+		style.parsedAnimation = anim
+	}
+	if anim == nil {
+		return
+	}
+
+	w.animationDeclaration = style.Animation
+	w.PlayAnimationInstance(anim)
+}
+
+func (w *BaseWidget) currentTransitionBaseStyle() *Style {
+	if w.transitionEngine != nil && w.transitionEngine.IsActive() {
+		return w.transitionEngine.Apply(w.getActiveStyle())
+	}
+	return w.getActiveStyle()
+}
+
+func (w *BaseWidget) startStyleTransitions(oldStyle, newStyle *Style) {
+	if oldStyle == nil || newStyle == nil {
+		return
+	}
+
+	declarations := oldStyle.parsedTransitions
+	if len(declarations) == 0 {
+		declarations = newStyle.parsedTransitions
+	}
+	if len(declarations) == 0 {
+		return
+	}
+
+	if w.transitionEngine == nil {
+		w.transitionEngine = NewTransitionEngine()
+	}
+	w.transitionEngine.StartTransitions(oldStyle, newStyle, declarations)
+}
+
+func (w *BaseWidget) renderStyle(style *Style) *Style {
+	if w.transitionEngine != nil && w.transitionEngine.IsActive() {
+		return w.transitionEngine.Apply(style)
+	}
+	return style
+}
+
+func (w *BaseWidget) animationTransform() (geoM ebiten.GeoM, hasTransform bool, opacity float64) {
+	opacity = 1
+	if !w.IsAnimating() {
+		return geoM, false, opacity
+	}
+
+	transX, transY, scaleX, scaleY, rotate, animOpacity := w.getAnimationTransform()
+	opacity = animOpacity
+	if transX == 0 && transY == 0 && scaleX == 1 && scaleY == 1 && rotate == 0 {
+		return geoM, false, opacity
+	}
+
+	r := w.computedRect
+	originX := r.X + r.W/2
+	originY := r.Y + r.H/2
+	geoM.Translate(-originX, -originY)
+	if rotate != 0 {
+		geoM.Rotate(rotate * math.Pi / 180)
+	}
+	if scaleX != 1 || scaleY != 1 {
+		geoM.Scale(scaleX, scaleY)
+	}
+	geoM.Translate(originX+transX, originY+transY)
+	return geoM, true, opacity
+}
+
 // Draw renders the widget's background, border, outline, and children.
 //
 // When opacity < 1, a CSS transform is set, or a CSS filter is active, the
@@ -363,7 +570,8 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 	}
 
 	r := w.computedRect
-	style := w.getActiveStyle()
+	style := w.renderStyle(w.getActiveStyle())
+	w.ensureDeclarativeAnimation(style)
 
 	// Get opacity from style
 	opacity := style.Opacity
@@ -371,37 +579,17 @@ func (w *BaseWidget) Draw(screen *ebiten.Image) {
 		opacity = 1 // default
 	}
 
-	// Apply animation transforms
-	if w.IsAnimating() {
-		transX, transY, scaleX, scaleY, _, animOpacity := w.getAnimationTransform()
-
-		// Apply translation
-		r.X += transX
-		r.Y += transY
-
-		// Apply scale (from center)
-		if scaleX != 1 || scaleY != 1 {
-			centerX := r.X + r.W/2
-			centerY := r.Y + r.H/2
-			newW := r.W * scaleX
-			newH := r.H * scaleY
-			r.X = centerX - newW/2
-			r.Y = centerY - newH/2
-			r.W = newW
-			r.H = newH
-		}
-
-		// Apply animation opacity
-		opacity *= animOpacity
-	}
+	animGeoM, hasAnimTransform, animOpacity := w.animationTransform()
+	opacity *= animOpacity
 
 	// Determine if we need offscreen compositing
 	hasTransform := style.Transform != "" && style.Transform != "none"
 	hasFilter := style.parsedFilter != nil
-	needsOffscreen := opacity < 1 || hasTransform || hasFilter
+	hasClipPath := style.ClipPath != "" && style.ClipPath != "none"
+	needsOffscreen := opacity < 1 || hasTransform || hasFilter || hasAnimTransform || hasClipPath
 
 	if needsOffscreen {
-		w.drawWithCompositing(screen, r, style, opacity, hasTransform, hasFilter)
+		w.drawWithCompositing(screen, r, style, opacity, hasTransform, hasFilter, hasClipPath, animGeoM, hasAnimTransform)
 	} else {
 		w.drawDirect(screen, r, style)
 	}
@@ -420,7 +608,8 @@ func (w *BaseWidget) drawDirect(screen *ebiten.Image, r Rect, style *Style) {
 
 	// 3. Border
 	if style.BorderColor != nil && style.BorderWidth > 0 {
-		drawRoundedRectStroke(screen, r, style.BorderRadius, style.BorderWidth, style.BorderColor)
+		tl, tr, br, bl := w.getCornerRadii(style)
+		drawRoundedRectStrokeEx(screen, r, tl, tr, br, bl, style.BorderWidth, style.BorderColor)
 	}
 	w.drawIndividualBorders(screen, r, style)
 
@@ -433,7 +622,11 @@ func (w *BaseWidget) drawDirect(screen *ebiten.Image, r Rect, style *Style) {
 
 // drawWithCompositing renders to an offscreen buffer, applies transform/filter/opacity,
 // then composites onto the target screen.
-func (w *BaseWidget) drawWithCompositing(screen *ebiten.Image, r Rect, style *Style, opacity float64, hasTransform, hasFilter bool) {
+func (w *BaseWidget) drawWithCompositing(screen *ebiten.Image, r Rect, style *Style, opacity float64, hasTransform, hasFilter, hasClipPath bool, animGeoM ebiten.GeoM, hasAnimTransform bool) {
+	w.drawCustomWithCompositing(screen, r, style, opacity, hasTransform, hasFilter, hasClipPath, animGeoM, hasAnimTransform, w.drawContentOnly)
+}
+
+func (w *BaseWidget) drawCustomWithCompositing(screen *ebiten.Image, r Rect, style *Style, opacity float64, hasTransform, hasFilter, hasClipPath bool, animGeoM ebiten.GeoM, hasAnimTransform bool, drawContent func(*ebiten.Image, Rect, *Style)) {
 	bounds := screen.Bounds()
 	screenW, screenH := bounds.Dx(), bounds.Dy()
 	if screenW <= 0 || screenH <= 0 {
@@ -447,7 +640,11 @@ func (w *BaseWidget) drawWithCompositing(screen *ebiten.Image, r Rect, style *St
 	offscreen := globalImagePool.Get(screenW, screenH)
 
 	// Draw widget content to offscreen at original coordinates
-	w.drawContentOnly(offscreen, r, style)
+	drawContent(offscreen, r, style)
+
+	if hasClipPath {
+		applyCSSClipPath(offscreen, r, style.ClipPath)
+	}
 
 	// Apply CSS filter if present
 	if hasFilter {
@@ -468,6 +665,9 @@ func (w *BaseWidget) drawWithCompositing(screen *ebiten.Image, r Rect, style *St
 		geoM := parseCSSTransform(style.Transform, originX, originY)
 		op.GeoM = geoM
 	}
+	if hasAnimTransform {
+		op.GeoM.Concat(animGeoM)
+	}
 
 	if opacity < 1 {
 		op.ColorScale.ScaleAlpha(float32(opacity))
@@ -478,6 +678,66 @@ func (w *BaseWidget) drawWithCompositing(screen *ebiten.Image, r Rect, style *St
 	cropped := offscreen.SubImage(image.Rect(0, 0, screenW, screenH)).(*ebiten.Image)
 	screen.DrawImage(cropped, op)
 	globalImagePool.Put(offscreen)
+}
+
+func (w *BaseWidget) drawFullWidgetWithEffects(screen *ebiten.Image, draw func(*ebiten.Image)) bool {
+	if w.compositing || !w.visible {
+		return false
+	}
+	r := w.computedRect
+	style := w.renderStyle(w.getActiveStyle())
+	w.ensureDeclarativeAnimation(style)
+	opacity := style.Opacity
+	if opacity <= 0 {
+		opacity = 1
+	}
+	animGeoM, hasAnimTransform, animOpacity := w.animationTransform()
+	opacity *= animOpacity
+	hasTransform := style.Transform != "" && style.Transform != "none"
+	hasFilter := style.parsedFilter != nil
+	hasClipPath := style.ClipPath != "" && style.ClipPath != "none"
+	if opacity >= 1 && !hasTransform && !hasFilter && !hasAnimTransform && !hasClipPath {
+		return false
+	}
+
+	bounds := screen.Bounds()
+	screenW, screenH := bounds.Dx(), bounds.Dy()
+	if screenW <= 0 || screenH <= 0 {
+		return true
+	}
+	offscreen := globalImagePool.Get(screenW, screenH)
+	w.compositing = true
+	draw(offscreen)
+	w.compositing = false
+
+	if hasClipPath {
+		applyCSSClipPath(offscreen, r, style.ClipPath)
+	}
+	if hasFilter {
+		filtered := applyCSSFilter(offscreen, style.parsedFilter)
+		if filtered != offscreen {
+			globalImagePool.Put(offscreen)
+			offscreen = filtered
+		}
+	}
+
+	op := &ebiten.DrawImageOptions{}
+	if hasTransform {
+		originX, originY := parseCSSTransformOrigin(style.TransformOrigin, r.W, r.H)
+		originX += r.X
+		originY += r.Y
+		op.GeoM = parseCSSTransform(style.Transform, originX, originY)
+	}
+	if hasAnimTransform {
+		op.GeoM.Concat(animGeoM)
+	}
+	if opacity < 1 {
+		op.ColorScale.ScaleAlpha(float32(opacity))
+	}
+	cropped := offscreen.SubImage(image.Rect(0, 0, screenW, screenH)).(*ebiten.Image)
+	screen.DrawImage(cropped, op)
+	globalImagePool.Put(offscreen)
+	return true
 }
 
 // drawContentOnly renders widget content (bg, border, outline, children) without
@@ -491,7 +751,8 @@ func (w *BaseWidget) drawContentOnly(screen *ebiten.Image, r Rect, style *Style)
 
 	// Border
 	if style.BorderColor != nil && style.BorderWidth > 0 {
-		drawRoundedRectStroke(screen, r, style.BorderRadius, style.BorderWidth, style.BorderColor)
+		tl, tr, br, bl := w.getCornerRadii(style)
+		drawRoundedRectStrokeEx(screen, r, tl, tr, br, bl, style.BorderWidth, style.BorderColor)
 	}
 	w.drawIndividualBorders(screen, r, style)
 
@@ -504,13 +765,20 @@ func (w *BaseWidget) drawContentOnly(screen *ebiten.Image, r Rect, style *Style)
 
 // drawBoxShadow draws the box shadow effect, parsing on first use.
 func (w *BaseWidget) drawBoxShadow(screen *ebiten.Image, r Rect, style *Style) {
-	if style.parsedBoxShadow != nil {
-		DrawBoxShadow(screen, r, style.parsedBoxShadow, style.BorderRadius)
-	} else if style.BoxShadow != "" {
-		style.parsedBoxShadow = ParseBoxShadow(style.BoxShadow)
-		if style.parsedBoxShadow != nil {
-			DrawBoxShadow(screen, r, style.parsedBoxShadow, style.BorderRadius)
+	shadows := style.parsedBoxShadows
+	if len(shadows) == 0 && style.BoxShadow != "" {
+		shadows = ParseBoxShadowList(style.BoxShadow)
+		style.parsedBoxShadows = shadows
+		if len(shadows) > 0 {
+			style.parsedBoxShadow = shadows[0]
 		}
+	}
+	if len(shadows) == 0 && style.parsedBoxShadow != nil {
+		shadows = []*BoxShadow{style.parsedBoxShadow}
+	}
+	radTL, radTR, radBR, radBL := w.getCornerRadii(style)
+	for _, shadow := range shadows {
+		DrawBoxShadowEx(screen, r, shadow, radTL, radTR, radBR, radBL)
 	}
 }
 
@@ -542,7 +810,8 @@ func (w *BaseWidget) drawBackground(screen *ebiten.Image, r Rect, style *Style) 
 			DrawGradient(screen, r, style.parsedGradient)
 		}
 	} else if style.BackgroundColor != nil {
-		DrawRoundedRectPath(screen, r, style.BorderRadius, style.BackgroundColor)
+		radTL, radTR, radBR, radBL := w.getCornerRadii(style)
+		DrawRoundedRectPathEx(screen, r, radTL, radTR, radBR, radBL, style.BackgroundColor)
 	}
 }
 
@@ -588,24 +857,22 @@ func (w *BaseWidget) drawOutline(screen *ebiten.Image, r Rect, style *Style) {
 // drawChildren renders child widgets with overflow handling.
 func (w *BaseWidget) drawChildren(screen *ebiten.Image, r Rect, style *Style) {
 	if style.Overflow == "hidden" || style.Overflow == "scroll" || style.Overflow == "auto" {
-		clipW := int(r.W)
-		clipH := int(r.H)
+		content := w.ContentRect()
+		clipW := int(content.W)
+		clipH := int(content.H)
 		if clipW > 0 && clipH > 0 {
 			tmpImg := globalImagePool.Get(clipW, clipH)
-			for _, child := range w.children {
-				origRect := child.ComputedRect()
-				shifted := Rect{
-					X: origRect.X - r.X,
-					Y: origRect.Y - r.Y,
-					W: origRect.W,
-					H: origRect.H,
-				}
-				child.SetComputedRect(shifted)
+			scrollX, scrollY := 0.0, 0.0
+			if style.Overflow == "scroll" || style.Overflow == "auto" {
+				scrollX, scrollY = w.ScrollOffset()
+			}
+			for _, child := range sortedChildrenByZ(w.children, false) {
+				translateWidgetTree(child, -content.X-scrollX, -content.Y-scrollY)
 				DrawWidget(tmpImg, child)
-				child.SetComputedRect(origRect)
+				translateWidgetTree(child, content.X+scrollX, content.Y+scrollY)
 			}
 			drawOp := &ebiten.DrawImageOptions{}
-			drawOp.GeoM.Translate(r.X, r.Y)
+			drawOp.GeoM.Translate(content.X, content.Y)
 			// Crop to the actual clip size because the pooled image may be
 			// larger (power-of-2 bucketing); without this, transparent padding
 			// from the oversized buffer leaks into the composite.
@@ -614,9 +881,22 @@ func (w *BaseWidget) drawChildren(screen *ebiten.Image, r Rect, style *Style) {
 			globalImagePool.Put(tmpImg)
 		}
 	} else {
-		for _, child := range w.children {
+		for _, child := range sortedChildrenByZ(w.children, false) {
 			child.Draw(screen)
 		}
+	}
+}
+
+func translateWidgetTree(widget Widget, dx, dy float64) {
+	if widget == nil {
+		return
+	}
+	r := widget.ComputedRect()
+	r.X += dx
+	r.Y += dy
+	widget.SetComputedRect(r)
+	for _, child := range widget.Children() {
+		translateWidgetTree(child, dx, dy)
 	}
 }
 
@@ -649,16 +929,26 @@ func applyCSSFilter(src *ebiten.Image, f *Filter) *ebiten.Image {
 		return src
 	}
 
-	shader := getFilterShader()
 	bounds := src.Bounds()
 	w, h := bounds.Dx(), bounds.Dy()
 	if w <= 0 || h <= 0 {
 		return src
 	}
 
+	current := src
+	if f.Blur > 0 {
+		current = applyGaussianBlur(current, f.Blur)
+	}
+
+	if f.Brightness == 1 && f.Contrast == 1 && f.Saturate == 1 &&
+		f.Grayscale == 0 && f.Sepia == 0 && f.HueRotate == 0 && f.Invert == 0 {
+		return current
+	}
+
+	shader := getFilterShader()
 	dst := globalImagePool.Get(w, h)
 	op := &ebiten.DrawRectShaderOptions{}
-	op.Images[0] = src
+	op.Images[0] = current
 	op.Uniforms = map[string]any{
 		"Brightness": float32(f.Brightness),
 		"Contrast":   float32(f.Contrast),
@@ -670,7 +960,45 @@ func applyCSSFilter(src *ebiten.Image, f *Filter) *ebiten.Image {
 	}
 	dst.DrawRectShader(w, h, shader, op)
 
+	if current != src {
+		globalImagePool.Put(current)
+	}
 	return dst
+}
+
+func applyGaussianBlur(src *ebiten.Image, sigma float64) *ebiten.Image {
+	if sigma <= 0 {
+		return src
+	}
+
+	bounds := src.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	if w <= 0 || h <= 0 {
+		return src
+	}
+
+	shader := getBackdropBlurShader()
+	tmp := globalImagePool.Get(w, h)
+	out := globalImagePool.Get(w, h)
+
+	horizontal := &ebiten.DrawRectShaderOptions{}
+	horizontal.Images[0] = src
+	horizontal.Uniforms = map[string]interface{}{
+		"Sigma":     float32(sigma),
+		"Direction": [2]float32{1, 0},
+	}
+	tmp.DrawRectShader(w, h, shader, horizontal)
+
+	vertical := &ebiten.DrawRectShaderOptions{}
+	vertical.Images[0] = tmp.SubImage(image.Rect(0, 0, w, h)).(*ebiten.Image)
+	vertical.Uniforms = map[string]interface{}{
+		"Sigma":     float32(sigma),
+		"Direction": [2]float32{0, 1},
+	}
+	out.DrawRectShader(w, h, shader, vertical)
+
+	globalImagePool.Put(tmp)
+	return out
 }
 
 // ============================================================================
@@ -700,6 +1028,152 @@ func drawWithClipPath(screen *ebiten.Image, drawFunc func(*ebiten.Image), clipPa
 		},
 		nil,
 	)
+}
+
+func applyCSSClipPath(target *ebiten.Image, r Rect, clipPath string) {
+	path := parseCSSClipPath(clipPath, r)
+	if path == nil {
+		return
+	}
+	bounds := target.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	if w <= 0 || h <= 0 {
+		return
+	}
+	mask := globalImagePool.Get(w, h)
+	vs, is := path.AppendVerticesAndIndicesForFilling(nil, nil)
+	applyColorToVertices(vs, color.White)
+	mask.DrawTriangles(vs, is, whiteImage, &ebiten.DrawTrianglesOptions{
+		AntiAlias: true,
+		FillRule:  ebiten.FillRuleNonZero,
+	})
+	cropped := mask.SubImage(image.Rect(0, 0, w, h)).(*ebiten.Image)
+	target.DrawImage(cropped, &ebiten.DrawImageOptions{Blend: ebiten.BlendDestinationIn})
+	globalImagePool.Put(mask)
+}
+
+func parseCSSClipPath(value string, r Rect) *vector.Path {
+	value = strings.TrimSpace(value)
+	if value == "" || value == "none" {
+		return nil
+	}
+	switch {
+	case strings.HasPrefix(value, "inset(") && strings.HasSuffix(value, ")"):
+		return parseInsetClipPath(strings.TrimSuffix(strings.TrimPrefix(value, "inset("), ")"), r)
+	case strings.HasPrefix(value, "circle(") && strings.HasSuffix(value, ")"):
+		return parseCircleClipPath(strings.TrimSuffix(strings.TrimPrefix(value, "circle("), ")"), r)
+	case strings.HasPrefix(value, "polygon(") && strings.HasSuffix(value, ")"):
+		return parsePolygonClipPath(strings.TrimSuffix(strings.TrimPrefix(value, "polygon("), ")"), r)
+	case strings.HasPrefix(value, "path(") && strings.HasSuffix(value, ")"):
+		return parsePathClipPath(strings.TrimSuffix(strings.TrimPrefix(value, "path("), ")"), r)
+	default:
+		return nil
+	}
+}
+
+func parseInsetClipPath(args string, r Rect) *vector.Path {
+	parts := strings.Fields(args)
+	if len(parts) == 0 {
+		return nil
+	}
+	values := make([]float64, len(parts))
+	for i, part := range parts {
+		values[i] = parseCSSClipLength(part, r.W)
+	}
+	top, right, bottom, left := values[0], values[0], values[0], values[0]
+	if len(values) == 2 {
+		top, bottom = values[0], values[0]
+		right, left = values[1], values[1]
+	} else if len(values) == 3 {
+		top = values[0]
+		right, left = values[1], values[1]
+		bottom = values[2]
+	} else if len(values) >= 4 {
+		top, right, bottom, left = values[0], values[1], values[2], values[3]
+	}
+	clip := Rect{X: r.X + left, Y: r.Y + top, W: r.W - left - right, H: r.H - top - bottom}
+	if clip.W <= 0 || clip.H <= 0 {
+		return nil
+	}
+	path := &vector.Path{}
+	path.MoveTo(float32(clip.X), float32(clip.Y))
+	path.LineTo(float32(clip.X+clip.W), float32(clip.Y))
+	path.LineTo(float32(clip.X+clip.W), float32(clip.Y+clip.H))
+	path.LineTo(float32(clip.X), float32(clip.Y+clip.H))
+	path.Close()
+	return path
+}
+
+func parseCircleClipPath(args string, r Rect) *vector.Path {
+	args = strings.TrimSpace(args)
+	radiusPart := args
+	centerX, centerY := r.X+r.W/2, r.Y+r.H/2
+	if before, after, ok := strings.Cut(args, " at "); ok {
+		radiusPart = strings.TrimSpace(before)
+		centerParts := strings.Fields(after)
+		if len(centerParts) >= 2 {
+			centerX = r.X + parseCSSClipLength(centerParts[0], r.W)
+			centerY = r.Y + parseCSSClipLength(centerParts[1], r.H)
+		}
+	}
+	radius := min(r.W, r.H) / 2
+	if radiusPart != "" && radiusPart != "closest-side" {
+		radius = parseCSSClipLength(radiusPart, min(r.W, r.H))
+	}
+	if radius <= 0 {
+		return nil
+	}
+	path := &vector.Path{}
+	path.Arc(float32(centerX), float32(centerY), float32(radius), 0, 2*math.Pi, vector.Clockwise)
+	path.Close()
+	return path
+}
+
+func parsePolygonClipPath(args string, r Rect) *vector.Path {
+	points := strings.Split(args, ",")
+	if len(points) < 3 {
+		return nil
+	}
+	path := &vector.Path{}
+	for i, point := range points {
+		coords := strings.Fields(strings.TrimSpace(point))
+		if len(coords) < 2 {
+			return nil
+		}
+		x := r.X + parseCSSClipLength(coords[0], r.W)
+		y := r.Y + parseCSSClipLength(coords[1], r.H)
+		if i == 0 {
+			path.MoveTo(float32(x), float32(y))
+		} else {
+			path.LineTo(float32(x), float32(y))
+		}
+	}
+	path.Close()
+	return path
+}
+
+func parsePathClipPath(args string, r Rect) *vector.Path {
+	pathData := strings.TrimSpace(args)
+	if len(pathData) >= 2 {
+		quote := pathData[0]
+		if (quote == '\'' || quote == '"') && pathData[len(pathData)-1] == quote {
+			pathData = pathData[1 : len(pathData)-1]
+		}
+	}
+	pathData = strings.TrimSpace(pathData)
+	if pathData == "" {
+		return nil
+	}
+	return ParsePathDataScaled(pathData, r.X, r.Y, 1, 1)
+}
+
+func parseCSSClipLength(value string, reference float64) float64 {
+	value = strings.TrimSpace(value)
+	if strings.HasSuffix(value, "%") {
+		pct, _ := strconv.ParseFloat(strings.TrimSuffix(value, "%"), 64)
+		return reference * pct / 100
+	}
+	return parseCSSPixels(value)
 }
 
 // applyOpacity applies opacity to a color, returning a non-premultiplied

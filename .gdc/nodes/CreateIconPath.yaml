@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: CreateIconPath
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg_path.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: CreateIconPath
+          signature: CreateIconPath(iconName string, stroke color.Color, strokeWidth float64) *SVGPath
+          description: CreateIconPath creates a simple icon path with stroke-only style
+          parameters:
+            - name: iconName
+              type: string
+            - name: stroke
+              type: color.Color
+            - name: strokeWidth
+              type: float64
+          returns:
+            type: '*SVGPath'
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

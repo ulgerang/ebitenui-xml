@@ -1,0 +1,7 @@
+- [x] Route `option-type="checkbox"` from `bind-options`.
+- [x] Generate checkbox children from primitive, map, and struct option data.
+- [x] Read checked values from `[]string` and `[]interface{}` bindings.
+- [x] Write user checkbox changes back to `bind-value`.
+- [x] Preserve checked values across option refreshes.
+- [x] Support optional `option-id-prefix` for generated option IDs.
+- [x] Update docs/status and validate OpenSpec/GDC/build checks.

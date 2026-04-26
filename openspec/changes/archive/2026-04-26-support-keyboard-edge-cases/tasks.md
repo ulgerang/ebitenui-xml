@@ -1,0 +1,6 @@
+- [x] Add runtime dispatch for Space, Home, and End.
+- [x] Add Space activation for button, checkbox, toggle, and radio widgets.
+- [x] Add Home/End min/max behavior for sliders.
+- [x] Submit nearest form from focused text input Enter.
+- [x] Add focused regression tests.
+- [x] Update docs/status and validate OpenSpec/GDC/build checks.

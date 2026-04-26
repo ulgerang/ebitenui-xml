@@ -1,0 +1,78 @@
+schema_version: "1.0"
+node:
+    id: AdvancedStyleEngine
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\selector.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewAdvancedStyleEngine() *AdvancedStyleEngine
+          description: NewAdvancedStyleEngine creates a new advanced style engine
+    methods:
+        - name: SetVariable
+          signature: SetVariable(name string, value string)
+          description: SetVariable sets a CSS variable
+          parameters:
+            - name: name
+              type: string
+            - name: value
+              type: string
+          exported: true
+        - name: GetVariable
+          signature: GetVariable(name string) string
+          description: GetVariable gets a CSS variable
+          parameters:
+            - name: name
+              type: string
+          returns:
+            type: string
+          exported: true
+        - name: AddRule
+          signature: AddRule(selectorStr string, style *Style)
+          description: AddRule adds a style rule with selector
+          parameters:
+            - name: selectorStr
+              type: string
+            - name: style
+              type: '*Style'
+          exported: true
+        - name: GetMatchingStyles
+          signature: GetMatchingStyles(widget Widget, ancestors []Widget) []*Style
+          description: GetMatchingStyles returns all styles that match a widget, sorted by specificity
+          parameters:
+            - name: widget
+              type: Widget
+            - name: ancestors
+              type: '[]Widget'
+          returns:
+            type: '[]*Style'
+          exported: true
+        - name: ApplyAllStyles
+          signature: ApplyAllStyles(widget Widget, ancestors []Widget)
+          description: ApplyAllStyles applies all matching styles to a widget
+          parameters:
+            - name: widget
+              type: Widget
+            - name: ancestors
+              type: '[]Widget'
+          exported: true
+        - name: ResolveVariables
+          signature: ResolveVariables(style *Style)
+          description: ResolveVariables resolves CSS variables in a style
+          parameters:
+            - name: style
+              type: '*Style'
+          exported: true
+dependencies:
+    - target: StyleRule
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

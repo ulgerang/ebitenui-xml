@@ -1,0 +1,57 @@
+schema_version: "1.0"
+node:
+    id: RippleEffect
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\animation.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewRippleEffect(x float64, y float64, maxRadius float64, clr color.Color) *RippleEffect
+          parameters:
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+            - name: maxRadius
+              type: float64
+            - name: clr
+              type: color.Color
+          description: NewRippleEffect creates a new ripple effect at the given position
+    methods:
+        - name: Update
+          signature: Update() (radius float64, alpha float64)
+          description: Update returns current radius and alpha for the ripple
+          returns:
+            type: (float64, float64)
+          exported: true
+    properties:
+        - name: X
+          type: float64
+          access: get; set
+        - name: "Y"
+          type: float64
+          access: get; set
+        - name: MaxRadius
+          type: float64
+          access: get; set
+        - name: StartTime
+          type: time.Time
+          access: get; set
+        - name: Duration
+          type: time.Duration
+          access: get; set
+        - name: Color
+          type: color.Color
+          access: get; set
+        - name: IsActive
+          type: bool
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

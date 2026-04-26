@@ -1,0 +1,43 @@
+schema_version: "1.0"
+node:
+    id: SizeValue
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\variables.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Resolve
+          signature: Resolve(context SizeContext) float64
+          description: Resolve resolves the size value to pixels
+          parameters:
+            - name: context
+              type: SizeContext
+          returns:
+            type: float64
+          exported: true
+        - name: IsAuto
+          signature: IsAuto() bool
+          description: IsAuto checks if the size is auto
+          returns:
+            type: bool
+          exported: true
+    properties:
+        - name: Value
+          type: float64
+          access: get; set
+        - name: Unit
+          type: SizeUnit
+          access: get; set
+dependencies:
+    - target: SizeContext
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

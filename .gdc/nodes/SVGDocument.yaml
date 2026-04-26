@@ -1,0 +1,73 @@
+schema_version: "1.0"
+node:
+    id: SVGDocument
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: FreeGradientCache
+          signature: FreeGradientCache()
+          description: |-
+            FreeGradientCache releases all cached gradient textures.
+            Call this when the SVGDocument is no longer needed.
+          exported: true
+        - name: SetFont
+          signature: SetFont(f text.Face)
+          description: SetFont sets the font face used for SVG <text> element rendering.
+          parameters:
+            - name: f
+              type: text.Face
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image, x float64, y float64, width float64, height float64)
+          description: Draw renders the SVG document to the screen
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+            - name: width
+              type: float64
+            - name: height
+              type: float64
+          exported: true
+    properties:
+        - name: Width
+          type: float64
+          access: get; set
+        - name: Height
+          type: float64
+          access: get; set
+        - name: ViewBox
+          type: ViewBox
+          access: get; set
+        - name: Elements
+          type: '[]SVGElement'
+          access: get; set
+        - name: Font
+          type: text.Face
+          access: get; set
+          description: optional font for <text> rendering
+        - name: Defs
+          type: map[string]interface{}
+          access: get; set
+          description: id -> *SVGLinearGradient or *SVGRadialGradient
+dependencies:
+    - target: ViewBox
+      type: class
+      injection: field
+    - target: SVGElement
+      type: interface
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

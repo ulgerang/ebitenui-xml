@@ -1,0 +1,59 @@
+schema_version: "1.0"
+node:
+    id: TransitionEngine
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\transition.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewTransitionEngine() *TransitionEngine
+          description: NewTransitionEngine creates a new TransitionEngine.
+    methods:
+        - name: StartTransitions
+          signature: StartTransitions(oldStyle *Style, newStyle *Style, declarations []Transition)
+          description: |-
+            StartTransitions detects property changes between oldStyle and newStyle,
+            and starts transitions for properties declared in the transition list.
+            If a transition is already in progress for a property, the current
+            interpolated value becomes the new start value (smooth reversal).
+          parameters:
+            - name: oldStyle
+              type: '*Style'
+            - name: newStyle
+              type: '*Style'
+            - name: declarations
+              type: '[]Transition'
+          exported: true
+        - name: Apply
+          signature: Apply(style *Style) *Style
+          description: |-
+            Apply applies active transitions to a style, returning a new style with
+            interpolated values. If no transitions are active, returns the input style unchanged.
+          parameters:
+            - name: style
+              type: '*Style'
+          returns:
+            type: '*Style'
+          exported: true
+        - name: IsActive
+          signature: IsActive() bool
+          description: IsActive returns true if any transition is currently in progress.
+          returns:
+            type: bool
+          exported: true
+dependencies:
+    - target: floatTransition
+      type: class
+      injection: method
+    - target: colorTransition
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

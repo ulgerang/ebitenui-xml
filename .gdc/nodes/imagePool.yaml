@@ -1,0 +1,42 @@
+schema_version: "1.0"
+node:
+    id: imagePool
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\image_pool.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Get
+          signature: Get(w int, h int) *ebiten.Image
+          description: |-
+            Get returns a cleared image of at least (w, h) pixels.
+            The actual image may be larger due to bucket rounding.  Callers that use
+            DrawRectShader or DrawImage with explicit (w, h) are unaffected by the extra
+            transparent padding.
+          parameters:
+            - name: w
+              type: int
+            - name: h
+              type: int
+          returns:
+            type: '*ebiten.Image'
+          exported: true
+        - name: Put
+          signature: Put(img *ebiten.Image)
+          description: |-
+            Put returns an image to the pool for later reuse.
+            The caller must NOT use the image after this call.  If the bucket is already
+            at capacity the image is deallocated to bound memory.
+          parameters:
+            - name: img
+              type: '*ebiten.Image'
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

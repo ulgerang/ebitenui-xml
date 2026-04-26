@@ -1,0 +1,391 @@
+schema_version: "1.0"
+node:
+    id: BaseWidget
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widget.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewBaseWidget(id string, widgetType string) *BaseWidget
+          parameters:
+            - name: id
+              type: string
+            - name: widgetType
+              type: string
+          description: NewBaseWidget creates a new base widget
+    methods:
+        - name: ID
+          signature: ID() string
+          description: ID returns the widget's unique identifier
+          returns:
+            type: string
+          exported: true
+        - name: Type
+          signature: Type() string
+          description: Type returns the widget type
+          returns:
+            type: string
+          exported: true
+        - name: SemanticType
+          signature: SemanticType() string
+          description: SemanticType returns the XML semantic tag used to create this widget, if any.
+          returns:
+            type: string
+          exported: true
+        - name: SetSemanticType
+          signature: SetSemanticType(tag string)
+          description: SetSemanticType sets the XML semantic tag metadata for this widget.
+          parameters:
+            - name: tag
+              type: string
+          exported: true
+        - name: Classes
+          signature: Classes() []string
+          description: Classes returns the widget's CSS classes
+          returns:
+            type: '[]string'
+          exported: true
+        - name: AddClass
+          signature: AddClass(class string)
+          description: AddClass adds a CSS class
+          parameters:
+            - name: class
+              type: string
+          exported: true
+        - name: RemoveClass
+          signature: RemoveClass(class string)
+          description: RemoveClass removes a CSS class
+          parameters:
+            - name: class
+              type: string
+          exported: true
+        - name: HasClass
+          signature: HasClass(class string) bool
+          description: HasClass checks if widget has a class
+          parameters:
+            - name: class
+              type: string
+          returns:
+            type: bool
+          exported: true
+        - name: Parent
+          signature: Parent() Widget
+          description: Parent returns the parent widget
+          returns:
+            type: Widget
+          exported: true
+        - name: SetParent
+          signature: SetParent(p Widget)
+          description: SetParent sets the parent widget
+          parameters:
+            - name: p
+              type: Widget
+          exported: true
+        - name: Children
+          signature: Children() []Widget
+          description: Children returns all child widgets
+          returns:
+            type: '[]Widget'
+          exported: true
+        - name: AddChild
+          signature: AddChild(child Widget)
+          description: AddChild adds a child widget
+          parameters:
+            - name: child
+              type: Widget
+          exported: true
+        - name: RemoveChild
+          signature: RemoveChild(child Widget)
+          description: RemoveChild removes a child widget
+          parameters:
+            - name: child
+              type: Widget
+          exported: true
+        - name: ComputedRect
+          signature: ComputedRect() Rect
+          description: ComputedRect returns the calculated rectangle
+          returns:
+            type: Rect
+          exported: true
+        - name: SetComputedRect
+          signature: SetComputedRect(r Rect)
+          description: SetComputedRect sets the calculated rectangle
+          parameters:
+            - name: r
+              type: Rect
+          exported: true
+        - name: Style
+          signature: Style() *Style
+          description: Style returns the widget's style
+          returns:
+            type: '*Style'
+          exported: true
+        - name: SetStyle
+          signature: SetStyle(s *Style)
+          description: SetStyle sets the widget's style
+          parameters:
+            - name: s
+              type: '*Style'
+          exported: true
+        - name: IntrinsicWidth
+          signature: IntrinsicWidth() float64
+          description: IntrinsicWidth returns the widget's natural width based on content or children
+          returns:
+            type: float64
+          exported: true
+        - name: IntrinsicHeight
+          signature: IntrinsicHeight() float64
+          description: IntrinsicHeight returns the widget's natural height based on content or children
+          returns:
+            type: float64
+          exported: true
+        - name: State
+          signature: State() WidgetState
+          returns:
+            type: WidgetState
+          exported: true
+        - name: SetState
+          signature: SetState(s WidgetState)
+          description: SetState sets the widget's state
+          parameters:
+            - name: s
+              type: WidgetState
+          exported: true
+        - name: Visible
+          signature: Visible() bool
+          description: Visible returns whether the widget is visible
+          returns:
+            type: bool
+          exported: true
+        - name: SetVisible
+          signature: SetVisible(v bool)
+          description: SetVisible sets the widget's visibility
+          parameters:
+            - name: v
+              type: bool
+          exported: true
+        - name: Enabled
+          signature: Enabled() bool
+          description: Enabled returns whether the widget is enabled
+          returns:
+            type: bool
+          exported: true
+        - name: SetEnabled
+          signature: SetEnabled(e bool)
+          description: SetEnabled sets the widget's enabled state
+          parameters:
+            - name: e
+              type: bool
+          exported: true
+        - name: SetTabIndex
+          signature: SetTabIndex(index int)
+          description: SetTabIndex sets the widget's keyboard focus order. Negative values skip tab traversal.
+          parameters:
+            - name: index
+              type: int
+          exported: true
+        - name: TabIndex
+          signature: TabIndex() int
+          description: TabIndex returns the widget's keyboard focus order.
+          returns:
+            type: int
+          exported: true
+        - name: SetFocusable
+          signature: SetFocusable(focusable bool)
+          description: SetFocusable marks whether this widget participates in default focus traversal.
+          parameters:
+            - name: focusable
+              type: bool
+          exported: true
+        - name: Focusable
+          signature: Focusable() bool
+          description: Focusable returns whether this widget can receive keyboard focus.
+          returns:
+            type: bool
+          exported: true
+        - name: SetFormInitialValue
+          signature: SetFormInitialValue(value string)
+          description: SetFormInitialValue stores the reset value used by form semantics.
+          parameters:
+            - name: value
+              type: string
+          exported: true
+        - name: FormInitialValue
+          signature: FormInitialValue() string
+          description: FormInitialValue returns the reset value used by form semantics.
+          returns:
+            type: string
+          exported: true
+        - name: SetValidationState
+          signature: SetValidationState(state ValidationState)
+          description: SetValidationState updates this widget's form validation state.
+          parameters:
+            - name: state
+              type: ValidationState
+          exported: true
+        - name: ValidationState
+          signature: ValidationState() ValidationState
+          description: ValidationState returns this widget's form validation state.
+          returns:
+            type: ValidationState
+          exported: true
+        - name: SetValidationRules
+          signature: SetValidationRules(rules ValidationRules)
+          description: SetValidationRules stores the validation constraints for this widget.
+          parameters:
+            - name: rules
+              type: ValidationRules
+          exported: true
+        - name: ValidationRules
+          signature: ValidationRules() ValidationRules
+          description: ValidationRules returns the validation constraints for this widget.
+          returns:
+            type: ValidationRules
+          exported: true
+        - name: SetValidationMessage
+          signature: SetValidationMessage(message string)
+          description: SetValidationMessage stores the latest validation message for this widget.
+          parameters:
+            - name: message
+              type: string
+          exported: true
+        - name: ValidationMessage
+          signature: ValidationMessage() string
+          description: ValidationMessage returns the latest validation message for this widget.
+          returns:
+            type: string
+          exported: true
+        - name: SetScrollOffset
+          signature: SetScrollOffset(x float64, y float64)
+          description: SetScrollOffset sets the runtime scroll offset for overflow scroll/auto widgets.
+          parameters:
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+          exported: true
+        - name: ScrollOffset
+          signature: ScrollOffset() (float64, float64)
+          description: ScrollOffset returns the runtime scroll offset for overflow scroll/auto widgets.
+          returns:
+            type: (float64, float64)
+          exported: true
+        - name: ScrollBy
+          signature: ScrollBy(dx float64, dy float64)
+          description: ScrollBy moves the runtime scroll offset by a delta.
+          parameters:
+            - name: dx
+              type: float64
+            - name: dy
+              type: float64
+          exported: true
+        - name: MaxScrollX
+          signature: MaxScrollX() float64
+          description: MaxScrollX returns the maximum horizontal scroll offset.
+          returns:
+            type: float64
+          exported: true
+        - name: MaxScrollY
+          signature: MaxScrollY() float64
+          description: MaxScrollY returns the maximum vertical scroll offset.
+          returns:
+            type: float64
+          exported: true
+        - name: Set9Slice
+          signature: Set9Slice(ns *NineSlice)
+          description: Set9Slice sets a 9-slice image for the widget background
+          parameters:
+            - name: ns
+              type: '*NineSlice'
+          exported: true
+        - name: OnClick
+          signature: OnClick(handler func(...))
+          description: OnClick sets the click handler
+          parameters:
+            - name: handler
+              type: func(...)
+          exported: true
+        - name: OnHover
+          signature: OnHover(handler func(...))
+          description: OnHover sets the hover handler
+          parameters:
+            - name: handler
+              type: func(...)
+          exported: true
+        - name: HandleClick
+          signature: HandleClick()
+          description: HandleClick triggers the click handler
+          exported: true
+        - name: HandleHover
+          signature: HandleHover()
+          description: HandleHover triggers the hover handler
+          exported: true
+        - name: PlayAnimation
+          signature: PlayAnimation(name string)
+          description: PlayAnimation starts an animation by name
+          parameters:
+            - name: name
+              type: string
+          exported: true
+        - name: PlayAnimationInstance
+          signature: PlayAnimationInstance(anim *Animation)
+          description: PlayAnimationInstance starts a specific animation instance
+          parameters:
+            - name: anim
+              type: '*Animation'
+          exported: true
+        - name: StopAnimation
+          signature: StopAnimation()
+          description: StopAnimation stops the current animation
+          exported: true
+        - name: IsAnimating
+          signature: IsAnimating() bool
+          description: IsAnimating returns true if the widget is currently animating
+          returns:
+            type: bool
+          exported: true
+        - name: PauseAnimation
+          signature: PauseAnimation()
+          description: PauseAnimation pauses the current animation
+          exported: true
+        - name: ResumeAnimation
+          signature: ResumeAnimation()
+          description: ResumeAnimation resumes a paused animation
+          exported: true
+        - name: OnAnimationComplete
+          signature: OnAnimationComplete(callback func(...))
+          description: OnAnimationComplete sets a callback for when animation completes
+          parameters:
+            - name: callback
+              type: func(...)
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: |-
+            Draw renders the widget's background, border, outline, and children.
+
+            When opacity < 1, a CSS transform is set, or a CSS filter is active, the
+            entire widget (background + border + outline + children) is rendered to an
+            offscreen buffer first, then composited with the appropriate alpha / GeoM /
+            shader.  This prevents the double-attenuation artefact that occurs when
+            per-element opacity is applied to overlapping regions (e.g. background
+            bleeding through a semi-transparent border).
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+        - name: ContentRect
+          signature: ContentRect() Rect
+          description: ContentRect returns the content area (rect minus padding and border)
+          returns:
+            type: Rect
+          exported: true
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

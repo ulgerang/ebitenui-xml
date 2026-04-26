@@ -1,0 +1,59 @@
+schema_version: "1.0"
+node:
+    id: SVGLine
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Draw
+          signature: Draw(screen *ebiten.Image, offsetX float64, offsetY float64, scaleX float64, scaleY float64)
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: offsetX
+              type: float64
+            - name: offsetY
+              type: float64
+            - name: scaleX
+              type: float64
+            - name: scaleY
+              type: float64
+          exported: true
+    properties:
+        - name: X1
+          type: float64
+          access: get; set
+        - name: Y1
+          type: float64
+          access: get; set
+        - name: X2
+          type: float64
+          access: get; set
+        - name: Y2
+          type: float64
+          access: get; set
+        - name: Stroke
+          type: color.Color
+          access: get; set
+        - name: StrokeWidth
+          type: float64
+          access: get; set
+        - name: Opacity
+          type: float64
+          access: get; set
+        - name: StrokeOpacity
+          type: float64
+          access: get; set
+        - name: StrokeLineCap
+          type: string
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

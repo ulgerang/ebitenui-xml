@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -441,6 +442,604 @@ func TestBindingContext(t *testing.T) {
 		slider.SetValue(50.0)
 		if got := bc.GetFloat("value"); got != 50.0 {
 			t.Errorf("Slider data = %v, want 50.0", got)
+		}
+	})
+}
+
+func TestDeclarativeXMLBindings(t *testing.T) {
+	t.Run("bind text visible and enabled from XML", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`
+			<panel id="root">
+				<text id="name" bind-text="player.name" bind-visible="player.visible" bind-enabled="player.enabled">fallback</text>
+			</panel>
+		`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("player.name", "Ada")
+		ui.Bind("player.visible", false)
+		ui.Bind("player.enabled", false)
+
+		name := ui.GetText("name")
+		if name == nil {
+			t.Fatal("expected text widget")
+		}
+		if name.Content != "Ada" {
+			t.Errorf("Content = %q, want Ada", name.Content)
+		}
+		if name.Visible() {
+			t.Error("text should be invisible")
+		}
+		if name.Enabled() {
+			t.Error("text should be disabled")
+		}
+	})
+
+	t.Run("bind input value two-way from XML", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`<input id="username" bind-value="user.name" />`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("user.name", "Ada")
+
+		input := ui.GetTextInput("username")
+		if input == nil {
+			t.Fatal("expected text input")
+		}
+		if input.Text != "Ada" {
+			t.Errorf("Text = %q, want Ada", input.Text)
+		}
+
+		input.SetText("")
+		input.insertString("Grace")
+		if got := ui.Bindings().GetString("user.name"); got != "Grace" {
+			t.Errorf("binding value = %q, want Grace", got)
+		}
+	})
+
+	t.Run("bind checkbox checked two-way from XML alias", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`<checkbox id="music" data-bind-checked="settings.music">Music</checkbox>`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("settings.music", true)
+
+		checkbox := ui.GetCheckbox("music")
+		if checkbox == nil {
+			t.Fatal("expected checkbox")
+		}
+		if !checkbox.Checked {
+			t.Error("checkbox should be checked")
+		}
+
+		checkbox.HandleClick()
+		if got := ui.Bindings().GetBool("settings.music"); got {
+			t.Error("binding value should be false after click")
+		}
+	})
+
+	t.Run("bind text template expressions from XML", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`<text id="status">Player {{player.name}} Lv.{{player.level}}</text>`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("player.name", "Ada")
+		ui.Bind("player.level", 7)
+
+		status := ui.GetText("status")
+		if status == nil {
+			t.Fatal("expected text widget")
+		}
+		if status.Content != "Player Ada Lv.7" {
+			t.Errorf("Content = %q, want Player Ada Lv.7", status.Content)
+		}
+
+		ui.Bind("player.level", 8)
+		if status.Content != "Player Ada Lv.8" {
+			t.Errorf("Content = %q, want Player Ada Lv.8", status.Content)
+		}
+	})
+
+	t.Run("bind repeat creates children from XML template", func(t *testing.T) {
+		type player struct {
+			Name  string
+			Level int
+		}
+
+		ui := New(320, 200)
+		err := ui.LoadLayout(`
+			<panel id="root">
+				<text id="player-{{index}}" bind-repeat="players">{{item.Name}} Lv.{{item.Level}}</text>
+			</panel>
+		`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("players", []player{
+			{Name: "Ada", Level: 7},
+			{Name: "Grace", Level: 9},
+		})
+
+		root := ui.GetPanel("root")
+		if root == nil {
+			t.Fatal("expected root panel")
+		}
+		if got := len(root.Children()); got != 2 {
+			t.Fatalf("len(root.Children()) = %d, want 2", got)
+		}
+		first := ui.GetText("player-0")
+		second := ui.GetText("player-1")
+		if first == nil || second == nil {
+			t.Fatal("expected repeated text widgets in ID cache")
+		}
+		if first.Content != "Ada Lv.7" {
+			t.Errorf("first.Content = %q, want Ada Lv.7", first.Content)
+		}
+		if second.Content != "Grace Lv.9" {
+			t.Errorf("second.Content = %q, want Grace Lv.9", second.Content)
+		}
+
+		ui.Bind("players", []player{{Name: "Linus", Level: 11}})
+		if got := len(root.Children()); got != 1 {
+			t.Fatalf("len(root.Children()) after update = %d, want 1", got)
+		}
+		updated := ui.GetText("player-0")
+		if updated == nil {
+			t.Fatal("expected updated repeated text widget in ID cache")
+		}
+		if updated.Content != "Linus Lv.11" {
+			t.Errorf("updated.Content = %q, want Linus Lv.11", updated.Content)
+		}
+		if stale := ui.GetText("player-1"); stale != nil {
+			t.Fatal("stale repeated widget should be removed from ID cache")
+		}
+	})
+
+	t.Run("bind repeat supports map items and for-each alias", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`
+			<panel id="root">
+				<button id="quest-{{index}}" for-each="quests" label="{{item.title}}" />
+			</panel>
+		`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("quests", []map[string]interface{}{
+			{"title": "Find key"},
+			{"title": "Open door"},
+		})
+
+		first := ui.GetButton("quest-0")
+		second := ui.GetButton("quest-1")
+		if first == nil || second == nil {
+			t.Fatal("expected repeated buttons")
+		}
+		if first.Label != "Find key" {
+			t.Errorf("first.Label = %q, want Find key", first.Label)
+		}
+		if second.Label != "Open door" {
+			t.Errorf("second.Label = %q, want Open door", second.Label)
+		}
+	})
+
+	t.Run("bind if attaches and detaches XML child", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`
+			<panel id="root">
+				<text id="warning" bind-if="showWarning">Warning</text>
+			</panel>
+		`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		root := ui.GetPanel("root")
+		if root == nil {
+			t.Fatal("expected root panel")
+		}
+		if got := len(root.Children()); got != 0 {
+			t.Fatalf("len(root.Children()) before binding = %d, want 0", got)
+		}
+		if warning := ui.GetText("warning"); warning != nil {
+			t.Fatal("conditional widget should not exist before truthy binding")
+		}
+
+		ui.Bind("showWarning", true)
+		if got := len(root.Children()); got != 1 {
+			t.Fatalf("len(root.Children()) after true = %d, want 1", got)
+		}
+		warning := ui.GetText("warning")
+		if warning == nil {
+			t.Fatal("conditional widget should exist in ID cache after true")
+		}
+		if warning.Content != "Warning" {
+			t.Errorf("warning.Content = %q, want Warning", warning.Content)
+		}
+
+		ui.Bind("showWarning", false)
+		if got := len(root.Children()); got != 0 {
+			t.Fatalf("len(root.Children()) after false = %d, want 0", got)
+		}
+		if warning := ui.GetText("warning"); warning != nil {
+			t.Fatal("conditional widget should be removed from ID cache after false")
+		}
+	})
+
+	t.Run("bind if supports data alias and truthy values", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`
+			<panel id="root">
+				<button id="start" data-bind-if="canStart">Start</button>
+			</panel>
+		`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("canStart", "yes")
+		if start := ui.GetButton("start"); start == nil {
+			t.Fatal("conditional button should exist for truthy string")
+		}
+
+		ui.Bind("canStart", 0)
+		if start := ui.GetButton("start"); start != nil {
+			t.Fatal("conditional button should be removed for numeric zero")
+		}
+	})
+
+	t.Run("rich template expressions update from dependencies", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`
+			<panel id="root">
+				<text id="greeting">Hello {{upper(user.name || "guest")}}</text>
+				<text id="summary">{{count + 1}}/{{total}}</text>
+			</panel>
+		`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		greeting := ui.GetText("greeting")
+		summary := ui.GetText("summary")
+		if greeting == nil || summary == nil {
+			t.Fatal("expected expression-bound text widgets")
+		}
+		if greeting.Content != "Hello GUEST" {
+			t.Errorf("initial greeting = %q, want Hello GUEST", greeting.Content)
+		}
+
+		ui.Bind("user.name", "Ada")
+		ui.Bind("count", 2)
+		ui.Bind("total", 5)
+		if greeting.Content != "Hello ADA" {
+			t.Errorf("updated greeting = %q, want Hello ADA", greeting.Content)
+		}
+		if summary.Content != "3/5" {
+			t.Errorf("summary = %q, want 3/5", summary.Content)
+		}
+	})
+
+	t.Run("binding expression helpers format common values", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`
+			<panel id="root">
+				<text id="count">Items {{len(items)}}</text>
+				<text id="rounded">{{round(score, 1)}}/{{floor(score)}}/{{ceil(score)}}</text>
+				<text id="contains">{{contains(title, "Quest")}} {{contains(items, "bow")}}</text>
+				<text id="joined">{{join(items, " | ")}}</text>
+				<text id="formatted">{{format("%s:%d", player.name, level)}}</text>
+			</panel>
+		`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("items", []string{"sword", "bow", "potion"})
+		ui.Bind("score", 12.26)
+		ui.Bind("title", "Quest Board")
+		ui.Bind("player.name", "Ada")
+		ui.Bind("level", 7)
+
+		if got := ui.GetText("count").Content; got != "Items 3" {
+			t.Fatalf("count = %q, want Items 3", got)
+		}
+		if got := ui.GetText("rounded").Content; got != "12.3/12/13" {
+			t.Fatalf("rounded = %q, want 12.3/12/13", got)
+		}
+		if got := ui.GetText("contains").Content; got != "true true" {
+			t.Fatalf("contains = %q, want true true", got)
+		}
+		if got := ui.GetText("joined").Content; got != "sword | bow | potion" {
+			t.Fatalf("joined = %q, want sword | bow | potion", got)
+		}
+		if got := ui.GetText("formatted").Content; got != "Ada:7" {
+			t.Fatalf("formatted = %q, want Ada:7", got)
+		}
+
+		ui.Bind("items", []string{"wand"})
+		if got := ui.GetText("count").Content; got != "Items 1" {
+			t.Fatalf("updated count = %q, want Items 1", got)
+		}
+		if got := ui.GetText("contains").Content; got != "true false" {
+			t.Fatalf("updated contains = %q, want true false", got)
+		}
+	})
+
+	t.Run("attribute and style bindings update widgets", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`
+			<button id="cta"
+				bind-attr-label="label || 'Fallback'"
+				bind-attr-width="button.width"
+				bind-style-opacity="enabled &amp;&amp; 1 || 0.5"
+				bind-style-color="color">Fallback</button>
+		`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("label", "Start")
+		ui.Bind("button.width", 120)
+		ui.Bind("enabled", false)
+		ui.Bind("color", "#ff0000")
+
+		button := ui.GetButton("cta")
+		if button == nil {
+			t.Fatal("expected button")
+		}
+		if button.Label != "Start" {
+			t.Errorf("Label = %q, want Start", button.Label)
+		}
+		if button.Style().Width != 120 || !button.Style().WidthSet {
+			t.Errorf("Width = %v set=%v, want 120 true", button.Style().Width, button.Style().WidthSet)
+		}
+		if button.Style().Opacity != 0.5 {
+			t.Errorf("Opacity = %v, want 0.5", button.Style().Opacity)
+		}
+		if button.Style().Color != "#ff0000" {
+			t.Errorf("Color = %q, want #ff0000", button.Style().Color)
+		}
+
+		ui.Bind("enabled", true)
+		if button.Style().Opacity != 1 {
+			t.Errorf("Opacity after enabled = %v, want 1", button.Style().Opacity)
+		}
+	})
+
+	t.Run("xml event commands dispatch registered handlers", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`<button id="save" onClick="saveGame">Save</button>`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		var called bool
+		var got Widget
+		ui.RegisterCommand("saveGame", func(widget Widget) {
+			called = true
+			got = widget
+		})
+
+		button := ui.GetButton("save")
+		if button == nil {
+			t.Fatal("expected button")
+		}
+		button.HandleClick()
+
+		if !called {
+			t.Fatal("command handler was not called")
+		}
+		if got != button {
+			t.Fatalf("command widget = %v, want button", got)
+		}
+	})
+
+	t.Run("dropdown options bind from primitive collection", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`<dropdown id="choice" bind-options="items" bind-value="selected" />`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("items", []string{"Easy", "Normal", "Hard"})
+		ui.Bind("selected", "Normal")
+
+		dropdown := ui.GetWidget("choice").(*Dropdown)
+		if len(dropdown.Options) != 3 {
+			t.Fatalf("option count = %d, want 3", len(dropdown.Options))
+		}
+		if got := dropdown.GetSelectedValue(); got != "Normal" {
+			t.Fatalf("selected value = %q, want Normal", got)
+		}
+
+		ui.Bind("items", []string{"Normal", "Expert"})
+		if len(dropdown.Options) != 2 {
+			t.Fatalf("updated option count = %d, want 2", len(dropdown.Options))
+		}
+		if got := dropdown.GetSelectedValue(); got != "Normal" {
+			t.Fatalf("selected value after refresh = %q, want Normal", got)
+		}
+	})
+
+	t.Run("dropdown options bind from mapped collection", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`<select id="hero" bind-options="heroes" option-label="name" option-value="id" />`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("heroes", []map[string]interface{}{
+			{"id": "h1", "name": "Ada"},
+			{"id": "h2", "name": "Grace"},
+		})
+
+		dropdown := ui.GetWidget("hero").(*Dropdown)
+		if len(dropdown.Options) != 2 {
+			t.Fatalf("option count = %d, want 2", len(dropdown.Options))
+		}
+		if dropdown.Options[1].Label != "Grace" || dropdown.Options[1].Value != "h2" {
+			t.Fatalf("mapped option = %+v, want Grace/h2", dropdown.Options[1])
+		}
+	})
+
+	t.Run("radio options bind from mapped collection", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`<panel id="difficulty" bind-options="levels" option-type="radio" option-label="label" option-value="id" bind-value="selected" />`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("selected", "normal")
+		ui.Bind("levels", []map[string]interface{}{
+			{"id": "easy", "label": "Easy"},
+			{"id": "normal", "label": "Normal"},
+			{"id": "hard", "label": "Hard"},
+		})
+
+		container := ui.GetPanel("difficulty")
+		if container == nil {
+			t.Fatal("expected radio option container")
+		}
+		if len(container.Children()) != 3 {
+			t.Fatalf("radio option count = %d, want 3", len(container.Children()))
+		}
+		normal, ok := ui.GetWidget("difficulty-option-normal").(*RadioButton)
+		if !ok {
+			t.Fatal("expected generated normal radio button")
+		}
+		if !normal.Selected || normal.Label != "Normal" || normal.Value != "normal" {
+			t.Fatalf("normal radio = %+v, want selected Normal/normal", normal)
+		}
+
+		hard, ok := ui.GetWidget("difficulty-option-hard").(*RadioButton)
+		if !ok {
+			t.Fatal("expected generated hard radio button")
+		}
+		hard.HandleClick()
+		if got := ui.Bindings().GetString("selected"); got != "hard" {
+			t.Fatalf("selected binding after click = %q, want hard", got)
+		}
+
+		ui.Bind("levels", []map[string]interface{}{
+			{"id": "normal", "label": "Normal"},
+			{"id": "hard", "label": "Hard"},
+		})
+		if len(container.Children()) != 2 {
+			t.Fatalf("updated radio option count = %d, want 2", len(container.Children()))
+		}
+		refreshed, ok := ui.GetWidget("difficulty-option-hard").(*RadioButton)
+		if !ok || !refreshed.Selected {
+			t.Fatalf("refreshed hard radio = %+v, want selected", refreshed)
+		}
+		if ui.GetWidget("difficulty-option-easy") != nil {
+			t.Fatal("removed radio option should leave widget cache")
+		}
+	})
+
+	t.Run("checkbox options bind from primitive collection", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`<panel id="filters" bind-options="tags" option-type="checkbox" bind-value="selected" />`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("selected", []string{"Fast"})
+		ui.Bind("tags", []string{"Fast", "Safe", "Cheap"})
+
+		container := ui.GetPanel("filters")
+		if container == nil {
+			t.Fatal("expected checkbox option container")
+		}
+		if len(container.Children()) != 3 {
+			t.Fatalf("checkbox option count = %d, want 3", len(container.Children()))
+		}
+		fast, ok := ui.GetWidget("filters-option-fast").(*Checkbox)
+		if !ok {
+			t.Fatal("expected generated Fast checkbox")
+		}
+		if !fast.Checked || fast.Label != "Fast" {
+			t.Fatalf("fast checkbox = %+v, want checked Fast", fast)
+		}
+
+		safe := ui.GetWidget("filters-option-safe").(*Checkbox)
+		safe.HandleClick()
+		selected, ok := ui.Bindings().Get("selected").([]string)
+		if !ok {
+			t.Fatalf("selected binding type = %T, want []string", ui.Bindings().Get("selected"))
+		}
+		if strings.Join(selected, ",") != "Fast,Safe" {
+			t.Fatalf("selected binding = %v, want [Fast Safe]", selected)
+		}
+
+		ui.Bind("tags", []string{"Safe", "Cheap"})
+		if len(container.Children()) != 2 {
+			t.Fatalf("updated checkbox option count = %d, want 2", len(container.Children()))
+		}
+		refreshed, ok := ui.GetWidget("filters-option-safe").(*Checkbox)
+		if !ok || !refreshed.Checked {
+			t.Fatalf("refreshed safe checkbox = %+v, want checked", refreshed)
+		}
+		if ui.GetWidget("filters-option-fast") != nil {
+			t.Fatal("removed checkbox option should leave widget cache")
+		}
+	})
+
+	t.Run("checkbox options bind from mapped and struct collections", func(t *testing.T) {
+		type tagOption struct {
+			ID    string
+			Label string
+		}
+
+		ui := New(320, 200)
+		err := ui.LoadLayout(`<panel id="features" bind-options="items" option-type="checkbox" option-label="label" option-value="id" option-id-prefix="feature" bind-value="selected" />`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		ui.Bind("selected", []interface{}{"a"})
+		ui.Bind("items", []map[string]interface{}{
+			{"id": "a", "label": "Alpha"},
+			{"id": "b", "label": "Beta"},
+		})
+		alpha, ok := ui.GetWidget("feature-option-a").(*Checkbox)
+		if !ok || !alpha.Checked || alpha.Label != "Alpha" {
+			t.Fatalf("mapped alpha checkbox = %+v, want checked Alpha", alpha)
+		}
+
+		ui.Bind("items", []tagOption{
+			{ID: "a", Label: "Alpha"},
+			{ID: "c", Label: "Gamma"},
+		})
+		gamma, ok := ui.GetWidget("feature-option-c").(*Checkbox)
+		if !ok || gamma.Checked || gamma.Label != "Gamma" {
+			t.Fatalf("struct gamma checkbox = %+v, want unchecked Gamma", gamma)
+		}
+	})
+
+	t.Run("binding diagnostics include widget and attribute", func(t *testing.T) {
+		ui := New(320, 200)
+		err := ui.LoadLayout(`<dropdown id="bad" bind-options="missing + " />`)
+		if err != nil {
+			t.Fatalf("LoadLayout() error = %v", err)
+		}
+
+		diagnostics := ui.Bindings().Diagnostics()
+		if len(diagnostics) == 0 {
+			t.Fatal("expected binding diagnostic")
+		}
+		if diagnostics[0].WidgetID != "bad" || diagnostics[0].Attribute != "bind-options" {
+			t.Fatalf("diagnostic = %+v, want widget bad bind-options", diagnostics[0])
 		}
 	})
 }

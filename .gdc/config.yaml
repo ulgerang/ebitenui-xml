@@ -1,0 +1,48 @@
+schema_version: "1.0"
+project:
+    name: ebitenui-xml
+    language: go
+storage:
+    mode: centralized
+    nodes_dir: .gdc/nodes
+    templates_dir: .gdc/templates
+database:
+    path: .gdc/graph.db
+    wal_mode: true
+    cache_size: 2000
+indexer:
+    auto_sync: true
+    ignore_dirs:
+        - .git
+        - node_modules
+        - bin
+        - obj
+validation:
+    strict_mode: false
+    srp_threshold: 5
+    warn_only:
+        - orphan
+        - srp_violation
+llm: {}
+output:
+    color_enabled: true
+    date_format: "2006-01-02"
+    language: en
+architecture:
+    enabled: true
+    layers:
+        - name: presentation
+          can_depend_on:
+            - application
+        - name: application
+          can_depend_on:
+            - domain
+            - infrastructure
+        - name: domain
+        - name: infrastructure
+          can_depend_on:
+            - domain
+naming_conventions:
+    interface_prefix: I
+    abstract_prefix: Abstract
+    service_suffix: Service

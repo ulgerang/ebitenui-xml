@@ -1,0 +1,113 @@
+schema_version: "1.0"
+node:
+    id: Scrollable
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\scrollable.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewScrollable(id string) *Scrollable
+          parameters:
+            - name: id
+              type: string
+          description: NewScrollable creates a new scrollable container
+    methods:
+        - name: MaxScrollX
+          signature: MaxScrollX() float64
+          description: MaxScrollX returns maximum horizontal scroll
+          returns:
+            type: float64
+          exported: true
+        - name: MaxScrollY
+          signature: MaxScrollY() float64
+          description: MaxScrollY returns maximum vertical scroll
+          returns:
+            type: float64
+          exported: true
+        - name: ScrollToTop
+          signature: ScrollToTop()
+          description: ScrollToTop scrolls to the top
+          exported: true
+        - name: ScrollToBottom
+          signature: ScrollToBottom()
+          description: ScrollToBottom scrolls to the bottom
+          exported: true
+        - name: ScrollTo
+          signature: ScrollTo(x float64, y float64)
+          description: ScrollTo scrolls to a specific position
+          parameters:
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+          exported: true
+        - name: ScrollBy
+          signature: ScrollBy(dx float64, dy float64)
+          description: ScrollBy scrolls by a delta
+          parameters:
+            - name: dx
+              type: float64
+            - name: dy
+              type: float64
+          exported: true
+        - name: Update
+          signature: Update()
+          description: Update handles scroll input
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the scrollable container and its children
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+    properties:
+        - name: ScrollX
+          type: float64
+          access: get; set
+          description: Scroll state
+        - name: ScrollY
+          type: float64
+          access: get; set
+        - name: ContentWidth
+          type: float64
+          access: get; set
+          description: Content size (calculated from children)
+        - name: ContentHeight
+          type: float64
+          access: get; set
+        - name: ScrollbarWidth
+          type: float64
+          access: get; set
+          description: Scroll behavior
+        - name: ShowHorizontal
+          type: bool
+          access: get; set
+        - name: ShowVertical
+          type: bool
+          access: get; set
+        - name: AutoHideScrollbar
+          type: bool
+          access: get; set
+        - name: ScrollSpeed
+          type: float64
+          access: get; set
+        - name: ScrollbarColor
+          type: color.Color
+          access: get; set
+          description: Visual
+        - name: ScrollbarTrackColor
+          type: color.Color
+          access: get; set
+        - name: ScrollbarRadius
+          type: float64
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

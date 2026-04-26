@@ -529,13 +529,17 @@ func min(a, b float64) float64 {
 // Outset shadows use a GPU SDF shader with analytical Gaussian blur (single draw call).
 // Inset shadows fall back to a CPU multi-layer approach for now.
 func DrawBoxShadow(screen *ebiten.Image, r Rect, shadow *BoxShadow, borderRadius float64) {
+	DrawBoxShadowEx(screen, r, shadow, borderRadius, borderRadius, borderRadius, borderRadius)
+}
+
+// DrawBoxShadowEx draws a box shadow using individual corner radii.
+func DrawBoxShadowEx(screen *ebiten.Image, r Rect, shadow *BoxShadow, radTL, radTR, radBR, radBL float64) {
 	if shadow == nil {
 		return
 	}
 
 	if shadow.Inset {
-		// Inset shadow: keep CPU fallback for now
-		drawBoxShadowInsetCPU(screen, r, shadow, borderRadius)
+		drawBoxShadowInsetCPUEx(screen, r, shadow, radTL, radTR, radBR, radBL)
 		return
 	}
 
@@ -552,14 +556,11 @@ func DrawBoxShadow(screen *ebiten.Image, r Rect, shadow *BoxShadow, borderRadius
 	// Shadow shape dimensions (element + spread)
 	shapeHalfW := r.W/2 + shadow.Spread
 	shapeHalfH := r.H/2 + shadow.Spread
-	cornerRadius := borderRadius + shadow.Spread
-	if cornerRadius < 0 {
-		cornerRadius = 0
-	}
 	maxR := min(shapeHalfW, shapeHalfH)
-	if cornerRadius > maxR {
-		cornerRadius = maxR
-	}
+	radTL = shadowCornerRadius(radTL, shadow.Spread, maxR)
+	radTR = shadowCornerRadius(radTR, shadow.Spread, maxR)
+	radBR = shadowCornerRadius(radBR, shadow.Spread, maxR)
+	radBL = shadowCornerRadius(radBL, shadow.Spread, maxR)
 
 	// Draw rect (expanded to cover blur extent)
 	drawX := r.X + shadow.OffsetX - expand
@@ -584,23 +585,41 @@ func DrawBoxShadow(screen *ebiten.Image, r Rect, shadow *BoxShadow, borderRadius
 	op := &ebiten.DrawRectShaderOptions{}
 	op.GeoM.Translate(drawX, drawY)
 	op.Uniforms = map[string]any{
-		"CenterX": float32(centerX),
-		"CenterY": float32(centerY),
-		"HalfW":   float32(shapeHalfW),
-		"HalfH":   float32(shapeHalfH),
-		"Radius":  float32(cornerRadius),
-		"Sigma":   float32(sigma),
-		"ShadowR": float32(sr) / 0xffff,
-		"ShadowG": float32(sg) / 0xffff,
-		"ShadowB": float32(sb) / 0xffff,
-		"ShadowA": float32(sa) / 0xffff,
+		"CenterX":  float32(centerX),
+		"CenterY":  float32(centerY),
+		"HalfW":    float32(shapeHalfW),
+		"HalfH":    float32(shapeHalfH),
+		"RadiusTL": float32(radTL),
+		"RadiusTR": float32(radTR),
+		"RadiusBR": float32(radBR),
+		"RadiusBL": float32(radBL),
+		"Sigma":    float32(sigma),
+		"ShadowR":  float32(sr) / 0xffff,
+		"ShadowG":  float32(sg) / 0xffff,
+		"ShadowB":  float32(sb) / 0xffff,
+		"ShadowA":  float32(sa) / 0xffff,
 	}
 	screen.DrawRectShader(w, h, shader, op)
+}
+
+func shadowCornerRadius(radius, spread, maxRadius float64) float64 {
+	radius += spread
+	if radius < 0 {
+		return 0
+	}
+	if radius > maxRadius {
+		return maxRadius
+	}
+	return radius
 }
 
 // drawBoxShadowInsetCPU draws an inset box shadow using CPU multi-layer approach.
 // This is a fallback for inset shadows until a dedicated GPU shader is implemented.
 func drawBoxShadowInsetCPU(screen *ebiten.Image, r Rect, shadow *BoxShadow, borderRadius float64) {
+	drawBoxShadowInsetCPUEx(screen, r, shadow, borderRadius, borderRadius, borderRadius, borderRadius)
+}
+
+func drawBoxShadowInsetCPUEx(screen *ebiten.Image, r Rect, shadow *BoxShadow, radTL, radTR, radBR, radBL float64) {
 	// Shadow color with alpha for blur
 	sr, sg, sb, sa := shadow.Color.RGBA()
 	baseAlpha := float64(sa) / 0xffff
@@ -635,7 +654,16 @@ func drawBoxShadowInsetCPU(screen *ebiten.Image, r Rect, shadow *BoxShadow, bord
 			A: uint8(layerAlpha * 255),
 		}
 
-		DrawRoundedRectPath(screen, layerRect, borderRadius+expand, shadowColor)
+		maxR := min(layerRect.W, layerRect.H) / 2
+		DrawRoundedRectPathEx(
+			screen,
+			layerRect,
+			shadowCornerRadius(radTL, expand, maxR),
+			shadowCornerRadius(radTR, expand, maxR),
+			shadowCornerRadius(radBR, expand, maxR),
+			shadowCornerRadius(radBL, expand, maxR),
+			shadowColor,
+		)
 	}
 }
 
@@ -1054,6 +1082,19 @@ func ParseBoxShadow(s string) *BoxShadow {
 	return shadow
 }
 
+// ParseBoxShadowList parses a comma-separated CSS box-shadow list.
+func ParseBoxShadowList(s string) []*BoxShadow {
+	parts := splitCSSList(s)
+	shadows := make([]*BoxShadow, 0, len(parts))
+	for _, part := range parts {
+		shadow := ParseBoxShadow(part)
+		if shadow != nil {
+			shadows = append(shadows, shadow)
+		}
+	}
+	return shadows
+}
+
 // parsePxValue parses a value like "10px" or "10"
 func parsePxValue(s string) float64 {
 	s = strings.TrimSpace(s)
@@ -1092,6 +1133,50 @@ func ParseTextShadow(s string) *TextShadow {
 	}
 
 	return shadow
+}
+
+// ParseTextShadowList parses a comma-separated CSS text-shadow list.
+func ParseTextShadowList(s string) []*TextShadow {
+	parts := splitCSSList(s)
+	shadows := make([]*TextShadow, 0, len(parts))
+	for _, part := range parts {
+		shadow := ParseTextShadow(part)
+		if shadow != nil {
+			shadows = append(shadows, shadow)
+		}
+	}
+	return shadows
+}
+
+func splitCSSList(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" || s == "none" {
+		return nil
+	}
+	var parts []string
+	start := 0
+	depth := 0
+	for i, r := range s {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				if part := strings.TrimSpace(s[start:i]); part != "" {
+					parts = append(parts, part)
+				}
+				start = i + 1
+			}
+		}
+	}
+	if part := strings.TrimSpace(s[start:]); part != "" {
+		parts = append(parts, part)
+	}
+	return parts
 }
 
 // ParseOutline parses a CSS outline string

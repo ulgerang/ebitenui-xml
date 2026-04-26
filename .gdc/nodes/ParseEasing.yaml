@@ -1,0 +1,26 @@
+schema_version: "1.0"
+node:
+    id: ParseEasing
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParseEasing
+          signature: ParseEasing(name string) EasingFunc
+          description: ParseEasing parses an easing function name
+          parameters:
+            - name: name
+              type: string
+          returns:
+            type: EasingFunc
+          exported: true
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

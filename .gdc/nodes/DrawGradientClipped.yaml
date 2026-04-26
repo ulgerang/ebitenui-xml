@@ -1,0 +1,43 @@
+schema_version: "1.0"
+node:
+    id: DrawGradientClipped
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: DrawGradientClipped
+          signature: DrawGradientClipped(screen *ebiten.Image, r Rect, g *Gradient, radTL float64, radTR float64, radBR float64, radBL float64)
+          description: |-
+            DrawGradientClipped draws a gradient clipped to a rounded rectangle path.
+            Uses tessellation of the rounded rect path with UV-mapped gradient texture.
+            Falls back to the fast GPU shader path when no rounding is needed.
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: r
+              type: Rect
+            - name: g
+              type: '*Gradient'
+            - name: radTL
+              type: float64
+            - name: radTR
+              type: float64
+            - name: radBR
+              type: float64
+            - name: radBL
+              type: float64
+          exported: true
+dependencies:
+    - target: Gradient
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

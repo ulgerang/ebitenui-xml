@@ -1,0 +1,70 @@
+schema_version: "1.0"
+node:
+    id: KeyframeProperties
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\animation.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: TranslateX
+          type: float64
+          access: get; set
+          description: Transform
+        - name: TranslateY
+          type: float64
+          access: get; set
+        - name: ScaleX
+          type: float64
+          access: get; set
+        - name: ScaleY
+          type: float64
+          access: get; set
+        - name: Rotate
+          type: float64
+          access: get; set
+          description: degrees
+        - name: SkewX
+          type: float64
+          access: get; set
+        - name: SkewY
+          type: float64
+          access: get; set
+        - name: Opacity
+          type: float64
+          access: get; set
+          description: Visual
+        - name: BackgroundColor
+          type: color.Color
+          access: get; set
+        - name: BorderColor
+          type: color.Color
+          access: get; set
+        - name: BoxShadowBlur
+          type: float64
+          access: get; set
+        - name: BoxShadowSpread
+          type: float64
+          access: get; set
+        - name: Width
+          type: float64
+          access: get; set
+          description: Size
+        - name: Height
+          type: float64
+          access: get; set
+        - name: OffsetX
+          type: float64
+          access: get; set
+          description: Position offset
+        - name: OffsetY
+          type: float64
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

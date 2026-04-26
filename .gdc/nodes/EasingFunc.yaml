@@ -1,0 +1,26 @@
+schema_version: "1.0"
+node:
+    id: EasingFunc
+    type: interface
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Invoke
+          signature: Invoke(t float64) float64
+          description: EasingFunc is a function that maps t in [0,1] to output [0,1]
+          parameters:
+            - name: t
+              type: float64
+          returns:
+            type: float64
+          exported: true
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

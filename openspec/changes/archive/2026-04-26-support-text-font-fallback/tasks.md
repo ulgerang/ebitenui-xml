@@ -1,0 +1,6 @@
+- [x] Add font-family fallback list parsing.
+- [x] Add registered fixed face and scalable source lookup.
+- [x] Resolve the first available family during `setFonts`.
+- [x] Keep deterministic default behavior when no family matches.
+- [x] Add tests for fallback selection and line-height measurement.
+- [x] Update docs/status and validate OpenSpec/GDC/build checks.

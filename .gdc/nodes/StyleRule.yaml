@@ -1,0 +1,33 @@
+schema_version: "1.0"
+node:
+    id: StyleRule
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\selector.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Selector
+          type: '*Selector'
+          access: get; set
+        - name: RawSelector
+          type: string
+          access: get; set
+        - name: Style
+          type: '*Style'
+          access: get; set
+        - name: Specificity
+          type: int
+          access: get; set
+dependencies:
+    - target: Selector
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

@@ -1,0 +1,38 @@
+schema_version: "1.0"
+node:
+    id: DrawRoundedRectPathEx
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: DrawRoundedRectPathEx
+          signature: DrawRoundedRectPathEx(screen *ebiten.Image, r Rect, radTL float64, radTR float64, radBR float64, radBL float64, clr color.Color)
+          description: |-
+            DrawRoundedRectPathEx draws a filled rounded rectangle with independent per-corner radii.
+            radTL = top-left, radTR = top-right, radBR = bottom-right, radBL = bottom-left.
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: r
+              type: Rect
+            - name: radTL
+              type: float64
+            - name: radTR
+              type: float64
+            - name: radBR
+              type: float64
+            - name: radBL
+              type: float64
+            - name: clr
+              type: color.Color
+          exported: true
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

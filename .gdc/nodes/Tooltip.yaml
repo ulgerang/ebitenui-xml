@@ -1,0 +1,67 @@
+schema_version: "1.0"
+node:
+    id: Tooltip
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets_extended.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewTooltip(id string, text string) *Tooltip
+          parameters:
+            - name: id
+              type: string
+            - name: text
+              type: string
+          description: NewTooltip creates a new tooltip
+    methods:
+        - name: SetTarget
+          signature: SetTarget(target Widget)
+          description: SetTarget sets the widget this tooltip is attached to
+          parameters:
+            - name: target
+              type: Widget
+          exported: true
+        - name: Show
+          signature: Show()
+          description: Show shows the tooltip
+          exported: true
+        - name: Hide
+          signature: Hide()
+          description: Hide hides the tooltip
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the tooltip
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+    properties:
+        - name: Text
+          type: string
+          access: get; set
+        - name: FontFace
+          type: text.Face
+          access: get; set
+        - name: TargetWidget
+          type: Widget
+          access: get; set
+        - name: IsVisible
+          type: bool
+          access: get; set
+        - name: Position
+          type: string
+          access: get; set
+          description: Positioning
+        - name: Offset
+          type: float64
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

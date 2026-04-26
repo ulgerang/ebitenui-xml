@@ -1,0 +1,34 @@
+schema_version: "1.0"
+node:
+    id: DrawOutline
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: DrawOutline
+          signature: DrawOutline(screen *ebiten.Image, r Rect, outline *Outline, borderRadius float64)
+          description: DrawOutline draws an outline around a rectangle
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: r
+              type: Rect
+            - name: outline
+              type: '*Outline'
+            - name: borderRadius
+              type: float64
+          exported: true
+dependencies:
+    - target: Outline
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

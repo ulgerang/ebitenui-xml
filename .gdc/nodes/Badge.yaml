@@ -1,0 +1,42 @@
+schema_version: "1.0"
+node:
+    id: Badge
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets_extended.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewBadge(id string, text string) *Badge
+          parameters:
+            - name: id
+              type: string
+            - name: text
+              type: string
+          description: NewBadge creates a new badge widget
+    methods:
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the badge
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+    properties:
+        - name: Text
+          type: string
+          access: get; set
+        - name: FontFace
+          type: text.Face
+          access: get; set
+        - name: BadgeColor
+          type: color.Color
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

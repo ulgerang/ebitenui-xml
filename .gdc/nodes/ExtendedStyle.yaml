@@ -1,0 +1,86 @@
+schema_version: "1.0"
+node:
+    id: ExtendedStyle
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\variables.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ResolveWithContext
+          signature: ResolveWithContext(ctx SizeContext, vars *CSSVariables)
+          description: ResolveWithContext resolves all relative values using the given context
+          parameters:
+            - name: ctx
+              type: SizeContext
+            - name: vars
+              type: '*CSSVariables'
+          exported: true
+    properties:
+        - name: WidthRaw
+          type: string
+          access: get; set
+          description: Raw string values (may contain var() or relative units)
+        - name: HeightRaw
+          type: string
+          access: get; set
+        - name: MinWidthRaw
+          type: string
+          access: get; set
+        - name: MinHeightRaw
+          type: string
+          access: get; set
+        - name: MaxWidthRaw
+          type: string
+          access: get; set
+        - name: MaxHeightRaw
+          type: string
+          access: get; set
+        - name: PaddingTopRaw
+          type: string
+          access: get; set
+        - name: PaddingRightRaw
+          type: string
+          access: get; set
+        - name: PaddingBottomRaw
+          type: string
+          access: get; set
+        - name: PaddingLeftRaw
+          type: string
+          access: get; set
+        - name: MarginTopRaw
+          type: string
+          access: get; set
+        - name: MarginRightRaw
+          type: string
+          access: get; set
+        - name: MarginBottomRaw
+          type: string
+          access: get; set
+        - name: MarginLeftRaw
+          type: string
+          access: get; set
+        - name: GapRaw
+          type: string
+          access: get; set
+        - name: FontSizeRaw
+          type: string
+          access: get; set
+dependencies:
+    - target: SizeValue
+      type: class
+      injection: field
+    - target: SizeContext
+      type: class
+      injection: method
+    - target: CSSVariables
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

@@ -1,0 +1,38 @@
+schema_version: "1.0"
+node:
+    id: ParsePathDataScaled
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg_path.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParsePathDataScaled
+          signature: ParsePathDataScaled(d string, offsetX float64, offsetY float64, scaleX float64, scaleY float64) *vector.Path
+          description: |-
+            ParsePathDataScaled parses SVG path data and applies offset+scale to all coordinates.
+            Every coordinate emitted to the path is transformed as: finalX = offsetX + x*scaleX, finalY = offsetY + y*scaleY.
+            Tracking state (currentX/Y, startX/Y, lastControlX/Y) is kept in source (pre-transform)
+            coordinate space so that relative commands compute correctly.
+          parameters:
+            - name: d
+              type: string
+            - name: offsetX
+              type: float64
+            - name: offsetY
+              type: float64
+            - name: scaleX
+              type: float64
+            - name: scaleY
+              type: float64
+          returns:
+            type: '*vector.Path'
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

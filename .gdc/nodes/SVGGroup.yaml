@@ -1,0 +1,66 @@
+schema_version: "1.0"
+node:
+    id: SVGGroup
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Draw
+          signature: Draw(screen *ebiten.Image, offsetX float64, offsetY float64, scaleX float64, scaleY float64)
+          description: SVGGroup Draw implementation
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: offsetX
+              type: float64
+            - name: offsetY
+              type: float64
+            - name: scaleX
+              type: float64
+            - name: scaleY
+              type: float64
+          exported: true
+    properties:
+        - name: Transform
+          type: ebiten.GeoM
+          access: get; set
+        - name: Elements
+          type: '[]SVGElement'
+          access: get; set
+        - name: Fill
+          type: color.Color
+          access: get; set
+        - name: Stroke
+          type: color.Color
+          access: get; set
+        - name: StrokeW
+          type: float64
+          access: get; set
+        - name: Opacity
+          type: float64
+          access: get; set
+        - name: Class
+          type: string
+          access: get; set
+          description: class attribute for CSS styling
+        - name: Style
+          type: SVGStyle
+          access: get; set
+          description: display, visibility
+dependencies:
+    - target: SVGElement
+      type: interface
+      injection: field
+    - target: SVGStyle
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

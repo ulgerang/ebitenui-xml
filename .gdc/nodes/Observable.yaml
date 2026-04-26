@@ -1,0 +1,45 @@
+schema_version: "1.0"
+node:
+    id: Observable
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\binding.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewObservable(initial T) *unknown
+          parameters:
+            - name: initial
+              type: T
+          description: NewObservable creates a new observable value
+    methods:
+        - name: Get
+          signature: Get() T
+          description: Get returns the current value
+          returns:
+            type: T
+          exported: true
+        - name: Set
+          signature: Set(value T)
+          description: Set updates the value and notifies listeners
+          parameters:
+            - name: value
+              type: T
+          exported: true
+        - name: Subscribe
+          signature: Subscribe(listener func(...)) func(...)
+          description: Subscribe adds a listener that will be called when the value changes
+          parameters:
+            - name: listener
+              type: func(...)
+          returns:
+            type: func(...)
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -73,13 +74,35 @@ func (b *Button) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	// Draw base (background/border)
-	b.BaseWidget.Draw(screen)
+	r := b.computedRect
+	style := b.renderStyle(b.getActiveStyle())
+	b.ensureDeclarativeAnimation(style)
+	opacity := style.Opacity
+	if opacity <= 0 {
+		opacity = 1
+	}
+	animGeoM, hasAnimTransform, animOpacity := b.animationTransform()
+	opacity *= animOpacity
+	hasTransform := style.Transform != "" && style.Transform != "none"
+	hasFilter := style.parsedFilter != nil
+	hasClipPath := style.ClipPath != "" && style.ClipPath != "none"
+	needsOffscreen := opacity < 1 || hasTransform || hasFilter || hasAnimTransform || hasClipPath
 
-	// Draw label text
+	drawContent := func(target *ebiten.Image, contentRect Rect, contentStyle *Style) {
+		b.drawContentOnly(target, contentRect, contentStyle)
+		b.drawLabel(target, contentRect, contentStyle)
+	}
+
+	if needsOffscreen {
+		b.drawCustomWithCompositing(screen, r, style, opacity, hasTransform, hasFilter, hasClipPath, animGeoM, hasAnimTransform, drawContent)
+		return
+	}
+
+	drawContent(screen, r, style)
+}
+
+func (b *Button) drawLabel(screen *ebiten.Image, r Rect, style *Style) {
 	if b.Label != "" && b.FontFace != nil {
-		style := b.getActiveStyle()
-
 		textColor := style.TextColor
 		if textColor == nil {
 			textColor = color.White
@@ -99,26 +122,17 @@ func (b *Button) Draw(screen *ebiten.Image) {
 		descent := metrics.HDescent
 		emHeight := ascent + descent
 
-		rContent := b.ContentRect()
+		bw := style.BorderWidth
+		rContent := r.Inset(
+			style.Padding.Top+bw,
+			style.Padding.Right+bw,
+			style.Padding.Bottom+bw,
+			style.Padding.Left+bw,
+		)
 		x := rContent.X + (rContent.W-textW)/2
 		y := rContent.Y + (rContent.H-emHeight)/2
 
-		// Draw text shadow for button label
-		shadow := style.parsedTextShadow
-		if shadow == nil && style.TextShadow != "" {
-			shadow = ParseTextShadow(style.TextShadow)
-			style.parsedTextShadow = shadow
-		}
-		if shadow != nil {
-			shadowOp := &text.DrawOptions{}
-			shadowOp.GeoM.Translate(snapToPixel(x+shadow.OffsetX), snapToPixel(y+shadow.OffsetY))
-			shadowColor := shadow.Color
-			if shadowColor == nil {
-				shadowColor = color.RGBA{0, 0, 0, 128}
-			}
-			shadowOp.ColorScale.ScaleWithColor(shadowColor)
-			text.Draw(screen, b.Label, b.FontFace, shadowOp)
-		}
+		drawTextShadows(screen, b.Label, b.FontFace, x, y, style)
 
 		// Original label drawing
 		op := &text.DrawOptions{}
@@ -353,15 +367,46 @@ func (t *Text) Draw(screen *ebiten.Image) {
 		return
 	}
 
-	// Draw base
-	t.BaseWidget.Draw(screen)
-
 	if t.FontFace == nil {
+		t.BaseWidget.Draw(screen)
 		return
 	}
 
-	style := t.getActiveStyle()
-	r := t.ContentRect()
+	r := t.computedRect
+	style := t.renderStyle(t.getActiveStyle())
+	t.ensureDeclarativeAnimation(style)
+	opacity := style.Opacity
+	if opacity <= 0 {
+		opacity = 1
+	}
+	animGeoM, hasAnimTransform, animOpacity := t.animationTransform()
+	opacity *= animOpacity
+	hasTransform := style.Transform != "" && style.Transform != "none"
+	hasFilter := style.parsedFilter != nil
+	hasClipPath := style.ClipPath != "" && style.ClipPath != "none"
+	needsOffscreen := opacity < 1 || hasTransform || hasFilter || hasAnimTransform || hasClipPath
+
+	drawContent := func(target *ebiten.Image, contentRect Rect, contentStyle *Style) {
+		t.drawContentOnly(target, contentRect, contentStyle)
+		t.drawTextContent(target, contentRect, contentStyle)
+	}
+
+	if needsOffscreen {
+		t.drawCustomWithCompositing(screen, r, style, opacity, hasTransform, hasFilter, hasClipPath, animGeoM, hasAnimTransform, drawContent)
+		return
+	}
+
+	drawContent(screen, r, style)
+}
+
+func (t *Text) drawTextContent(screen *ebiten.Image, widgetRect Rect, style *Style) {
+	bw := style.BorderWidth
+	r := widgetRect.Inset(
+		style.Padding.Top+bw,
+		style.Padding.Right+bw,
+		style.Padding.Bottom+bw,
+		style.Padding.Left+bw,
+	)
 
 	textColor := style.TextColor
 	if textColor == nil {
@@ -390,22 +435,7 @@ func (t *Text) Draw(screen *ebiten.Image) {
 	for _, line := range layout.lines {
 		x := t.lineOriginX(r, line.Width, style)
 
-		// Draw text shadow first (behind the text)
-		shadow := style.parsedTextShadow
-		if shadow == nil && style.TextShadow != "" {
-			shadow = ParseTextShadow(style.TextShadow)
-			style.parsedTextShadow = shadow
-		}
-		if shadow != nil {
-			shadowOp := &text.DrawOptions{}
-			shadowOp.GeoM.Translate(snapToPixel(x+shadow.OffsetX), snapToPixel(y+shadow.OffsetY))
-			shadowColor := shadow.Color
-			if shadowColor == nil {
-				shadowColor = color.RGBA{0, 0, 0, 128}
-			}
-			shadowOp.ColorScale.ScaleWithColor(shadowColor)
-			text.Draw(screen, line.Text, t.FontFace, shadowOp)
-		}
+		drawTextShadows(screen, line.Text, t.FontFace, x, y, style)
 
 		// Original text drawing
 		op := &text.DrawOptions{}
@@ -415,6 +445,59 @@ func (t *Text) Draw(screen *ebiten.Image) {
 
 		y += layout.lineHeight
 	}
+}
+
+func drawTextShadows(screen *ebiten.Image, value string, face text.Face, x, y float64, style *Style) {
+	shadows := style.parsedTextShadows
+	if len(shadows) == 0 && style.TextShadow != "" {
+		shadows = ParseTextShadowList(style.TextShadow)
+		style.parsedTextShadows = shadows
+		if len(shadows) > 0 {
+			style.parsedTextShadow = shadows[0]
+		}
+	}
+	if len(shadows) == 0 && style.parsedTextShadow != nil {
+		shadows = []*TextShadow{style.parsedTextShadow}
+	}
+	for _, shadow := range shadows {
+		drawTextShadow(screen, value, face, x, y, shadow)
+	}
+}
+
+func drawTextShadow(screen *ebiten.Image, value string, face text.Face, x, y float64, shadow *TextShadow) {
+	if shadow == nil {
+		return
+	}
+	shadowColor := shadow.Color
+	if shadowColor == nil {
+		shadowColor = color.RGBA{0, 0, 0, 128}
+	}
+	if shadow.Blur <= 0 {
+		op := &text.DrawOptions{}
+		op.GeoM.Translate(snapToPixel(x+shadow.OffsetX), snapToPixel(y+shadow.OffsetY))
+		op.ColorScale.ScaleWithColor(shadowColor)
+		text.Draw(screen, value, face, op)
+		return
+	}
+
+	bounds := screen.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	if w <= 0 || h <= 0 {
+		return
+	}
+	layer := globalImagePool.Get(w, h)
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(snapToPixel(x+shadow.OffsetX), snapToPixel(y+shadow.OffsetY))
+	op.ColorScale.ScaleWithColor(shadowColor)
+	text.Draw(layer, value, face, op)
+
+	blurred := applyGaussianBlur(layer, shadow.Blur)
+	cropped := blurred.SubImage(image.Rect(0, 0, w, h)).(*ebiten.Image)
+	screen.DrawImage(cropped, &ebiten.DrawImageOptions{})
+	if blurred != layer {
+		globalImagePool.Put(blurred)
+	}
+	globalImagePool.Put(layer)
 }
 
 // Image is an image display widget
@@ -433,6 +516,9 @@ func NewImage(id string) *Image {
 // Draw renders the image
 func (img *Image) Draw(screen *ebiten.Image) {
 	if !img.visible {
+		return
+	}
+	if img.drawFullWidgetWithEffects(screen, img.Draw) {
 		return
 	}
 
@@ -507,6 +593,9 @@ func (p *ProgressBar) Draw(screen *ebiten.Image) {
 	if !p.visible {
 		return
 	}
+	if p.drawFullWidgetWithEffects(screen, p.Draw) {
+		return
+	}
 
 	// Draw base (background)
 	p.BaseWidget.Draw(screen)
@@ -532,6 +621,7 @@ type Slider struct {
 	*BaseWidget
 	Value      float64 // Current value in [Min, Max]
 	Min, Max   float64
+	Step       float64
 	TrackColor color.Color
 	ThumbColor color.Color
 	OnChange   func(value float64)
@@ -546,6 +636,7 @@ func NewSlider(id string) *Slider {
 		Min:        0,
 		Max:        1,
 		Value:      0.5,
+		Step:       0.1,
 		TrackColor: color.RGBA{60, 60, 60, 255},
 		ThumbColor: color.RGBA{100, 149, 237, 255},
 	}
@@ -554,6 +645,9 @@ func NewSlider(id string) *Slider {
 // Draw renders the slider
 func (s *Slider) Draw(screen *ebiten.Image) {
 	if !s.visible {
+		return
+	}
+	if s.drawFullWidgetWithEffects(screen, s.Draw) {
 		return
 	}
 
@@ -598,6 +692,18 @@ func (s *Slider) SetValue(value float64) {
 	if s.OnChange != nil {
 		s.OnChange(value)
 	}
+}
+
+// Increment changes the slider by a step count.
+func (s *Slider) Increment(steps float64) {
+	step := s.Step
+	if step <= 0 {
+		step = (s.Max - s.Min) / 10
+	}
+	if step <= 0 {
+		step = 1
+	}
+	s.SetValue(s.Value + step*steps)
 }
 
 func (s *Slider) setValueFromCursor(mouseX float64) {
@@ -652,6 +758,9 @@ func NewCheckbox(id, label string) *Checkbox {
 // Draw renders the checkbox
 func (c *Checkbox) Draw(screen *ebiten.Image) {
 	if !c.visible {
+		return
+	}
+	if c.drawFullWidgetWithEffects(screen, c.Draw) {
 		return
 	}
 
@@ -772,6 +881,9 @@ func (s *SVGIcon) SetColor(clr color.Color) {
 // Draw renders the SVG icon
 func (s *SVGIcon) Draw(screen *ebiten.Image) {
 	if !s.visible || s.Document == nil {
+		return
+	}
+	if s.drawFullWidgetWithEffects(screen, s.Draw) {
 		return
 	}
 

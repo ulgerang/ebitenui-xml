@@ -78,7 +78,16 @@ type BindingContext struct {
 	data     map[string]interface{}
 	bindings map[string][]bindingEntry
 	computed map[string]func() interface{}
+	errors   []BindingDiagnostic
 	mu       sync.RWMutex
+}
+
+// BindingDiagnostic describes a non-fatal binding parse or evaluation problem.
+type BindingDiagnostic struct {
+	WidgetID  string
+	Attribute string
+	Expr      string
+	Message   string
 }
 
 type bindingEntry struct {
@@ -106,6 +115,34 @@ func (bc *BindingContext) Set(key string, value interface{}) {
 	for _, entry := range entries {
 		entry.updater(value)
 	}
+}
+
+// ReportError records a non-fatal binding diagnostic.
+func (bc *BindingContext) ReportError(widget Widget, attribute, expr, message string) {
+	if bc == nil {
+		return
+	}
+	widgetID := ""
+	if widget != nil {
+		widgetID = widget.ID()
+	}
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+	bc.errors = append(bc.errors, BindingDiagnostic{
+		WidgetID:  widgetID,
+		Attribute: attribute,
+		Expr:      expr,
+		Message:   message,
+	})
+}
+
+// Diagnostics returns a snapshot of recorded non-fatal binding diagnostics.
+func (bc *BindingContext) Diagnostics() []BindingDiagnostic {
+	bc.mu.RLock()
+	defer bc.mu.RUnlock()
+	result := make([]BindingDiagnostic, len(bc.errors))
+	copy(result, bc.errors)
+	return result
 }
 
 // Get retrieves a value

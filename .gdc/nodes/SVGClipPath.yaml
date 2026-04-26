@@ -1,0 +1,27 @@
+schema_version: "1.0"
+node:
+    id: SVGClipPath
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: ID
+          type: string
+          access: get; set
+        - name: Elements
+          type: '[]SVGElement'
+          access: get; set
+dependencies:
+    - target: SVGElement
+      type: interface
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

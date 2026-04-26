@@ -1,0 +1,34 @@
+schema_version: "1.0"
+node:
+    id: DrawRadialGradient
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: DrawRadialGradient
+          signature: DrawRadialGradient(screen *ebiten.Image, r Rect, g *Gradient)
+          description: |-
+            DrawRadialGradient draws a radial gradient in the given rectangle.
+            Uses a GPU shader with a 1D gradient strip texture for proper elliptical rendering.
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: r
+              type: Rect
+            - name: g
+              type: '*Gradient'
+          exported: true
+dependencies:
+    - target: Gradient
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

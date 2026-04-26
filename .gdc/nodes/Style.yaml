@@ -1,0 +1,452 @@
+schema_version: "1.0"
+node:
+    id: Style
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\types.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Clone
+          signature: Clone() *Style
+          description: Clone creates a deep copy of the style
+          returns:
+            type: '*Style'
+          exported: true
+        - name: Merge
+          signature: Merge(other *Style)
+          description: Merge merges another style into this one (non-zero values override)
+          parameters:
+            - name: other
+              type: '*Style'
+          exported: true
+    properties:
+        - name: Direction
+          type: LayoutDirection
+          access: get; set
+          description: Layout (Flexbox-like)
+        - name: Align
+          type: Alignment
+          access: get; set
+        - name: Justify
+          type: Justify
+          access: get; set
+        - name: Gap
+          type: float64
+          access: get; set
+        - name: GapSet
+          type: bool
+          access: get; set
+          description: true if gap was explicitly set (allows zero override)
+        - name: FlexWrap
+          type: FlexWrap
+          access: get; set
+        - name: Width
+          type: float64
+          access: get; set
+          description: Sizing
+        - name: WidthSet
+          type: bool
+          access: get; set
+          description: true if width was explicitly set (allows zero override)
+        - name: Height
+          type: float64
+          access: get; set
+        - name: HeightSet
+          type: bool
+          access: get; set
+          description: true if height was explicitly set (allows zero override)
+        - name: MinWidth
+          type: float64
+          access: get; set
+        - name: MinWidthSet
+          type: bool
+          access: get; set
+          description: true if minWidth was explicitly set (allows zero override)
+        - name: MinHeight
+          type: float64
+          access: get; set
+        - name: MinHeightSet
+          type: bool
+          access: get; set
+          description: true if minHeight was explicitly set (allows zero override)
+        - name: MaxWidth
+          type: float64
+          access: get; set
+        - name: MaxWidthSet
+          type: bool
+          access: get; set
+          description: true if maxWidth was explicitly set (allows zero override)
+        - name: MaxHeight
+          type: float64
+          access: get; set
+        - name: MaxHeightSet
+          type: bool
+          access: get; set
+          description: true if maxHeight was explicitly set (allows zero override)
+        - name: BoxSizing
+          type: string
+          access: get; set
+          description: content-box, border-box
+        - name: FlexGrow
+          type: float64
+          access: get; set
+        - name: FlexGrowSet
+          type: bool
+          access: get; set
+          description: true if flexGrow was explicitly set (allows zero override)
+        - name: FlexShrink
+          type: float64
+          access: get; set
+        - name: FlexShrinkSet
+          type: bool
+          access: get; set
+          description: true if flexShrink was explicitly set (allows zero override)
+        - name: Padding
+          type: Padding
+          access: get; set
+          description: Spacing
+        - name: Margin
+          type: Margin
+          access: get; set
+        - name: PaddingSet
+          type: bool
+          access: get; set
+          description: true if padding was explicitly set (allows zero override)
+        - name: MarginSet
+          type: bool
+          access: get; set
+          description: true if margin was explicitly set (allows zero override)
+        - name: BackgroundColor
+          type: color.Color
+          access: get; set
+          description: Colors
+        - name: BorderColor
+          type: color.Color
+          access: get; set
+        - name: TextColor
+          type: color.Color
+          access: get; set
+        - name: Background
+          type: string
+          access: get; set
+          description: Color strings (for JSON parsing)
+        - name: Border
+          type: string
+          access: get; set
+        - name: Color
+          type: string
+          access: get; set
+        - name: BorderWidth
+          type: float64
+          access: get; set
+          description: Border (expanded CSS-like properties)
+        - name: BorderRadius
+          type: float64
+          access: get; set
+        - name: BorderRadiusSet
+          type: bool
+          access: get; set
+          description: true if borderRadius was explicitly set (allows zero override)
+        - name: BorderWidthSet
+          type: bool
+          access: get; set
+          description: true if borderWidth was explicitly set
+        - name: BorderTopWidth
+          type: float64
+          access: get; set
+        - name: BorderTopWidthSet
+          type: bool
+          access: get; set
+          description: true if borderTopWidth was explicitly set (allows zero override)
+        - name: BorderRightWidth
+          type: float64
+          access: get; set
+        - name: BorderRightWidthSet
+          type: bool
+          access: get; set
+          description: true if borderRightWidth was explicitly set (allows zero override)
+        - name: BorderBottomWidth
+          type: float64
+          access: get; set
+        - name: BorderBottomWidthSet
+          type: bool
+          access: get; set
+          description: true if borderBottomWidth was explicitly set (allows zero override)
+        - name: BorderLeftWidth
+          type: float64
+          access: get; set
+        - name: BorderLeftWidthSet
+          type: bool
+          access: get; set
+          description: true if borderLeftWidth was explicitly set (allows zero override)
+        - name: BorderTop
+          type: string
+          access: get; set
+        - name: BorderRight
+          type: string
+          access: get; set
+        - name: BorderBottom
+          type: string
+          access: get; set
+        - name: BorderLeft
+          type: string
+          access: get; set
+        - name: BorderTopColor
+          type: color.Color
+          access: get; set
+        - name: BorderRightColor
+          type: color.Color
+          access: get; set
+        - name: BorderBottomColor
+          type: color.Color
+          access: get; set
+        - name: BorderLeftColor
+          type: color.Color
+          access: get; set
+        - name: BorderTopLeftRadius
+          type: float64
+          access: get; set
+        - name: BorderTopLeftRadiusSet
+          type: bool
+          access: get; set
+          description: true if borderTopLeftRadius was explicitly set (allows zero override)
+        - name: BorderTopRightRadius
+          type: float64
+          access: get; set
+        - name: BorderTopRightRadiusSet
+          type: bool
+          access: get; set
+          description: true if borderTopRightRadius was explicitly set (allows zero override)
+        - name: BorderBottomLeftRadius
+          type: float64
+          access: get; set
+        - name: BorderBottomLeftRadiusSet
+          type: bool
+          access: get; set
+          description: true if borderBottomLeftRadius was explicitly set (allows zero override)
+        - name: BorderBottomRightRadius
+          type: float64
+          access: get; set
+        - name: BorderBottomRightRadiusSet
+          type: bool
+          access: get; set
+          description: true if borderBottomRightRadius was explicitly set (allows zero override)
+        - name: FontSize
+          type: float64
+          access: get; set
+          description: Text
+        - name: FontSizeSet
+          type: bool
+          access: get; set
+          description: true if fontSize was explicitly set (allows zero override)
+        - name: FontFamily
+          type: string
+          access: get; set
+        - name: FontWeight
+          type: string
+          access: get; set
+          description: normal, bold, 100-900
+        - name: FontStyle
+          type: string
+          access: get; set
+          description: normal, italic
+        - name: TextAlign
+          type: string
+          access: get; set
+          description: left, center, right
+        - name: VerticalAlign
+          type: string
+          access: get; set
+          description: top, center, bottom
+        - name: LineHeight
+          type: float64
+          access: get; set
+        - name: LineHeightSet
+          type: bool
+          access: get; set
+          description: true if lineHeight was explicitly set (allows zero override)
+        - name: LetterSpacing
+          type: float64
+          access: get; set
+        - name: LetterSpacingSet
+          type: bool
+          access: get; set
+          description: true if letterSpacing was explicitly set (allows zero override)
+        - name: TextWrap
+          type: string
+          access: get; set
+          description: normal, nowrap
+        - name: TextOverflow
+          type: string
+          access: get; set
+          description: clip, ellipsis
+        - name: Opacity
+          type: float64
+          access: get; set
+          description: Visual Effects
+        - name: OpacitySet
+          type: bool
+          access: get; set
+          description: true if opacity was explicitly set (allows zero override)
+        - name: BoxShadow
+          type: string
+          access: get; set
+          description: '"offsetX offsetY blur spread color"'
+        - name: TextShadow
+          type: string
+          access: get; set
+          description: '"offsetX offsetY blur color"'
+        - name: Cursor
+          type: string
+          access: get; set
+          description: pointer, default, etc.
+        - name: Transition
+          type: string
+          access: get; set
+          description: '"property duration easing"'
+        - name: Animation
+          type: string
+          access: get; set
+          description: '"name duration easing iteration-count"'
+        - name: Outline
+          type: string
+          access: get; set
+          description: Outline (separate from border)
+        - name: OutlineOffset
+          type: float64
+          access: get; set
+          description: distance from border
+        - name: OutlineOffsetSet
+          type: bool
+          access: get; set
+          description: true if outlineOffset was explicitly set (allows zero override)
+        - name: Filter
+          type: string
+          access: get; set
+          description: Filters
+        - name: BackdropFilter
+          type: string
+          access: get; set
+          description: for glassmorphism
+        - name: Transform
+          type: string
+          access: get; set
+          description: Transform
+        - name: TransformOrigin
+          type: string
+          access: get; set
+          description: center, top left, etc.
+        - name: ClipPath
+          type: string
+          access: get; set
+          description: Clip Path
+        - name: BackgroundImage
+          type: string
+          access: get; set
+          description: 9-Slice Image
+        - name: BorderImage
+          type: string
+          access: get; set
+          description: image path for 9-slice
+        - name: BorderImageSlice
+          type: string
+          access: get; set
+          description: '"top right bottom left"'
+        - name: BackgroundSize
+          type: string
+          access: get; set
+          description: cover, contain, or dimensions
+        - name: BackgroundPosition
+          type: string
+          access: get; set
+          description: center, top left, etc.
+        - name: BackgroundRepeat
+          type: string
+          access: get; set
+          description: repeat, no-repeat
+        - name: Overflow
+          type: string
+          access: get; set
+          description: Overflow
+        - name: OverflowX
+          type: string
+          access: get; set
+        - name: OverflowY
+          type: string
+          access: get; set
+        - name: Position
+          type: string
+          access: get; set
+          description: Position
+        - name: Top
+          type: float64
+          access: get; set
+        - name: TopSet
+          type: bool
+          access: get; set
+          description: true if top was explicitly set (allows zero override)
+        - name: Right
+          type: float64
+          access: get; set
+        - name: RightSet
+          type: bool
+          access: get; set
+          description: true if right was explicitly set (allows zero override)
+        - name: Bottom
+          type: float64
+          access: get; set
+        - name: BottomSet
+          type: bool
+          access: get; set
+          description: true if bottom was explicitly set (allows zero override)
+        - name: Left
+          type: float64
+          access: get; set
+        - name: LeftSet
+          type: bool
+          access: get; set
+          description: true if left was explicitly set (allows zero override)
+        - name: ZIndex
+          type: int
+          access: get; set
+        - name: ZIndexSet
+          type: bool
+          access: get; set
+          description: true if zIndex was explicitly set (allows zero override)
+        - name: Display
+          type: string
+          access: get; set
+          description: Display
+        - name: Visibility
+          type: string
+          access: get; set
+          description: visible, hidden
+        - name: HoverStyle
+          type: '*Style'
+          access: get; set
+          description: States
+        - name: ActiveStyle
+          type: '*Style'
+          access: get; set
+        - name: DisabledStyle
+          type: '*Style'
+          access: get; set
+        - name: FocusStyle
+          type: '*Style'
+          access: get; set
+dependencies:
+    - target: Padding
+      type: class
+      injection: field
+    - target: Margin
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

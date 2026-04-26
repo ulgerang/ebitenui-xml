@@ -388,3 +388,32 @@ ERTP server did not respond within timeout
 - [CHEATSHEET.md](./CHEATSHEET.md) - 빠른 참조
 - [WIDGETS_EXTENDED.md](./WIDGETS_EXTENDED.md) - 확장 위젯 가이드
 - [ebiten-ertp](../../ebiten-ertp/) - ERTP 프로토콜 문서
+# CSS Visual Compare Workflow
+
+Use this repeatable Windows-friendly workflow for the built-in CSS visual
+fixtures in `cmd/css_testloop`.
+
+```powershell
+$out = "$env:TEMP\ebitenui-css"
+go run ./cmd/css_testloop -mode render  -out "$out-ebiten.png"
+go run ./cmd/css_testloop -mode html    -out "$out-reference.html"
+```
+
+Open or capture `$out-reference.html` in a browser at the generated viewport
+size, then compare:
+
+```powershell
+go run ./cmd/css_testloop -mode compare -browser "$out-browser.png" -ebiten "$out-ebiten.png" -out "$out-report.html"
+```
+
+Smoke check without manual code edits:
+
+```powershell
+go run ./cmd/css_testloop -mode compare -browser "$out-ebiten.png" -ebiten "$out-ebiten.png" -out "$out-smoke-report.html"
+```
+
+The fixture grid now includes follow-up coverage for overflow scroll and
+`clip-path: polygon(...)`. The compare report is a per-cell diff summary; it is
+evidence for regressions, not a substitute for Go unit tests.
+
+---

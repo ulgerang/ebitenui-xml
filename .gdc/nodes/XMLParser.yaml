@@ -1,0 +1,51 @@
+schema_version: "1.0"
+node:
+    id: XMLParser
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\parser.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewXMLParser() *XMLParser
+          description: NewXMLParser creates a new XML parser
+    methods:
+        - name: ParseFile
+          signature: ParseFile(filename string) (*XMLNode, error)
+          description: ParseFile parses an XML layout file
+          parameters:
+            - name: filename
+              type: string
+          returns:
+            type: (*XMLNode, error)
+          exported: true
+        - name: Parse
+          signature: Parse(r io.Reader) (*XMLNode, error)
+          description: Parse parses XML from a reader
+          parameters:
+            - name: r
+              type: io.Reader
+          returns:
+            type: (*XMLNode, error)
+          exported: true
+        - name: ParseString
+          signature: ParseString(s string) (*XMLNode, error)
+          description: ParseString parses XML from a string
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: (*XMLNode, error)
+          exported: true
+dependencies:
+    - target: XMLNode
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

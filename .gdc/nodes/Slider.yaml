@@ -1,0 +1,71 @@
+schema_version: "1.0"
+node:
+    id: Slider
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewSlider(id string) *Slider
+          parameters:
+            - name: id
+              type: string
+          description: NewSlider creates a new slider widget
+    methods:
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the slider
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+        - name: SetValue
+          signature: SetValue(value float64)
+          description: SetValue sets the slider value while clamping to [Min, Max].
+          parameters:
+            - name: value
+              type: float64
+          exported: true
+        - name: Increment
+          signature: Increment(steps float64)
+          description: Increment changes the slider by a step count.
+          parameters:
+            - name: steps
+              type: float64
+          exported: true
+        - name: HandleClick
+          signature: HandleClick()
+          description: HandleClick updates slider value based on cursor position.
+          exported: true
+    properties:
+        - name: Value
+          type: float64
+          access: get; set
+          description: Current value in [Min, Max]
+        - name: Min
+          type: float64
+          access: get; set
+        - name: Max
+          type: float64
+          access: get; set
+        - name: Step
+          type: float64
+          access: get; set
+        - name: TrackColor
+          type: color.Color
+          access: get; set
+        - name: ThumbColor
+          type: color.Color
+          access: get; set
+        - name: OnChange
+          type: func(...)
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

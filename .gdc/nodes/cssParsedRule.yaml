@@ -1,0 +1,26 @@
+schema_version: "1.0"
+node:
+    id: cssParsedRule
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\style.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Selector
+          type: string
+          access: get; set
+        - name: Style
+          type: '*Style'
+          access: get; set
+        - name: Important
+          type: bool
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

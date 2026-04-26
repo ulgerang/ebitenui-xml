@@ -1,0 +1,47 @@
+schema_version: "1.0"
+node:
+    id: textLayout
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\text_layout.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: HitTest
+          signature: HitTest(x float64, y float64) (TextHit, bool)
+          parameters:
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+          returns:
+            type: (TextHit, bool)
+          exported: true
+        - name: CaretRuneIndexAt
+          signature: CaretRuneIndexAt(x float64, y float64) int
+          parameters:
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+          returns:
+            type: int
+          exported: true
+dependencies:
+    - target: textLayoutCluster
+      type: class
+      injection: field
+    - target: textLayoutLine
+      type: class
+      injection: field
+    - target: TextHit
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

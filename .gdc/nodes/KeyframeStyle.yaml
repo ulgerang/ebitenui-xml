@@ -1,0 +1,41 @@
+schema_version: "1.0"
+node:
+    id: KeyframeStyle
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\style.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Transform
+          type: string
+          access: get; set
+        - name: Opacity
+          type: float64
+          access: get; set
+        - name: Width
+          type: float64
+          access: get; set
+        - name: Height
+          type: float64
+          access: get; set
+        - name: Background
+          type: string
+          access: get; set
+        - name: Border
+          type: string
+          access: get; set
+        - name: BoxShadowBlur
+          type: float64
+          access: get; set
+        - name: BoxShadowSpread
+          type: float64
+          access: get; set
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

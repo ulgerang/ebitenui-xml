@@ -1,0 +1,26 @@
+schema_version: "1.0"
+node:
+    id: PathCommand
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg_path.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Command
+          type: rune
+          access: get; set
+        - name: Args
+          type: '[]float64'
+          access: get; set
+        - name: Absolute
+          type: bool
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

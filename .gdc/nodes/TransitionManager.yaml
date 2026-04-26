@@ -1,0 +1,52 @@
+schema_version: "1.0"
+node:
+    id: TransitionManager
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\animation.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewTransitionManager() *TransitionManager
+          description: NewTransitionManager creates a new transition manager
+    methods:
+        - name: StartTransition
+          signature: StartTransition(property string, from float64, to float64, duration time.Duration, easing EasingFunc)
+          description: StartTransition begins a property transition
+          parameters:
+            - name: property
+              type: string
+            - name: from
+              type: float64
+            - name: to
+              type: float64
+            - name: duration
+              type: time.Duration
+            - name: easing
+              type: EasingFunc
+          exported: true
+        - name: GetValue
+          signature: GetValue(property string, defaultValue float64) float64
+          description: GetValue returns the current interpolated value for a property
+          parameters:
+            - name: property
+              type: string
+            - name: defaultValue
+              type: float64
+          returns:
+            type: float64
+          exported: true
+        - name: IsTransitioning
+          signature: IsTransitioning() bool
+          description: IsTransitioning returns true if any transition is active
+          returns:
+            type: bool
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

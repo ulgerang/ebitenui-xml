@@ -1,0 +1,195 @@
+schema_version: "1.0"
+node:
+    id: BindingContext
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\binding.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewBindingContext() *BindingContext
+          description: NewBindingContext creates a new binding context
+    methods:
+        - name: Set
+          signature: Set(key string, value interface{})
+          description: Set sets a value and triggers bound widget updates
+          parameters:
+            - name: key
+              type: string
+            - name: value
+              type: interface{}
+          exported: true
+        - name: ReportError
+          signature: ReportError(widget Widget, attribute string, expr string, message string)
+          description: ReportError records a non-fatal binding diagnostic.
+          parameters:
+            - name: widget
+              type: Widget
+            - name: attribute
+              type: string
+            - name: expr
+              type: string
+            - name: message
+              type: string
+          exported: true
+        - name: Diagnostics
+          signature: Diagnostics() []BindingDiagnostic
+          description: Diagnostics returns a snapshot of recorded non-fatal binding diagnostics.
+          returns:
+            type: '[]BindingDiagnostic'
+          exported: true
+        - name: Get
+          signature: Get(key string) interface{}
+          description: Get retrieves a value
+          parameters:
+            - name: key
+              type: string
+          returns:
+            type: interface{}
+          exported: true
+        - name: GetString
+          signature: GetString(key string) string
+          description: GetString retrieves a string value
+          parameters:
+            - name: key
+              type: string
+          returns:
+            type: string
+          exported: true
+        - name: GetInt
+          signature: GetInt(key string) int
+          description: GetInt retrieves an int value
+          parameters:
+            - name: key
+              type: string
+          returns:
+            type: int
+          exported: true
+        - name: GetFloat
+          signature: GetFloat(key string) float64
+          description: GetFloat retrieves a float value
+          parameters:
+            - name: key
+              type: string
+          returns:
+            type: float64
+          exported: true
+        - name: GetBool
+          signature: GetBool(key string) bool
+          description: GetBool retrieves a bool value
+          parameters:
+            - name: key
+              type: string
+          returns:
+            type: bool
+          exported: true
+        - name: Bind
+          signature: Bind(key string, widget Widget, updater func(...))
+          description: Bind creates a one-way binding from data to a widget property
+          parameters:
+            - name: key
+              type: string
+            - name: widget
+              type: Widget
+            - name: updater
+              type: func(...)
+          exported: true
+        - name: BindText
+          signature: BindText(key string, textWidget *Text)
+          description: BindText binds a data key to a Text widget's content
+          parameters:
+            - name: key
+              type: string
+            - name: textWidget
+              type: '*Text'
+          exported: true
+        - name: BindProgress
+          signature: BindProgress(key string, progressBar *ProgressBar)
+          description: BindProgress binds a data key to a ProgressBar widget's value
+          parameters:
+            - name: key
+              type: string
+            - name: progressBar
+              type: '*ProgressBar'
+          exported: true
+        - name: BindVisible
+          signature: BindVisible(key string, widget Widget)
+          description: BindVisible binds a data key to a widget's visibility
+          parameters:
+            - name: key
+              type: string
+            - name: widget
+              type: Widget
+          exported: true
+        - name: BindEnabled
+          signature: BindEnabled(key string, widget Widget)
+          description: BindEnabled binds a data key to a widget's enabled state
+          parameters:
+            - name: key
+              type: string
+            - name: widget
+              type: Widget
+          exported: true
+        - name: BindCheckbox
+          signature: BindCheckbox(key string, checkbox *Checkbox)
+          description: BindCheckbox binds a data key to a Checkbox widget (two-way)
+          parameters:
+            - name: key
+              type: string
+            - name: checkbox
+              type: '*Checkbox'
+          exported: true
+        - name: BindSlider
+          signature: BindSlider(key string, slider *Slider)
+          description: BindSlider binds a data key to a Slider widget (two-way)
+          parameters:
+            - name: key
+              type: string
+            - name: slider
+              type: '*Slider'
+          exported: true
+        - name: Computed
+          signature: Computed(key string, dependencies []string, compute func(...))
+          description: Computed creates a computed value that depends on other values
+          parameters:
+            - name: key
+              type: string
+            - name: dependencies
+              type: '[]string'
+            - name: compute
+              type: func(...)
+          exported: true
+        - name: BindModel
+          signature: BindModel(prefix string, model interface{}) error
+          description: BindModel binds a struct to the binding context using struct field names as keys
+          parameters:
+            - name: prefix
+              type: string
+            - name: model
+              type: interface{}
+          returns:
+            type: error
+          exported: true
+        - name: FormatBinding
+          signature: FormatBinding(format string, keys unknown) *unknown
+          description: FormatBinding creates a formatted string from bound values
+          parameters:
+            - name: format
+              type: string
+            - name: keys
+              type: unknown
+          returns:
+            type: '*unknown'
+          exported: true
+dependencies:
+    - target: BindingDiagnostic
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

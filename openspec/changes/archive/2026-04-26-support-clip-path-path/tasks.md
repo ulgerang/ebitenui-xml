@@ -1,0 +1,6 @@
+- [x] Parse CSS `path("...")` and `path('...')`.
+- [x] Convert supported SVG path commands into the existing clipping mask.
+- [x] Treat invalid/empty path syntax as a no-op.
+- [x] Add unit coverage for parser/mask behavior.
+- [x] Add a CSS visual testloop case.
+- [x] Update docs/status and validate OpenSpec/GDC/build checks.

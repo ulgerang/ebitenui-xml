@@ -1,0 +1,51 @@
+schema_version: "1.0"
+node:
+    id: Button
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewButton(id string, label string) *Button
+          parameters:
+            - name: id
+              type: string
+            - name: label
+              type: string
+          description: NewButton creates a new button widget
+    methods:
+        - name: IntrinsicWidth
+          signature: IntrinsicWidth() float64
+          description: IntrinsicWidth returns the button's natural width based on label and padding
+          returns:
+            type: float64
+          exported: true
+        - name: IntrinsicHeight
+          signature: IntrinsicHeight() float64
+          description: IntrinsicHeight returns the button's natural height based on label and padding
+          returns:
+            type: float64
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the button
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+    properties:
+        - name: Label
+          type: string
+          access: get; set
+        - name: FontFace
+          type: text.Face
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

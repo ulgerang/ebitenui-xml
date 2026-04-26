@@ -1,0 +1,116 @@
+schema_version: "1.0"
+node:
+    id: Dropdown
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets_extended.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewDropdown(id string) *Dropdown
+          parameters:
+            - name: id
+              type: string
+          description: NewDropdown creates a new dropdown widget
+    methods:
+        - name: AddOption
+          signature: AddOption(label string, value string)
+          description: AddOption adds an option to the dropdown
+          parameters:
+            - name: label
+              type: string
+            - name: value
+              type: string
+          exported: true
+        - name: SetOptions
+          signature: SetOptions(options []DropdownOption)
+          description: SetOptions sets all options at once
+          parameters:
+            - name: options
+              type: '[]DropdownOption'
+          exported: true
+        - name: GetSelectedValue
+          signature: GetSelectedValue() string
+          description: GetSelectedValue returns the currently selected value
+          returns:
+            type: string
+          exported: true
+        - name: SetValue
+          signature: SetValue(value string)
+          description: SetValue sets the selected value by value string
+          parameters:
+            - name: value
+              type: string
+          exported: true
+        - name: Open
+          signature: Open()
+          description: Open opens the option list and initializes keyboard highlight.
+          exported: true
+        - name: Close
+          signature: Close()
+          description: Close closes the option list.
+          exported: true
+        - name: MoveHighlight
+          signature: MoveHighlight(delta int)
+          description: MoveHighlight moves the keyboard highlight through visible options.
+          parameters:
+            - name: delta
+              type: int
+          exported: true
+        - name: SelectHighlighted
+          signature: SelectHighlighted()
+          description: SelectHighlighted selects the highlighted option.
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the dropdown
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+        - name: HandleClick
+          signature: HandleClick()
+          description: HandleClick handles click on dropdown
+          exported: true
+        - name: Update
+          signature: Update()
+          description: Update handles dropdown input (should be called every frame)
+          exported: true
+    properties:
+        - name: Options
+          type: '[]DropdownOption'
+          access: get; set
+        - name: SelectedIndex
+          type: int
+          access: get; set
+        - name: Placeholder
+          type: string
+          access: get; set
+        - name: IsOpen
+          type: bool
+          access: get; set
+        - name: FontFace
+          type: text.Face
+          access: get; set
+        - name: OnChange
+          type: func(...)
+          access: get; set
+        - name: DropdownBg
+          type: color.Color
+          access: get; set
+          description: Styling
+        - name: HoverColor
+          type: color.Color
+          access: get; set
+dependencies:
+    - target: DropdownOption
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

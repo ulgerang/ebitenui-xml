@@ -1,0 +1,41 @@
+schema_version: "1.0"
+node:
+    id: PropertyTransition
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\animation.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Property
+          type: string
+          access: get; set
+        - name: StartValue
+          type: float64
+          access: get; set
+        - name: EndValue
+          type: float64
+          access: get; set
+        - name: StartTime
+          type: time.Time
+          access: get; set
+        - name: Duration
+          type: time.Duration
+          access: get; set
+        - name: Delay
+          type: time.Duration
+          access: get; set
+        - name: Easing
+          type: EasingFunc
+          access: get; set
+        - name: IsActive
+          type: bool
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

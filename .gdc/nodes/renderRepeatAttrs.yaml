@@ -1,0 +1,15 @@
+schema_version: "1.0"
+node:
+    id: renderRepeatAttrs
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\parser.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

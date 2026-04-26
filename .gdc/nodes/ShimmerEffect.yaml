@@ -1,0 +1,36 @@
+schema_version: "1.0"
+node:
+    id: ShimmerEffect
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\animation.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewShimmerEffect() *ShimmerEffect
+          description: NewShimmerEffect creates a new shimmer effect
+    methods:
+        - name: GetOffset
+          signature: GetOffset() float64
+          description: GetOffset returns the current shimmer offset (0-1 position of the highlight)
+          returns:
+            type: float64
+          exported: true
+    properties:
+        - name: StartTime
+          type: time.Time
+          access: get; set
+        - name: Duration
+          type: time.Duration
+          access: get; set
+        - name: IsActive
+          type: bool
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

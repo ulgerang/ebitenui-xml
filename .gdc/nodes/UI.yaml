@@ -1,0 +1,517 @@
+schema_version: "1.0"
+node:
+    id: UI
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\ui.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: New(width float64, height float64) *UI
+          parameters:
+            - name: width
+              type: float64
+            - name: height
+              type: float64
+          description: New creates a new UI manager
+    methods:
+        - name: Root
+          signature: Root() Widget
+          description: Root returns the root widget
+          returns:
+            type: Widget
+          exported: true
+        - name: RegisterFontFace
+          signature: RegisterFontFace(family string, face text.Face)
+          description: RegisterFontFace registers a fixed-size font face for a CSS font-family name.
+          parameters:
+            - name: family
+              type: string
+            - name: face
+              type: text.Face
+          exported: true
+        - name: RegisterFontSource
+          signature: RegisterFontSource(family string, source *text.GoTextFaceSource)
+          description: RegisterFontSource registers a scalable Go text font source for a CSS font-family name.
+          parameters:
+            - name: family
+              type: string
+            - name: source
+              type: '*text.GoTextFaceSource'
+          exported: true
+        - name: RegisterBoldFontSource
+          signature: RegisterBoldFontSource(family string, source *text.GoTextFaceSource)
+          description: RegisterBoldFontSource registers a scalable bold source for a CSS font-family name.
+          parameters:
+            - name: family
+              type: string
+            - name: source
+              type: '*text.GoTextFaceSource'
+          exported: true
+        - name: SetRoot
+          signature: SetRoot(widget Widget)
+          description: SetRoot sets the root widget directly and runs the normal style/font/layout pipeline.
+          parameters:
+            - name: widget
+              type: Widget
+          exported: true
+        - name: LoadLayout
+          signature: LoadLayout(xmlContent string) error
+          description: LoadLayout loads a UI layout from XML
+          parameters:
+            - name: xmlContent
+              type: string
+          returns:
+            type: error
+          exported: true
+        - name: LoadLayoutFile
+          signature: LoadLayoutFile(filename string) error
+          description: LoadLayoutFile loads a UI layout from an XML file
+          parameters:
+            - name: filename
+              type: string
+          returns:
+            type: error
+          exported: true
+        - name: LoadStyles
+          signature: LoadStyles(jsonContent string) error
+          description: LoadStyles loads styles from JSON
+          parameters:
+            - name: jsonContent
+              type: string
+          returns:
+            type: error
+          exported: true
+        - name: LoadCSS
+          signature: LoadCSS(cssContent string) error
+          description: LoadCSS loads literal CSS subset content such as @keyframes blocks.
+          parameters:
+            - name: cssContent
+              type: string
+          returns:
+            type: error
+          exported: true
+        - name: LoadStylesFile
+          signature: LoadStylesFile(filename string) error
+          description: LoadStylesFile loads styles from a JSON file
+          parameters:
+            - name: filename
+              type: string
+          returns:
+            type: error
+          exported: true
+        - name: Layout
+          signature: Layout()
+          description: Layout recalculates the layout
+          exported: true
+        - name: Resize
+          signature: Resize(width float64, height float64)
+          description: Resize updates the UI dimensions
+          parameters:
+            - name: width
+              type: float64
+            - name: height
+              type: float64
+          exported: true
+        - name: Update
+          signature: Update()
+          description: Update handles input and updates UI state
+          exported: true
+        - name: SimulatePointerMove
+          signature: SimulatePointerMove(x float64, y float64) Widget
+          description: SimulatePointerMove updates hover state as if the pointer moved.
+          parameters:
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+          returns:
+            type: Widget
+          exported: true
+        - name: SimulatePointerDown
+          signature: SimulatePointerDown(x float64, y float64, button ebiten.MouseButton) Widget
+          description: SimulatePointerDown presses a pointer button at the given coordinates.
+          parameters:
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+            - name: button
+              type: ebiten.MouseButton
+          returns:
+            type: Widget
+          exported: true
+        - name: SimulatePointerUp
+          signature: SimulatePointerUp(x float64, y float64, button ebiten.MouseButton) Widget
+          description: SimulatePointerUp releases a pointer button at the given coordinates.
+          parameters:
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+            - name: button
+              type: ebiten.MouseButton
+          returns:
+            type: Widget
+          exported: true
+        - name: SimulateClick
+          signature: SimulateClick(x float64, y float64) Widget
+          description: SimulateClick performs a full left-click gesture at the given coordinates.
+          parameters:
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+          returns:
+            type: Widget
+          exported: true
+        - name: SimulateTypeText
+          signature: SimulateTypeText(s string)
+          description: SimulateTypeText inserts text into the currently focused text input or text area.
+          parameters:
+            - name: s
+              type: string
+          exported: true
+        - name: SimulateKeyPress
+          signature: SimulateKeyPress(key ebiten.Key, shift bool, control bool)
+          description: SimulateKeyPress dispatches a keyboard event to the focused widget.
+          parameters:
+            - name: key
+              type: ebiten.Key
+            - name: shift
+              type: bool
+            - name: control
+              type: bool
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the UI
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+        - name: GetWidget
+          signature: GetWidget(id string) Widget
+          description: GetWidget returns a widget by ID
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: Widget
+          exported: true
+        - name: GetButton
+          signature: GetButton(id string) *Button
+          description: GetButton returns a button by ID
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: '*Button'
+          exported: true
+        - name: GetPanel
+          signature: GetPanel(id string) *Panel
+          description: GetPanel returns a panel by ID
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: '*Panel'
+          exported: true
+        - name: GetProgressBar
+          signature: GetProgressBar(id string) *ProgressBar
+          description: GetProgressBar returns a progress bar by ID
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: '*ProgressBar'
+          exported: true
+        - name: GetTextInput
+          signature: GetTextInput(id string) *TextInput
+          description: GetTextInput returns a text input by ID
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: '*TextInput'
+          exported: true
+        - name: GetTextArea
+          signature: GetTextArea(id string) *TextArea
+          description: GetTextArea returns a text area by ID
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: '*TextArea'
+          exported: true
+        - name: GetScrollable
+          signature: GetScrollable(id string) *Scrollable
+          description: GetScrollable returns a scrollable container by ID
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: '*Scrollable'
+          exported: true
+        - name: GetCheckbox
+          signature: GetCheckbox(id string) *Checkbox
+          description: GetCheckbox returns a checkbox by ID
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: '*Checkbox'
+          exported: true
+        - name: GetSlider
+          signature: GetSlider(id string) *Slider
+          description: GetSlider returns a slider by ID
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: '*Slider'
+          exported: true
+        - name: GetText
+          signature: GetText(id string) *Text
+          description: GetText returns a text widget by ID
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: '*Text'
+          exported: true
+        - name: QueryByClass
+          signature: QueryByClass(class string) []Widget
+          description: QueryByClass returns widgets that have the given CSS class.
+          parameters:
+            - name: class
+              type: string
+          returns:
+            type: '[]Widget'
+          exported: true
+        - name: QueryByType
+          signature: QueryByType(typeName string) []Widget
+          description: QueryByType returns widgets matching a concrete widget type or semantic XML tag.
+          parameters:
+            - name: typeName
+              type: string
+          returns:
+            type: '[]Widget'
+          exported: true
+        - name: Query
+          signature: Query(root Widget, selector string) []Widget
+          description: 'Query returns widgets below root matching simple #id, .class, or type selectors.'
+          parameters:
+            - name: root
+              type: Widget
+            - name: selector
+              type: string
+          returns:
+            type: '[]Widget'
+          exported: true
+        - name: SetVariable
+          signature: SetVariable(name string, value string)
+          description: SetVariable sets a CSS variable
+          parameters:
+            - name: name
+              type: string
+            - name: value
+              type: string
+          exported: true
+        - name: GetVariable
+          signature: GetVariable(name string) string
+          description: GetVariable gets a CSS variable
+          parameters:
+            - name: name
+              type: string
+          returns:
+            type: string
+          exported: true
+        - name: Variables
+          signature: Variables() *CSSVariables
+          description: Variables returns the CSS variables container
+          returns:
+            type: '*CSSVariables'
+          exported: true
+        - name: Bindings
+          signature: Bindings() *BindingContext
+          description: Bindings returns the binding context
+          returns:
+            type: '*BindingContext'
+          exported: true
+        - name: Bind
+          signature: Bind(key string, value interface{})
+          description: Bind sets a binding value
+          parameters:
+            - name: key
+              type: string
+            - name: value
+              type: interface{}
+          exported: true
+        - name: BindText
+          signature: BindText(key string, widgetID string)
+          description: BindText binds a value to a text widget
+          parameters:
+            - name: key
+              type: string
+            - name: widgetID
+              type: string
+          exported: true
+        - name: BindProgress
+          signature: BindProgress(key string, widgetID string)
+          description: BindProgress binds a value to a progress bar
+          parameters:
+            - name: key
+              type: string
+            - name: widgetID
+              type: string
+          exported: true
+        - name: BindVisible
+          signature: BindVisible(key string, widgetID string)
+          description: BindVisible binds visibility to a widget
+          parameters:
+            - name: key
+              type: string
+            - name: widgetID
+              type: string
+          exported: true
+        - name: SubmitForm
+          signature: SubmitForm(id string)
+          description: SubmitForm dispatches a form submit command for the form widget with the given ID.
+          parameters:
+            - name: id
+              type: string
+          exported: true
+        - name: ValidateForm
+          signature: ValidateForm(id string) bool
+          description: ValidateForm validates all descendants of a form widget by ID.
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: bool
+          exported: true
+        - name: ResetForm
+          signature: ResetForm(id string)
+          description: ResetForm resets form descendants to their initial XML values and dispatches onReset.
+          parameters:
+            - name: id
+              type: string
+          exported: true
+        - name: SetValidationState
+          signature: SetValidationState(id string, state ValidationState)
+          description: SetValidationState updates a widget's form validation state by ID.
+          parameters:
+            - name: id
+              type: string
+            - name: state
+              type: ValidationState
+          exported: true
+        - name: GetValidationState
+          signature: GetValidationState(id string) ValidationState
+          description: GetValidationState returns a widget's form validation state by ID.
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: ValidationState
+          exported: true
+        - name: GetValidationMessage
+          signature: GetValidationMessage(id string) string
+          description: GetValidationMessage returns the latest validation message for a widget by ID.
+          parameters:
+            - name: id
+              type: string
+          returns:
+            type: string
+          exported: true
+        - name: ScrollWidgetBy
+          signature: ScrollWidgetBy(id string, dx float64, dy float64)
+          description: ScrollWidgetBy scrolls an overflow scroll/auto widget or Scrollable by ID.
+          parameters:
+            - name: id
+              type: string
+            - name: dx
+              type: float64
+            - name: dy
+              type: float64
+          exported: true
+        - name: SetWidgetScroll
+          signature: SetWidgetScroll(id string, x float64, y float64)
+          description: SetWidgetScroll sets an overflow scroll/auto widget or Scrollable scroll offset by ID.
+          parameters:
+            - name: id
+              type: string
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+          exported: true
+        - name: RegisterCommand
+          signature: RegisterCommand(name string, handler func(...))
+          description: |-
+            RegisterCommand registers a named command handler for XML event attributes
+            such as onClick, onChange, and onSubmit.
+          parameters:
+            - name: name
+              type: string
+            - name: handler
+              type: func(...)
+          exported: true
+        - name: Focus
+          signature: Focus(id string)
+          description: Focus sets focus to a widget
+          parameters:
+            - name: id
+              type: string
+          exported: true
+        - name: FocusNext
+          signature: FocusNext(reverse bool) Widget
+          description: FocusNext moves focus to the next or previous focusable widget.
+          parameters:
+            - name: reverse
+              type: bool
+          returns:
+            type: Widget
+          exported: true
+        - name: Blur
+          signature: Blur()
+          description: Blur removes focus from the current focused widget
+          exported: true
+        - name: FocusedWidget
+          signature: FocusedWidget() Widget
+          description: FocusedWidget returns the currently focused widget
+          returns:
+            type: Widget
+          exported: true
+    properties:
+        - name: DefaultFont
+          type: '*text.GoTextFaceSource'
+          access: get; set
+          description: Font for text rendering (use text.Face interface)
+        - name: DefaultBoldFont
+          type: '*text.GoTextFaceSource'
+          access: get; set
+          description: For bold weight font
+        - name: DefaultFontFace
+          type: text.Face
+          access: get; set
+          description: For GoXFace (bitmap fonts)
+dependencies:
+    - target: ui.WidgetFactory
+      type: interface
+      injection: field
+    - target: ui.FontCache
+      type: interface
+      injection: field
+    - target: modalFocusState
+      type: class
+      injection: field
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

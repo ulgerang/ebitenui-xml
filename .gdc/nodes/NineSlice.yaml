@@ -1,0 +1,68 @@
+schema_version: "1.0"
+node:
+    id: NineSlice
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\nineslice.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewNineSlice(img *ebiten.Image, left int, right int, top int, bottom int) *NineSlice
+          parameters:
+            - name: img
+              type: '*ebiten.Image'
+            - name: left
+              type: int
+            - name: right
+              type: int
+            - name: top
+              type: int
+            - name: bottom
+              type: int
+          description: NewNineSlice creates a new 9-slice from an image with specified borders
+    methods:
+        - name: Draw
+          signature: Draw(screen *ebiten.Image, x float64, y float64, width float64, height float64, colorScale *ebiten.ColorScale)
+          description: Draw draws the 9-slice at the target rectangle
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+            - name: x
+              type: float64
+            - name: "y"
+              type: float64
+            - name: width
+              type: float64
+            - name: height
+              type: float64
+            - name: colorScale
+              type: '*ebiten.ColorScale'
+          exported: true
+        - name: MinSize
+          signature: MinSize() (int, int)
+          description: MinSize returns the minimum size this 9-slice can be drawn at
+          returns:
+            type: (int, int)
+          exported: true
+    properties:
+        - name: Left
+          type: int
+          access: get; set
+          description: Slice boundaries (in pixels from each edge)
+        - name: Right
+          type: int
+          access: get; set
+        - name: Top
+          type: int
+          access: get; set
+        - name: Bottom
+          type: int
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

@@ -1,0 +1,60 @@
+schema_version: "1.0"
+node:
+    id: ValidationRules
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\types.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: HasConstraints
+          signature: HasConstraints() bool
+          description: HasConstraints returns whether any validation rule is active.
+          returns:
+            type: bool
+          exported: true
+    properties:
+        - name: Required
+          type: bool
+          access: get; set
+        - name: Min
+          type: float64
+          access: get; set
+        - name: MinSet
+          type: bool
+          access: get; set
+        - name: Max
+          type: float64
+          access: get; set
+        - name: MaxSet
+          type: bool
+          access: get; set
+        - name: MinLength
+          type: int
+          access: get; set
+        - name: MinLengthSet
+          type: bool
+          access: get; set
+        - name: MaxLength
+          type: int
+          access: get; set
+        - name: MaxLengthSet
+          type: bool
+          access: get; set
+        - name: Pattern
+          type: string
+          access: get; set
+        - name: Type
+          type: string
+          access: get; set
+        - name: Message
+          type: string
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

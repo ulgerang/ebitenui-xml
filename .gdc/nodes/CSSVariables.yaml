@@ -1,0 +1,78 @@
+schema_version: "1.0"
+node:
+    id: CSSVariables
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\variables.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewCSSVariables() *CSSVariables
+          description: NewCSSVariables creates a new CSS variables container
+    methods:
+        - name: Set
+          signature: Set(name string, value string)
+          description: Set sets a CSS variable
+          parameters:
+            - name: name
+              type: string
+            - name: value
+              type: string
+          exported: true
+        - name: Get
+          signature: Get(name string) string
+          description: Get retrieves a CSS variable value
+          parameters:
+            - name: name
+              type: string
+          returns:
+            type: string
+          exported: true
+        - name: GetWithFallback
+          signature: GetWithFallback(name string, fallback string) string
+          description: GetWithFallback retrieves a CSS variable with a fallback value
+          parameters:
+            - name: name
+              type: string
+            - name: fallback
+              type: string
+          returns:
+            type: string
+          exported: true
+        - name: Delete
+          signature: Delete(name string)
+          description: Delete removes a CSS variable
+          parameters:
+            - name: name
+              type: string
+          exported: true
+        - name: Resolve
+          signature: Resolve(s string) string
+          description: Resolve resolves var() references in a string
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: string
+          exported: true
+        - name: Clone
+          signature: Clone() *CSSVariables
+          description: Clone creates a copy of the variables
+          returns:
+            type: '*CSSVariables'
+          exported: true
+        - name: Merge
+          signature: Merge(other *CSSVariables)
+          description: Merge merges another set of variables (other takes precedence)
+          parameters:
+            - name: other
+              type: '*CSSVariables'
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

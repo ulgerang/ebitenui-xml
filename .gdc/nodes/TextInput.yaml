@@ -1,0 +1,116 @@
+schema_version: "1.0"
+node:
+    id: TextInput
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\input.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewTextInput(id string) *TextInput
+          parameters:
+            - name: id
+              type: string
+          description: NewTextInput creates a new text input widget
+    methods:
+        - name: SetText
+          signature: SetText(s string)
+          description: SetText sets the text content
+          parameters:
+            - name: s
+              type: string
+          exported: true
+        - name: Focus
+          signature: Focus()
+          description: Focus gives focus to this input
+          exported: true
+        - name: Blur
+          signature: Blur()
+          description: Blur removes focus from this input
+          exported: true
+        - name: HandleInput
+          signature: HandleInput()
+          description: HandleInput processes keyboard input
+          exported: true
+        - name: HandlePointerDown
+          signature: HandlePointerDown(x float64, _ float64)
+          parameters:
+            - name: x
+              type: float64
+            - name: _
+              type: float64
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the text input
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+    properties:
+        - name: Text
+          type: string
+          access: get; set
+          description: Content
+        - name: Placeholder
+          type: string
+          access: get; set
+        - name: Focused
+          type: bool
+          access: get; set
+          description: State
+        - name: CursorPos
+          type: int
+          access: get; set
+        - name: SelectStart
+          type: int
+          access: get; set
+        - name: SelectEnd
+          type: int
+          access: get; set
+        - name: FontFace
+          type: text.Face
+          access: get; set
+          description: Visual
+        - name: PlaceholderColor
+          type: color.Color
+          access: get; set
+        - name: CursorColor
+          type: color.Color
+          access: get; set
+        - name: SelectionColor
+          type: color.Color
+          access: get; set
+        - name: MaxLength
+          type: int
+          access: get; set
+          description: Behavior
+        - name: ReadOnly
+          type: bool
+          access: get; set
+        - name: Password
+          type: bool
+          access: get; set
+          description: Mask characters
+        - name: OnChange
+          type: func(...)
+          access: get; set
+          description: Events
+        - name: OnSubmit
+          type: func(...)
+          access: get; set
+          description: Enter key
+        - name: OnFocus
+          type: func(...)
+          access: get; set
+        - name: OnBlur
+          type: func(...)
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

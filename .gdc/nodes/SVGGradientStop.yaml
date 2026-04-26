@@ -1,0 +1,29 @@
+schema_version: "1.0"
+node:
+    id: SVGGradientStop
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Offset
+          type: float64
+          access: get; set
+          description: 0-1 (parsed from "0%"-"100%" or 0.0-1.0)
+        - name: Color
+          type: color.Color
+          access: get; set
+          description: stop-color
+        - name: Opacity
+          type: float64
+          access: get; set
+          description: stop-opacity, default 1
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

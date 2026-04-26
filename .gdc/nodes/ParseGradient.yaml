@@ -1,0 +1,32 @@
+schema_version: "1.0"
+node:
+    id: ParseGradient
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\effects.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParseGradient
+          signature: ParseGradient(s string) *Gradient
+          description: |-
+            ParseGradient parses a CSS-like gradient string
+            e.g., "linear-gradient(90deg, #ff0000, #0000ff)"
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: '*Gradient'
+          exported: true
+dependencies:
+    - target: Gradient
+      type: class
+      injection: method
+metadata:
+    status: draft
+    origin: code_extracted
+    extracted_at: "2026-04-26"

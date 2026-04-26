@@ -1,0 +1,30 @@
+schema_version: "1.0"
+node:
+    id: PaddingAll
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\types.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: PaddingAll
+          signature: PaddingAll(v float64) Padding
+          description: All returns a Padding with all sides equal
+          parameters:
+            - name: v
+              type: float64
+          returns:
+            type: Padding
+          exported: true
+dependencies:
+    - target: Padding
+      type: class
+      injection: method
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

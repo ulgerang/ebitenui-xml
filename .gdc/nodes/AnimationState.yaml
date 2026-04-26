@@ -1,0 +1,71 @@
+schema_version: "1.0"
+node:
+    id: AnimationState
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\animation.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Start
+          signature: Start()
+          description: Start begins playing the animation
+          exported: true
+        - name: Pause
+          signature: Pause()
+          description: Pause pauses the animation
+          exported: true
+        - name: Resume
+          signature: Resume()
+          description: Resume resumes a paused animation
+          exported: true
+        - name: Stop
+          signature: Stop()
+          description: Stop stops the animation
+          exported: true
+        - name: Update
+          signature: Update() KeyframeProperties
+          description: Update updates the animation state and returns current properties
+          returns:
+            type: KeyframeProperties
+          exported: true
+    properties:
+        - name: Animation
+          type: '*Animation'
+          access: get; set
+        - name: StartTime
+          type: time.Time
+          access: get; set
+        - name: IsPlaying
+          type: bool
+          access: get; set
+        - name: IsPaused
+          type: bool
+          access: get; set
+        - name: PausedAt
+          type: time.Duration
+          access: get; set
+        - name: CurrentProps
+          type: KeyframeProperties
+          access: get; set
+        - name: Iteration
+          type: int
+          access: get; set
+        - name: OnComplete
+          type: func(...)
+          access: get; set
+dependencies:
+    - target: Animation
+      type: class
+      injection: field
+    - target: KeyframeProperties
+      type: class
+      injection: field
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

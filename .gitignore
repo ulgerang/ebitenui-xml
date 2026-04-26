@@ -45,6 +45,9 @@ package-lock.json
 .agent/
 .opencode/
 .opencode-data/
+.gdc/graph.db
+.gdc/*.db
+.gdc/*.db-*
 
 # Build artifacts
 /build/

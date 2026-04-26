@@ -1,0 +1,26 @@
+schema_version: "1.0"
+node:
+    id: LayoutWidget
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\layout.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: LayoutWidget
+          signature: LayoutWidget(root Widget)
+          description: |-
+            LayoutWidget is a convenience function to layout a widget tree
+            It uses a shared LayoutEngine instance
+          parameters:
+            - name: root
+              type: Widget
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

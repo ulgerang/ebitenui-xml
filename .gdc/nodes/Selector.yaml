@@ -1,0 +1,67 @@
+schema_version: "1.0"
+node:
+    id: Selector
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\selector.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: Matches
+          signature: Matches(widget Widget, parent Widget) bool
+          description: Matches checks if a widget matches this selector
+          parameters:
+            - name: widget
+              type: Widget
+            - name: parent
+              type: Widget
+          returns:
+            type: bool
+          exported: true
+        - name: CalculateSpecificity
+          signature: CalculateSpecificity() int
+          description: CalculateSpecificity calculates CSS specificity
+          returns:
+            type: int
+          exported: true
+    properties:
+        - name: Type
+          type: SelectorType
+          access: get; set
+        - name: Value
+          type: string
+          access: get; set
+        - name: Classes
+          type: '[]string'
+          access: get; set
+        - name: ID
+          type: string
+          access: get; set
+        - name: Tag
+          type: string
+          access: get; set
+        - name: Attribute
+          type: string
+          access: get; set
+        - name: AttrValue
+          type: string
+          access: get; set
+        - name: PseudoClass
+          type: string
+          access: get; set
+        - name: Combinator
+          type: string
+          access: get; set
+          description: '" " or ">" or "+" or "~"'
+        - name: Next
+          type: '*Selector'
+          access: get; set
+          description: For compound/chained selectors
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

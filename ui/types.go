@@ -138,7 +138,8 @@ type Style struct {
 	MaxWidth      float64 `json:"maxWidth"`
 	MaxWidthSet   bool    `json:"-"` // true if maxWidth was explicitly set (allows zero override)
 	MaxHeight     float64 `json:"maxHeight"`
-	MaxHeightSet  bool    `json:"-"` // true if maxHeight was explicitly set (allows zero override)
+	MaxHeightSet  bool    `json:"-"`         // true if maxHeight was explicitly set (allows zero override)
+	BoxSizing     string  `json:"boxSizing"` // content-box, border-box
 	FlexGrow      float64 `json:"flexGrow"`
 	FlexGrowSet   bool    `json:"-"` // true if flexGrow was explicitly set (allows zero override)
 	FlexShrink    float64 `json:"flexShrink"`
@@ -212,6 +213,7 @@ type Style struct {
 	TextShadow string  `json:"textShadow"` // "offsetX offsetY blur color"
 	Cursor     string  `json:"cursor"`     // pointer, default, etc.
 	Transition string  `json:"transition"` // "property duration easing"
+	Animation  string  `json:"animation"`  // "name duration easing iteration-count"
 
 	// Outline (separate from border)
 	Outline          string  `json:"outline"`       // "width style color"
@@ -267,7 +269,9 @@ type Style struct {
 
 	// Parsed values (internal)
 	parsedBoxShadow      *BoxShadow      `json:"-"`
+	parsedBoxShadows     []*BoxShadow    `json:"-"`
 	parsedTextShadow     *TextShadow     `json:"-"`
+	parsedTextShadows    []*TextShadow   `json:"-"`
 	parsedOutline        *Outline        `json:"-"`
 	parsedTransitions    []Transition    `json:"-"`
 	parsed9Slice         *NineSlice      `json:"-"`
@@ -275,6 +279,7 @@ type Style struct {
 	parsedFilter         *Filter         `json:"-"`
 	parsedBackdropFilter *BackdropFilter `json:"-"`
 	parsedTransform      *Transform      `json:"-"`
+	parsedAnimation      *Animation      `json:"-"`
 }
 
 // Clone creates a deep copy of the style
@@ -346,6 +351,9 @@ func (s *Style) Merge(other *Style) {
 	if other.MaxHeightSet || other.MaxHeight != 0 {
 		s.MaxHeight = other.MaxHeight
 		s.MaxHeightSet = other.MaxHeightSet
+	}
+	if other.BoxSizing != "" {
+		s.BoxSizing = other.BoxSizing
 	}
 	if other.FlexGrowSet || other.FlexGrow != 0 {
 		s.FlexGrow = other.FlexGrow
@@ -500,10 +508,12 @@ func (s *Style) Merge(other *Style) {
 	if other.BoxShadow != "" {
 		s.BoxShadow = other.BoxShadow
 		s.parsedBoxShadow = other.parsedBoxShadow
+		s.parsedBoxShadows = other.parsedBoxShadows
 	}
 	if other.TextShadow != "" {
 		s.TextShadow = other.TextShadow
 		s.parsedTextShadow = other.parsedTextShadow
+		s.parsedTextShadows = other.parsedTextShadows
 	}
 	if other.Outline != "" {
 		s.Outline = other.Outline
@@ -516,6 +526,10 @@ func (s *Style) Merge(other *Style) {
 	if other.Transition != "" {
 		s.Transition = other.Transition
 		s.parsedTransitions = other.parsedTransitions
+	}
+	if other.Animation != "" {
+		s.Animation = other.Animation
+		s.parsedAnimation = other.parsedAnimation
 	}
 
 	// Filter
@@ -637,6 +651,36 @@ const (
 	StateDisabled
 	StateFocused
 )
+
+// ValidationState represents form validation status for form-capable widgets.
+type ValidationState string
+
+const (
+	ValidationNone    ValidationState = ""
+	ValidationValid   ValidationState = "valid"
+	ValidationInvalid ValidationState = "invalid"
+)
+
+// ValidationRules stores HTML-like form validation constraints for a widget.
+type ValidationRules struct {
+	Required     bool
+	Min          float64
+	MinSet       bool
+	Max          float64
+	MaxSet       bool
+	MinLength    int
+	MinLengthSet bool
+	MaxLength    int
+	MaxLengthSet bool
+	Pattern      string
+	Type         string
+	Message      string
+}
+
+// HasConstraints returns whether any validation rule is active.
+func (r ValidationRules) HasConstraints() bool {
+	return r.Required || r.MinSet || r.MaxSet || r.MinLengthSet || r.MaxLengthSet || r.Pattern != "" || r.Type != ""
+}
 
 // Widget is the base interface for all UI elements
 type Widget interface {

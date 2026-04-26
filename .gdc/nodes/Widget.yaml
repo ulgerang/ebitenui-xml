@@ -1,0 +1,169 @@
+schema_version: "1.0"
+node:
+    id: Widget
+    type: interface
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\types.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ID
+          signature: ID() string
+          description: Identification
+          returns:
+            type: string
+          exported: true
+        - name: Type
+          signature: Type() string
+          returns:
+            type: string
+          exported: true
+        - name: Classes
+          signature: Classes() []string
+          returns:
+            type: '[]string'
+          exported: true
+        - name: AddClass
+          signature: AddClass(class string)
+          parameters:
+            - name: class
+              type: string
+          exported: true
+        - name: RemoveClass
+          signature: RemoveClass(class string)
+          parameters:
+            - name: class
+              type: string
+          exported: true
+        - name: HasClass
+          signature: HasClass(class string) bool
+          parameters:
+            - name: class
+              type: string
+          returns:
+            type: bool
+          exported: true
+        - name: Parent
+          signature: Parent() Widget
+          description: Tree structure
+          returns:
+            type: Widget
+          exported: true
+        - name: SetParent
+          signature: SetParent(w Widget)
+          parameters:
+            - name: w
+              type: Widget
+          exported: true
+        - name: Children
+          signature: Children() []Widget
+          returns:
+            type: '[]Widget'
+          exported: true
+        - name: AddChild
+          signature: AddChild(w Widget)
+          parameters:
+            - name: w
+              type: Widget
+          exported: true
+        - name: RemoveChild
+          signature: RemoveChild(w Widget)
+          parameters:
+            - name: w
+              type: Widget
+          exported: true
+        - name: ComputedRect
+          signature: ComputedRect() Rect
+          description: Layout
+          returns:
+            type: Rect
+          exported: true
+        - name: SetComputedRect
+          signature: SetComputedRect(r Rect)
+          parameters:
+            - name: r
+              type: Rect
+          exported: true
+        - name: Style
+          signature: Style() *Style
+          returns:
+            type: '*Style'
+          exported: true
+        - name: SetStyle
+          signature: SetStyle(s *Style)
+          parameters:
+            - name: s
+              type: '*Style'
+          exported: true
+        - name: IntrinsicWidth
+          signature: IntrinsicWidth() float64
+          returns:
+            type: float64
+          exported: true
+        - name: IntrinsicHeight
+          signature: IntrinsicHeight() float64
+          returns:
+            type: float64
+          exported: true
+        - name: State
+          signature: State() WidgetState
+          description: State
+          returns:
+            type: WidgetState
+          exported: true
+        - name: SetState
+          signature: SetState(s WidgetState)
+          parameters:
+            - name: s
+              type: WidgetState
+          exported: true
+        - name: Visible
+          signature: Visible() bool
+          returns:
+            type: bool
+          exported: true
+        - name: SetVisible
+          signature: SetVisible(v bool)
+          parameters:
+            - name: v
+              type: bool
+          exported: true
+        - name: Enabled
+          signature: Enabled() bool
+          returns:
+            type: bool
+          exported: true
+        - name: SetEnabled
+          signature: SetEnabled(e bool)
+          parameters:
+            - name: e
+              type: bool
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Rendering
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+        - name: OnClick
+          signature: OnClick(handler func(...))
+          description: Events
+          parameters:
+            - name: handler
+              type: func(...)
+          exported: true
+        - name: OnHover
+          signature: OnHover(handler func(...))
+          parameters:
+            - name: handler
+              type: func(...)
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

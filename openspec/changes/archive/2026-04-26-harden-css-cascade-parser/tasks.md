@@ -1,0 +1,6 @@
+- [x] Add quote/parenthesis-aware CSS declaration splitting.
+- [x] Add quote/parenthesis-aware selector-list splitting.
+- [x] Support declaration-level `!important` cascade over normal declarations.
+- [x] Route supported terminal pseudo-class rules to widget state styles.
+- [x] Add regression tests for important, pseudo, and protected punctuation.
+- [x] Update docs/status and validate OpenSpec/GDC/build checks.

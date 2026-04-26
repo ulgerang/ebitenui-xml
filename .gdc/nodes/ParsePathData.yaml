@@ -1,0 +1,28 @@
+schema_version: "1.0"
+node:
+    id: ParsePathData
+    type: function
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\svg_path.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    methods:
+        - name: ParsePathData
+          signature: ParsePathData(d string) *vector.Path
+          description: |-
+            ParsePathData parses SVG path data string into a vector.Path.
+            Supports: M, L, H, V, C, S, Q, T, A, Z (and lowercase relative versions)
+          parameters:
+            - name: d
+              type: string
+          returns:
+            type: '*vector.Path'
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

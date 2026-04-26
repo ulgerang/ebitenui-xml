@@ -1,0 +1,71 @@
+schema_version: "1.0"
+node:
+    id: TextWrapper
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\textwrap.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewTextWrapper(face text.Face) *TextWrapper
+          parameters:
+            - name: face
+              type: text.Face
+          description: NewTextWrapper creates a new text wrapper
+    methods:
+        - name: WrapText
+          signature: WrapText(s string, maxWidth float64) []string
+          description: WrapText wraps text to fit within maxWidth
+          parameters:
+            - name: s
+              type: string
+            - name: maxWidth
+              type: float64
+          returns:
+            type: '[]string'
+          exported: true
+        - name: MeasureText
+          signature: MeasureText(s string) (width float64, height float64)
+          description: MeasureText measures text dimensions
+          parameters:
+            - name: s
+              type: string
+          returns:
+            type: float64
+          exported: true
+        - name: MeasureLines
+          signature: MeasureLines(lines []string, lineHeight float64) (width float64, height float64)
+          description: MeasureLines measures wrapped text dimensions
+          parameters:
+            - name: lines
+              type: '[]string'
+            - name: lineHeight
+              type: float64
+          returns:
+            type: float64
+          exported: true
+        - name: TruncateWithEllipsis
+          signature: TruncateWithEllipsis(s string, maxWidth float64) string
+          description: TruncateWithEllipsis truncates text to fit maxWidth, adding ellipsis
+          parameters:
+            - name: s
+              type: string
+            - name: maxWidth
+              type: float64
+          returns:
+            type: string
+          exported: true
+        - name: LineHeight
+          signature: LineHeight() float64
+          description: LineHeight returns a reasonable line height for the font
+          returns:
+            type: float64
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

@@ -1,0 +1,59 @@
+schema_version: "1.0"
+node:
+    id: ListBinding
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\binding.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewListBinding() *unknown
+          description: NewListBinding creates a new list binding
+    methods:
+        - name: Add
+          signature: Add(item T)
+          description: Add adds an item to the list
+          parameters:
+            - name: item
+              type: T
+          exported: true
+        - name: Remove
+          signature: Remove(index int)
+          description: Remove removes an item at index
+          parameters:
+            - name: index
+              type: int
+          exported: true
+        - name: Clear
+          signature: Clear()
+          description: Clear removes all items
+          exported: true
+        - name: Get
+          signature: Get() []T
+          description: Get returns all items
+          returns:
+            type: '[]T'
+          exported: true
+        - name: Len
+          signature: Len() int
+          description: Len returns the number of items
+          returns:
+            type: int
+          exported: true
+        - name: Subscribe
+          signature: Subscribe(listener func(...)) func(...)
+          description: Subscribe subscribes to list changes
+          parameters:
+            - name: listener
+              type: func(...)
+          returns:
+            type: func(...)
+          exported: true
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

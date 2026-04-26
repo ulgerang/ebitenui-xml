@@ -1,0 +1,74 @@
+schema_version: "1.0"
+node:
+    id: Modal
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\widgets_extended.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    constructors:
+        - signature: NewModal(id string, title string) *Modal
+          parameters:
+            - name: id
+              type: string
+            - name: title
+              type: string
+          description: NewModal creates a new modal dialog
+    methods:
+        - name: Open
+          signature: Open()
+          description: Open shows the modal
+          exported: true
+        - name: Close
+          signature: Close()
+          description: Close hides the modal
+          exported: true
+        - name: AddButton
+          signature: AddButton(btn *Button)
+          description: AddButton adds a button to the modal
+          parameters:
+            - name: btn
+              type: '*Button'
+          exported: true
+        - name: Draw
+          signature: Draw(screen *ebiten.Image)
+          description: Draw renders the modal
+          parameters:
+            - name: screen
+              type: '*ebiten.Image'
+          exported: true
+    properties:
+        - name: Title
+          type: string
+          access: get; set
+        - name: Content
+          type: string
+          access: get; set
+        - name: FontFace
+          type: text.Face
+          access: get; set
+        - name: TitleFontFace
+          type: text.Face
+          access: get; set
+        - name: IsOpen
+          type: bool
+          access: get; set
+        - name: OnClose
+          type: func(...)
+          access: get; set
+        - name: Buttons
+          type: '[]*Button'
+          access: get; set
+          description: Buttons
+        - name: OverlayColor
+          type: color.Color
+          access: get; set
+          description: Overlay
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"

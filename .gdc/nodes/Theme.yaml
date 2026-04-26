@@ -1,0 +1,23 @@
+schema_version: "1.0"
+node:
+    id: Theme
+    type: class
+    namespace: ui
+    file_path: D:\works\26\ebitenui-xml\ui\types.go
+language_spec:
+    language: go
+    package: ui
+responsibility:
+    summary: ""
+interface:
+    properties:
+        - name: Name
+          type: string
+          access: get; set
+        - name: Styles
+          type: map[string]*Style
+          access: get; set
+metadata:
+    status: ""
+    origin: code_extracted
+    extracted_at: "2026-04-26"
